@@ -5,7 +5,7 @@
     default-src 'self';
     img-src 'self' data:;
     style-src 'self' 'unsafe-inline';
-    script-src 'self' 'unsafe-inline';;
+    script-src 'self' 'unsafe-inline';
     connect-src 'self';
     frame-ancestors 'none';
     ">
@@ -17,14 +17,15 @@
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
 </head>
 <body>
-<div class="role-indicator" id="roleIndicator" style="background: white; color: rgb(51, 51, 51);">Guest</div>
+
+<div class="role-indicator" id="roleIndicator" onclick="toggleAdminPanel()" style="position: fixed; top: 20px; right: 20px; background: white; color: #333; padding: 6px 14px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000;">Guest</div>
 
 <div class="hero">
     <button class="staff-login-btn" onclick="openModal('loginModal')">Staff Login</button>
     <img src="data:image/jpeg;base64,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" alt="BOCES Barry Tech Logo" style="max-width: 300px; height: auto; margin-bottom: 1rem;">
     <h2>BarryTech Repair Lab</h2>
     <p style="font-size: 1.2rem; margin-bottom: 2rem;">"We Break the Price, Not Your Device"</p>
-    <button class="btn btn-primary" onclick="scrollToGroups()">Walk-In or Optional Repair Form</button>
+    <button class="btn btn-primary" onclick="scrollToGroups()">Click to see our techs</button>
     <p style="font-size: 1rem; margin-bottom: 5rem;">*Students can walk into our classroom and work with us from there, the repair form is optional*</p>
 </div>
 
@@ -65,14 +66,14 @@
 </div>
 
 <div class="section stats">
-    <h2>Total Repairs Completed</h2>
+    <h2 style="color: white">Total Repairs Completed</h2>
     <div class="stats-number" id="totalRepairs">3</div>
     <p style="font-size: 1.2rem;">Devices successfully repaired and counting!</p>
 </div>
 
 <div class="section groups-section">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h2 style="margin-bottom: 0;">Our Tech Teams</h2>
+        <h2 style="margin-bottom: 0;">Our Techs</h2>
         <button class="btn btn-primary" style="background: #003d7a; color: white;" onclick="openModal('appointmentModal'); selectedGroupId = null;">Optional Repair Form</button>
     </div>
     <div class="groups-container" id="groupsContainer">
@@ -160,7 +161,7 @@
 </div>
 
 <!-- Admin Panel -->
-<div class="admin-panel" id="adminPanel" style="display: none;">
+<div class="admin-panel" id="adminPanel" style="display: none; position: fixed; top: 60px; right: 20px;">
     <h3 style="margin-bottom: 1rem;">Admin Panel</h3>
     <button class="btn btn-primary" onclick="openModal('createGroupModal')">Create Group</button>
     <button class="btn btn-primary" onclick="openModal('updateStatsModal')">Update Stats</button>
@@ -194,7 +195,7 @@
         <span class="close-btn" onclick="closeModal('updateStatsModal')">×</span>
         <h2>Update Statistics</h2>
         <div class="form-group">
-            <label>Total Repairs Completed</label>
+            <label> Total Repairs Completed</label>
             <input type="number" id="totalRepairsInput" min="0" placeholder="Auto-calculated: 0">
         </div>
         <div id="groupStatsContainer">
@@ -225,4 +226,15 @@
     </div>
 </div>
 
+</script>
+<script>
+function toggleAdminPanel() {
+    const role = document.getElementById("roleIndicator").textContent.trim();
+    const panel = document.getElementById("adminPanel");
+
+    if (role === "Admin") {
+        panel.style.display = panel.style.display === "block" ? "none" : "block";
+    }
+}
+</script>
 </body></html>

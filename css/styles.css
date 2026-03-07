@@ -9,6 +9,17 @@ body {
     line-height: 1.6;
     color: #333;
 }
+.admin-panel {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    background: white;          /* makes the box visible */
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    width: 220px;
+    z-index: 1000;
+}
 
 /* ================= HERO ================= */
 

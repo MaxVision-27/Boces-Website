@@ -446,5 +446,14 @@ window.onclick = function(event) {
     }
 }
 
+function toggleAdminPanel() {
+    const role = document.getElementById("roleIndicator").textContent.trim();
+    const panel = document.getElementById("adminPanel");
+
+    if (role === "Admin") {
+        panel.style.display = panel.style.display === "block" ? "none" : "block";
+    }
+}
+
 loadData();
 updateRoleDisplay();

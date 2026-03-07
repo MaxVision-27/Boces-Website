@@ -1,0 +1,4 @@
+1. /etc/nginx/sites-available/
+2. /etc/nginx/sites-available/default .or. /etc/nginx/sites-available/yourdomain
+3. open it
+4.sudo nano /etc/nginx/sites-available/default (or replace default with your site file)
