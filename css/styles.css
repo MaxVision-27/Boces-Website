@@ -1,3 +1,4 @@
+
 * {
     margin: 0;
     padding: 0;
@@ -9,19 +10,29 @@ body {
     line-height: 1.6;
     color: #333;
 }
-.admin-panel {
-    position: fixed;
-    top: 60px;
-    right: 20px;
-    background: white;          /* makes the box visible */
-    padding: 1rem;
-    border-radius: 10px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
-    width: 220px;
-    z-index: 1000;
+
+
+/* =========================================================
+   LAYOUT SECTIONS
+   ========================================================= */
+
+.section {
+    padding: 4rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
 }
 
-/* ================= HERO ================= */
+.section h2 {
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: #001f3f;
+}
+
+
+/* =========================================================
+   HERO SECTION
+   ========================================================= */
 
 .hero {
     background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
@@ -55,7 +66,10 @@ body {
     justify-content: center;
 }
 
-/* ================= BUTTONS ================= */
+
+/* =========================================================
+   BUTTONS
+   ========================================================= */
 
 .btn {
     padding: 1rem 2rem;
@@ -88,22 +102,10 @@ body {
     color: #001f3f;
 }
 
-/* ================= SECTIONS ================= */
 
-.section {
-    padding: 4rem 2rem;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.section h2 {
-    font-size: 2.5rem;
-    margin-bottom: 2rem;
-    text-align: center;
-    color: #001f3f;
-}
-
-/* ================= INFO GRID ================= */
+/* =========================================================
+   INFO GRID / CARDS
+   ========================================================= */
 
 .info-grid {
     display: grid;
@@ -124,7 +126,10 @@ body {
     margin-bottom: 1rem;
 }
 
-/* ================= STATS ================= */
+
+/* =========================================================
+   STATS SECTION
+   ========================================================= */
 
 .stats {
     background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
@@ -138,7 +143,10 @@ body {
     margin: 1rem 0;
 }
 
-/* ================= GROUP SECTION ================= */
+
+/* =========================================================
+   GROUP / TEAM SECTION
+   ========================================================= */
 
 .groups-section {
     background: #f8f9fa;
@@ -163,7 +171,10 @@ body {
     margin-bottom: 1rem;
 }
 
-/* ================= BADGES ================= */
+
+/* =========================================================
+   BADGES
+   ========================================================= */
 
 .group-badge {
     display: inline-block;
@@ -184,7 +195,10 @@ body {
     color: white;
 }
 
-/* ================= PROJECT GALLERY ================= */
+
+/* =========================================================
+   PROJECT GALLERY
+   ========================================================= */
 
 .project-gallery {
     display: grid;
@@ -201,7 +215,10 @@ body {
     background: #e9ecef;
 }
 
-/* ================= MODALS ================= */
+
+/* =========================================================
+   MODALS
+   ========================================================= */
 
 .modal {
     display: none;
@@ -232,7 +249,21 @@ body {
     font-size: 1.5rem;
 }
 
-/* ================= FORMS ================= */
+.close-btn {
+    float: right;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #999;
+}
+
+.close-btn:hover {
+    color: #333;
+}
+
+
+/* =========================================================
+   FORMS
+   ========================================================= */
 
 .form-group {
     margin-bottom: 1rem;
@@ -254,20 +285,27 @@ body {
     font-size: 1rem;
 }
 
-/* ================= CLOSE BUTTON ================= */
 
-.close-btn {
-    float: right;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: #999;
+/* =========================================================
+   ADMIN PANEL
+   ========================================================= */
+
+.admin-panel {
+    position: fixed;
+    top: 60px;
+    right: 20px;
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    width: 220px;
+    z-index: 1000;
 }
 
-.close-btn:hover {
-    color: #333;
-}
 
-/* ================= STAFF LOGIN BUTTON ================= */
+/* =========================================================
+   STAFF LOGIN BUTTON
+   ========================================================= */
 
 .staff-login-btn {
     position: absolute;
@@ -290,7 +328,10 @@ body {
     border-color: rgba(255, 255, 255, 0.5);
 }
 
-/* ================= UTILITIES ================= */
+
+/* =========================================================
+   UTILITIES
+   ========================================================= */
 
 .hidden {
     display: none;

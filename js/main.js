@@ -2,6 +2,7 @@ let currentRole = null;
 let groups = [];
 let totalRepairs = 0;
 let appointments = [];
+let reviews = [];
 let selectedGroupId = null;
 
 const passwords = {
@@ -16,6 +17,7 @@ function loadData() {
         groups = data.groups || [];
         totalRepairs = data.totalRepairs || 0;
         appointments = data.appointments || [];
+        reviews = data.reviews || [];
     }
     calculateTotalRepairs();
     updateDisplay();
@@ -25,7 +27,8 @@ function saveData() {
     localStorage.setItem('bocesData', JSON.stringify({
         groups,
         totalRepairs,
-        appointments
+        appointments,
+        reviews
     }));
 }
 
@@ -261,6 +264,7 @@ function updateDisplay() {
         }
                         </div>
                         ${currentRole === 'admin' ? `
+                        <input type="file" accept="image/*" onchange="uploadGroupImage(${group.id}, this)" style="margin-top:8px; margin-bottom:6px;">
                         <button class="btn-delete-group" onclick="deleteGroup(${group.id})">
                             Delete Group
                         </button>
@@ -416,7 +420,7 @@ function deleteAppointment(apptId) {
 
 function viewGroupRepairs(groupId) {
     const group = groups.find(g => g.id === groupId);
-    const groupAppts = appointments.filter(a => a.groupId === groupId && a.status !== 'completed');
+    const groupAppts = appointments.filter(a => a.groupId === groupId && a.status === 'assigned');
 
     document.getElementById('groupRepairsTitle').textContent = `${group.name} - Assigned Repairs`;
 
@@ -446,6 +450,29 @@ window.onclick = function(event) {
     }
 }
 
+function uploadGroupImage(groupId, input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const group = groups.find(g => g.id === groupId);
+        if (!group.projects) group.projects = [];
+
+        group.projects.unshift(e.target.result); // add image to beginning
+
+        // Limit stored images to 4
+        if (group.projects.length > 4) {
+            group.projects = group.projects.slice(0, 4);
+        }
+
+        saveData();
+        updateDisplay();
+    };
+
+    reader.readAsDataURL(file);
+}
+
 function toggleAdminPanel() {
     const role = document.getElementById("roleIndicator").textContent.trim();
     const panel = document.getElementById("adminPanel");
@@ -453,6 +480,41 @@ function toggleAdminPanel() {
     if (role === "Admin") {
         panel.style.display = panel.style.display === "block" ? "none" : "block";
     }
+}
+
+function showTopic(id) {
+
+    document.querySelectorAll(".about-topic").forEach(section => {
+        section.classList.remove("active");
+    });
+
+    const target = document.getElementById(id);
+    target.classList.add("active");
+}
+
+function submitReview(){
+
+    const name = document.getElementById("reviewName").value;
+    const rating = document.getElementById("reviewRating").value;
+    const comment = document.getElementById("reviewComment").value;
+
+    if(!name || !comment){
+        alert("Please fill out all fields");
+        return;
+    }
+
+    reviews.push({
+        name,
+        rating,
+        comment
+    });
+
+    saveData();
+
+    closeModal("reviewModal");
+
+    alert("Thank you for your feedback!");
+
 }
 
 loadData();
