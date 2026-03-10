@@ -5,9 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b8742a50-22fb-41d1-b316-799846e81048" name="Changes" comment="init commit">
-      <change beforePath="$PROJECT_DIR$/css/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/css/styles.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/index.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/js/main.js" beforeDir="false" afterPath="$PROJECT_DIR$/js/main.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/package.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,7 +43,7 @@
     <setting file="file://$PROJECT_DIR$/index.html" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="QODANA_PROBLEMS_VIEW_TAB" />
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 3
@@ -78,6 +79,7 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/.idea" />
       <recent name="$PROJECT_DIR$" />
       <recent name="$PROJECT_DIR$/css" />
     </key>
@@ -104,7 +106,7 @@
       <workItem from="1772808432989" duration="216000" />
       <workItem from="1772808936115" duration="141000" />
       <workItem from="1772809402573" duration="193000" />
-      <workItem from="1772809598114" duration="13196000" />
+      <workItem from="1772809598114" duration="18471000" />
     </task>
     <task id="LOCAL-00001" summary="init commit">
       <option name="closed" value="true" />
@@ -138,7 +140,15 @@
       <option name="project" value="LOCAL" />
       <updated>1772841781238</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="init commit">
+      <option name="closed" value="true" />
+      <created>1772861212264</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1772861212264</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -158,5 +168,17 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="init commit" />
     <option name="LAST_COMMIT_MESSAGE" value="init commit" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="javascript">
+          <url>file://$PROJECT_DIR$/js/main.js</url>
+          <line>519</line>
+          <properties lambdaOrdinal="-1" />
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>

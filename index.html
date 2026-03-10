@@ -55,46 +55,53 @@
 
 <div class="section">
     <h2>About Us</h2>
-    <div class="about-topics" style="display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:2rem;">
-        <button class="btn btn-primary" onclick="showTopic('repairs')">Expert Repairs</button>
-        <button class="btn btn-primary" onclick="showTopic('pricing')">Pricing</button>
-        <button class="btn btn-primary" onclick="showTopic('time')">Repair Time</button>
-        <button class="btn btn-primary" onclick="showTopic('workflow')">Workflow</button>
-        <button class="btn btn-primary" onclick="showTopic('location')">Location</button>
-        <button class="btn btn-primary" onclick="showTopic('services')">Services</button>
-    </div>
 
-    <div class="about-content" style="max-width:800px; margin:auto; text-align:center;">
+    <div class="info-grid">
 
-        <div class="about-topic active" id="repairs">
+        <div class="info-card">
             <h3>Expert Repairs</h3>
             <p>Our skilled students repair computers, laptops, tablets, and smartphones with professional-grade tools and techniques.</p>
         </div>
 
-        <div class="about-topic" id="pricing" >
+        <div class="info-card">
             <h3>How Pricing Works</h3>
             <p>Our labor is free, but if any parts are damaged the customer will need to order the replacement parts.</p>
             <p>Examples: Phone Screen ($40–$125), Battery ($20–$60), RAM ($20–$80), Laptop Screen ($80–$200)</p>
         </div>
 
-        <div class="about-topic" id="time" >
+        <div class="info-card">
             <h3>Repair Time</h3>
             <p>Most repairs are completed within 2–7 school days. If parts need to be ordered, repair times may vary.</p>
         </div>
 
-        <div class="about-topic" id="workflow" >
+        <div class="info-card">
             <h3>Ticketing & Workflow System</h3>
             <p>Each repair is logged into a ticketing system that tracks device details, reported issues, assigned technicians, repair status, and completion data.</p>
         </div>
 
-        <div class="about-topic" id="location" >
+        <div class="info-card">
             <h3>Where We're Located</h3>
             <p>Our classroom (C220) is located on the right side of the building next to Joe's Store.</p>
         </div>
 
-        <div class="about-topic" id="services" >
+        <div class="info-card">
             <h3>Our Services</h3>
             <p>We repair computers, laptops, tablets, and smartphones, and also provide data recovery and software installation services.</p>
+        </div>
+
+        <div class="info-card">
+            <h3>AI Engineers</h3>
+            <p>Artificial Intelligence is becoming a huge part of modern technology.
+                Our team can help explain how AI works, how tools like ChatGPT generate responses, and how machine learning systems learn from data.
+                Whether you’re curious about AI or want to start learning about it, we’re happy to help.
+            </p>
+        </div>
+
+        <div class = "info-card">
+            <h3> Warranty Education</h3>
+            <p>We help customers understand how device warranties work and what they cover.
+                Our team can explain when a repair may affect a warranty and help you determine the best repair option for your device.
+            </p>
         </div>
 
     </div>
@@ -125,6 +132,11 @@
                 style="background:#003d7a; color:white;"
                 onclick="openModal('appointmentModal'); selectedGroupId = null;">
             Optional Repair Form
+        </button>
+        <button class="btn btn-primary"
+                style="background:#2e7d32; color:white;"
+                onclick="openModal('reviewModal')">
+            Leave a Review
         </button>
 
     </div>
@@ -308,46 +320,4 @@
 
 </div>
 
-<script>
-function toggleAdminPanel() {
-    const role = document.getElementById("roleIndicator").textContent.trim();
-    const panel = document.getElementById("adminPanel");
-
-    if (role === "Admin") {
-        panel.style.display = panel.style.display === "block" ? "none" : "block";
-    }
-}
-
-function showTopic(id) {
-    const sections = document.querySelectorAll(".about-topic");
-
-    sections.forEach(section => {
-        section.style.display = "none";
-        section.classList.remove("active");
-    });
-
-    const target = document.getElementById(id);
-    target.style.display = "block";
-    target.classList.add("active");
-}
-
-function filterTeams() {
-    const filter = document.getElementById("teamFilter").value;
-    const cards = document.querySelectorAll(".group-card");
-
-    cards.forEach(card => {
-        const badge = card.querySelector(".group-badge");
-
-        if (!badge) return;
-
-        const period = badge.textContent.includes("AM") ? "AM" : "PM";
-
-        if (filter === "all" || filter === period) {
-            card.style.display = "block";
-        } else {
-            card.style.display = "none";
-        }
-    });
-}
-</script>
 </body></html>

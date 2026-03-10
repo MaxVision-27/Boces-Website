@@ -517,5 +517,97 @@ function submitReview(){
 
 }
 
+
+    function toggleAdminPanel() {
+    const role = document.getElementById("roleIndicator").textContent.trim();
+    const panel = document.getElementById("adminPanel");
+
+    if (role === "Admin") {
+    panel.style.display = panel.style.display === "block" ? "none" : "block";
+}
+}
+
+    function showTopic(id) {
+    const sections = document.querySelectorAll(".about-topic");
+
+    sections.forEach(section => {
+    section.style.display = "none";
+    section.classList.remove("active");
+});
+
+    const target = document.getElementById(id);
+    target.style.display = "block";
+    target.classList.add("active");
+}
+
+    function filterTeams() {
+    const filter = document.getElementById("teamFilter").value;
+    const cards = document.querySelectorAll(".group-card");
+
+    cards.forEach(card => {
+    const badge = card.querySelector(".group-badge");
+
+    if (!badge) return;
+
+    const period = badge.textContent.includes("AM") ? "AM" : "PM";
+
+    if (filter === "all" || filter === period) {
+    card.style.display = "block";
+} else {
+    card.style.display = "none";
+}
+});
+}
+
+    function submitReview() {
+    const name = document.getElementById("reviewName").value.trim();
+    const rating = document.getElementById("reviewRating").value;
+    const comment = document.getElementById("reviewComment").value.trim();
+
+    if (!name || !comment) {
+    alert("Please fill out your name and comment.");
+    return;
+}
+
+    const review = { name, rating, comment };
+
+    // Load existing reviews
+    const stored = JSON.parse(localStorage.getItem("customerReviews")) || [];
+    stored.push(review);
+
+    // Save reviews
+    localStorage.setItem("customerReviews", JSON.stringify(stored));
+
+    // Clear inputs
+    document.getElementById("reviewName").value = "";
+    document.getElementById("reviewComment").value = "";
+
+    closeModal('reviewModal');
+
+    renderReviews();
+}
+
+    function renderReviews() {
+    const container = document.getElementById("reviewsContainer");
+    const stored = JSON.parse(localStorage.getItem("customerReviews")) || [];
+
+    if (stored.length === 0) {
+    container.innerHTML = "<p style='text-align:center;color:#777;'>No reviews yet.</p>";
+    return;
+}
+
+    container.innerHTML = stored.map(r => `
+        <div class="info-card">
+            <h3>${"⭐".repeat(r.rating)}</h3>
+            <p>"${r.comment}"</p>
+            <strong>— ${r.name}</strong>
+        </div>
+    `).join("");
+}
+
+    // Load reviews when page loads
+    document.addEventListener("DOMContentLoaded", renderReviews);
+
+
 loadData();
 updateRoleDisplay();
