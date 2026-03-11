@@ -1,0 +1,1278 @@
+
+
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+  <style>
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+    }
+
+
+    /* =========================================================
+       LAYOUT SECTIONS
+       ========================================================= */
+
+    .section {
+      padding: 4rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section h2 {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      color: #001f3f;
+    }
+
+
+    /* =========================================================
+       HERO SECTION
+       ========================================================= */
+
+    .hero {
+      background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .hero h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      font-weight: 300;
+    }
+
+    .hero h2 {
+      font-size: 3rem;
+      margin-bottom: 2rem;
+      font-weight: 700;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+
+    /* =========================================================
+       BUTTONS
+       ========================================================= */
+
+    .btn {
+      padding: 1rem 2rem;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      background: white;
+      color: #001f3f;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: white;
+      border: 2px solid rgb(0, 11, 34);
+    }
+
+    .btn-secondary:hover {
+      background: white;
+      color: #001f3f;
+    }
+
+
+    /* =========================================================
+       INFO GRID / CARDS
+       ========================================================= */
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .info-card {
+      padding: 2rem;
+      background: #f8f9fa;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .info-card h3 {
+      color: #001f3f;
+      margin-bottom: 1rem;
+    }
+
+
+    /* =========================================================
+       STATS SECTION
+       ========================================================= */
+
+    .stats {
+      background: linear-gradient(135deg, #001f3f 0%, #003366 100%);
+      color: white;
+      text-align: center;
+    }
+
+    .stats-number {
+      font-size: 4rem;
+      font-weight: 700;
+      margin: 1rem 0;
+    }
+
+
+    /* =========================================================
+       GROUP / TEAM SECTION
+       ========================================================= */
+
+    .groups-section {
+      background: #f8f9fa;
+    }
+
+    .groups-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .group-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .group-card h3 {
+      color: #001f3f;
+      margin-bottom: 1rem;
+    }
+
+
+    /* =========================================================
+       BADGES
+       ========================================================= */
+
+    .group-badge {
+      display: inline-block;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .badge-am {
+      background: #ffd700;
+      color: #333;
+    }
+
+    .badge-pm {
+      background: #4169e1;
+      color: white;
+    }
+
+
+    /* =========================================================
+       PROJECT GALLERY
+       ========================================================= */
+
+    .project-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin: 1rem 0;
+    }
+
+    .project-img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+      border-radius: 5px;
+      background: #e9ecef;
+    }
+
+
+    /* =========================================================
+       MODALS
+       ========================================================= */
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-content h2 {
+      color: #001f3f;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+    }
+
+    .close-btn {
+      float: right;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .close-btn:hover {
+      color: #333;
+    }
+
+
+    /* =========================================================
+       FORMS
+       ========================================================= */
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+
+    /* =========================================================
+       ADMIN PANEL
+       ========================================================= */
+
+    .admin-panel {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      background: white;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+      width: 220px;
+      z-index: 1000;
+    }
+
+
+    /* =========================================================
+       STAFF LOGIN BUTTON
+       ========================================================= */
+
+    .staff-login-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 0.4rem 0.8rem;
+      border-radius: 5px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-weight: 500;
+      z-index: 100;
+    }
+
+    .staff-login-btn:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+
+    /* =========================================================
+       UTILITIES
+       ========================================================= */
+
+    .hidden {
+      display: none;
+    }
+  </style>
+
+
+  <meta http-equiv="Content-Security-Policy"
+        content="
+    default-src 'self';
+    img-src 'self' data:;
+    style-src 'self' 'unsafe-inline';
+    script-src 'self' 'unsafe-inline';
+    connect-src 'self';
+    frame-ancestors 'none';
+    ">
+
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    .about-topic {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .about-topic.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Card hover improvements */
+    .info-card,
+    .group-card {
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .info-card:hover,
+    .group-card:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+    }
+  </style>
+  <script src="js/main.js" defer></script>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOCES Barry Tech - Computer Technology Device Repair</title>
+</head>
+<body>
+
+<div class="role-indicator" id="roleIndicator" onclick="toggleAdminPanel()" style="position: fixed; top: 20px; right: 20px; background: white; color: #333; padding: 6px 14px; border-radius: 20px; font-weight: 600; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000;">Guest</div>
+
+<div class="hero">
+  <button class="staff-login-btn" onclick="openModal('loginModal')">Staff Login</button>
+  <img src="data:image/jpeg;base64,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" alt="BOCES Barry Tech Logo" style="max-width: 300px; height: auto; margin-bottom: 1rem;">
+  <h2>BarryTech Repair Lab</h2>
+  <p style="font-size: 1.2rem; margin-bottom: 2rem;">"We Break the Price, Not Your Device"</p>
+  <button class="btn btn-primary" onclick="scrollToGroups()">Meet Our Tech Teams</button>
+  <p style="font-size: 1rem; margin-bottom: 5rem;">*Students can walk into our classroom and work with us from there, the repair form is optional*</p>
+</div>
+
+<div class="section">
+  <h2>About Us</h2>
+
+  <div class="info-grid">
+
+    <div class="info-card">
+      <h3>Expert Repairs</h3>
+      <p>Our skilled students repair computers, laptops, tablets, and smartphones with professional-grade tools and techniques.</p>
+    </div>
+
+    <div class="info-card">
+      <h3>How Pricing Works</h3>
+      <p>Our labor is free, but if any parts are damaged the customer will need to order the replacement parts.</p>
+      <p>Examples: Phone Screen ($40–$125), Battery ($20–$60), RAM ($20–$80), Laptop Screen ($80–$200)</p>
+    </div>
+
+    <div class="info-card">
+      <h3>Repair Time</h3>
+      <p>Most repairs are completed within 2–7 school days. If parts need to be ordered, repair times may vary.</p>
+    </div>
+
+    <div class="info-card">
+      <h3>Ticketing & Workflow System</h3>
+      <p>Each repair is logged into a ticketing system that tracks device details, reported issues, assigned technicians, repair status, and completion data.</p>
+    </div>
+
+    <div class="info-card">
+      <h3>Where We're Located</h3>
+      <p>Our classroom (C220) is located on the right side of the building next to Joe's Store.</p>
+    </div>
+
+    <div class="info-card">
+      <h3>Our Services</h3>
+      <p>We repair computers, laptops, tablets, and smartphones, and also provide data recovery and software installation services.</p>
+    </div>
+
+    <div class="info-card">
+      <h3>AI Engineers</h3>
+      <p>Artificial Intelligence is becoming a huge part of modern technology.
+        Our team can help explain how AI works, how tools like ChatGPT generate responses, and how machine learning systems learn from data.
+        Whether you’re curious about AI or want to start learning about it, we’re happy to help.
+      </p>
+    </div>
+
+    <div class = "info-card">
+      <h3> Warranty Education</h3>
+      <p>We help customers understand how device warranties work and what they cover.
+        Our team can explain when a repair may affect a warranty and help you determine the best repair option for your device.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<div class="section stats">
+  <h2 style="color: white">Total Repairs Completed</h2>
+  <div class="stats-number" id="totalRepairs">3</div>
+  <p style="font-size: 1.2rem;">Devices successfully repaired and counting!</p>
+</div>
+
+<div class="section groups-section">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; gap:20px; flex-wrap:wrap;">
+
+    <div style="display:flex; align-items:center; gap:12px;">
+      <h2 style="margin-bottom:0;">Our Techs</h2>
+
+      <select id="teamFilter"
+              style="padding:6px 10px; border-radius:6px;"
+              onchange="filterTeams()">
+        <option value="all">All Teams</option>
+        <option value="AM">AM Class</option>
+        <option value="PM">PM Class</option>
+      </select>
+    </div>
+
+    <button class="btn btn-primary"
+            style="background:#003d7a; color:white;"
+            onclick="openModal('appointmentModal'); selectedGroupId = null;">
+      Optional Repair Form
+    </button>
+    <button class="btn btn-primary"
+            style="background:#2e7d32; color:white;"
+            onclick="openModal('reviewModal')">
+      Leave a Review
+    </button>
+
+  </div>
+
+  <!-- Groups will be inserted here by main.js -->
+  <div class="groups-container" id="groupsContainer"></div>
+</div>
+
+<!-- Login Modal -->
+<div class="modal" id="loginModal" style="display: none;">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('loginModal')">×</span>
+    <h2>Staff Login</h2>
+    <div class="form-group">
+      <label>Role</label>
+      <select id="loginRole">
+        <option value="admin">Admin (Teacher)</option>
+        <option value="tech">Tech (Student)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password">
+    </div>
+    <button class="btn btn-primary" onclick="login()">Login</button>
+  </div>
+</div>
+
+<!-- Appointment Modal -->
+<div class="modal" id="appointmentModal">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('appointmentModal')">×</span>
+    <h2>Walk-In </h2>
+    <p style="font-size: 0.95rem; margin-bottom: 1rem; color: #555;">
+      This repair request form is optional. You will still need to visit our classroom
+      to sign a consent form before any repair work can begin.
+    </p>
+    <div class="form-group">
+      <label>Your Name</label>
+      <input type="text" id="apptName" placeholder="Full name">
+    </div>
+    <div class="form-group">
+      <label>Device Type</label>
+      <select id="apptDevice">
+        <option>Laptop</option>
+        <option>Desktop</option>
+        <option>Tablet</option>
+        <option>Smartphone</option>
+        <option>Other</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Issue Description</label>
+      <textarea id="apptIssue" rows="3" placeholder="Describe the problem"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Availability</label>
+      <select id="apptDate">
+        <option>Monday</option>
+        <option>Tuesday</option>
+        <option>Wednesday</option>
+        <option>Thursday</option>
+        <option>Friday</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Are you AM or PM?</label>
+      <select id="apptTime">
+        <option>8:30 AM - 9:30 (AM)</option>
+        <option>1:00 PM - 2:00 (PM)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="submitAppointment()">
+      Submit Repair Request
+    </button>
+
+  </div>
+</div>
+
+<!-- Admin Panel -->
+<div class="admin-panel" id="adminPanel" style="display: none; position: fixed; top: 60px; right: 20px;">
+  <h3 style="margin-bottom: 1rem;">Admin Panel</h3>
+  <button class="btn btn-primary" onclick="openModal('createGroupModal')">Create Group</button>
+  <button class="btn btn-primary" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
+  <button class="btn btn-primary" onclick="openModal('manageAppointmentsModal')">Manage Appointments</button>
+  <button class="btn btn-primary" onclick="logout()">Logout</button>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal" id="createGroupModal" style="display: none;">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('createGroupModal')">×</span>
+    <h2>Create New Group</h2>
+    <div class="form-group">
+      <label>Group Name</label>
+      <input type="text" id="groupName" placeholder="e.g., Team Alpha">
+    </div>
+    <div class="form-group">
+      <label>Class Period</label>
+      <select id="groupPeriod">
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="createGroup()">Create Group</button>
+  </div>
+</div>
+
+<!-- Update Stats Modal -->
+<div class="modal" id="updateStatsModal" style="display: none;">
+  <div class="modal-content">
+    <span class="close-btn" onclick="closeModal('updateStatsModal')">×</span>
+    <h2>Update Statistics</h2>
+
+    <input type="number" id="totalRepairsInput" style="display:none;">
+
+    <div id="groupStatsContainer"></div>
+
+    <button class="btn btn-primary" onclick="updateStats()">Save Changes</button>
+  </div>
+</div>
+
+<!-- Manage Appointments Modal -->
+<div class="modal" id="manageAppointmentsModal">
+  <div class="modal-content" style="max-width: 800px;">
+    <span class="close-btn" onclick="closeModal('manageAppointmentsModal')">×</span>
+    <h2>Manage Repair Requests</h2>
+    <div id="appointmentsContainer" style="max-height: 500px; overflow-y: auto;"></div>
+  </div>
+</div>
+
+<!-- View Group Repairs Modal -->
+<div class="modal" id="viewGroupRepairsModal">
+  <div class="modal-content" style="max-width: 700px;">
+    <span class="close-btn" onclick="closeModal('viewGroupRepairsModal')">×</span>
+    <h2 id="groupRepairsTitle">Assigned Repairs</h2>
+    <div id="groupRepairsContainer" style="max-height: 500px; overflow-y: auto;"></div>
+  </div>
+</div>
+
+<!-- Review Modal -->
+<div class="modal" id="reviewModal">
+  <div class="modal-content">
+
+    <span class="close-btn" onclick="closeModal('reviewModal')">×</span>
+
+    <h2>Leave a Review</h2>
+
+    <div class="form-group">
+      <label>Rating</label>
+      <select id="reviewRating">
+        <option value="5">⭐⭐⭐⭐⭐</option>
+        <option value="4">⭐⭐⭐⭐</option>
+        <option value="3">⭐⭐⭐</option>
+        <option value="2">⭐⭐</option>
+        <option value="1">⭐</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Comment</label>
+      <textarea id="reviewComment"></textarea>
+    </div>
+
+    <button class="btn btn-primary" onclick="submitReview()">
+      Submit Review
+    </button>
+
+  </div>
+</div>
+
+<div class="section">
+  <h2>Customer Reviews</h2>
+
+  <div id="reviewsContainer"></div>
+
+</div>
+
+<script>
+  let currentRole = null;
+  let groups = [];
+  let totalRepairs = 0;
+  let appointments = [];
+  let reviews = [];
+  let selectedGroupId = null;
+
+  const passwords = {
+    admin: 'admin123',
+    tech: 'tech123'
+  };
+
+  function loadData() {
+    const saved = localStorage.getItem('bocesData');
+    if (saved) {
+      const data = JSON.parse(saved);
+      groups = data.groups || [];
+      totalRepairs = data.totalRepairs || 0;
+      appointments = data.appointments || [];
+      reviews = data.reviews || [];
+    }
+    calculateTotalRepairs();
+    updateDisplay();
+  }
+
+  function saveData() {
+    localStorage.setItem('bocesData', JSON.stringify({
+      groups,
+      totalRepairs,
+      appointments,
+      reviews
+    }));
+  }
+
+  function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+    if (id === 'updateStatsModal') {
+      populateStatsModal();
+    }
+    if (id === 'appointmentModal' && !selectedGroupId) {
+      // Reset modal title if opened from hero button
+      document.querySelector('#appointmentModal h2').textContent = 'Schedule Repair Appointment';
+      // Show all time options
+      document.getElementById('apptTime').innerHTML = `
+                    <option>8:30 AM - 9:30 AM</option>
+                    <option>11:45 - 2:20 PM</option>
+                `;
+    }
+  }
+
+  function scheduleWithGroup(groupId) {
+    selectedGroupId = groupId;
+    const group = groups.find(g => g.id === groupId);
+    openModal('appointmentModal');
+
+    // Update modal title to show which group
+    const modalTitle = document.querySelector('#appointmentModal h2');
+    modalTitle.textContent = `Request Repair`;
+
+    // Set time options based on AM/PM
+    const timeSelect = document.getElementById('apptTime');
+    if (group.period === 'AM') {
+      timeSelect.innerHTML = `
+                    <option>8:30 AM - 9:30 AM</option>
+                    <option>9:30 AM - 10:30 AM</option>
+                    <option>10:30 AM - 11:30 AM</option>
+                `;
+    } else {
+      timeSelect.innerHTML = `
+                    <option>12:00 PM - 1:00 PM</option>
+                    <option>1:00 PM - 2:00 PM</option>
+                    <option>2:00 PM - 3:00 PM</option>
+                `;
+    }
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+
+  function login() {
+    const role = document.getElementById('loginRole').value;
+    const password = document.getElementById('loginPassword').value;
+
+    if (password === passwords[role]) {
+      currentRole = role;
+      updateRoleDisplay();
+      closeModal('loginModal');
+      document.getElementById('loginPassword').value = '';
+      alert('Login successful!');
+    } else {
+      alert('Incorrect password!');
+    }
+  }
+
+  function logout() {
+    currentRole = null;
+    updateRoleDisplay();
+  }
+
+  function updateRoleDisplay() {
+    populateAppointmentsModal();
+    const indicator = document.getElementById('roleIndicator');
+    const adminPanel = document.getElementById('adminPanel');
+
+    if (currentRole === 'admin') {
+      indicator.textContent = 'Admin';
+      indicator.style.background = '#ffd700';
+      adminPanel.style.display = 'block';
+    } else if (currentRole === 'tech') {
+      indicator.textContent = 'Tech';
+      indicator.style.background = '#4169e1';
+      indicator.style.color = 'white';
+      adminPanel.style.display = 'none';
+    } else {
+      indicator.textContent = 'Guest';
+      indicator.style.background = 'white';
+      indicator.style.color = '#333';
+      adminPanel.style.display = 'none';
+    }
+
+    // Re-render groups to show/hide delete buttons based on role
+    updateDisplay();
+  }
+
+  function createGroup() {
+    const name = document.getElementById('groupName').value;
+    const period = document.getElementById('groupPeriod').value;
+
+    if (!name) {
+      alert('Please enter a group name');
+      return;
+    }
+
+    groups.push({
+      id: Date.now(),
+      name,
+      period,
+      repairs: 0,
+      projects: []
+    });
+
+    saveData();
+    updateDisplay();
+    closeModal('createGroupModal');
+    document.getElementById('groupName').value = '';
+    alert('Group created successfully!');
+  }
+
+  function submitAppointment() {
+    const name = document.getElementById('apptName').value;
+    const device = document.getElementById('apptDevice').value;
+    const issue = document.getElementById('apptIssue').value;
+    const date = document.getElementById('apptDate').value;
+    const time = document.getElementById('apptTime').value;
+
+    if (!name || !issue || !date) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const appointment = {
+      id: Date.now(),
+      name,
+      device,
+      issue,
+      date,
+      time,
+      status: 'pending',
+      groupId: null,
+      groupName: 'Unassigned'
+    };
+
+    appointments.push(appointment);
+    populateAppointmentsModal();
+    console.log(appointments);
+
+    saveData();
+    closeModal('appointmentModal');
+    document.getElementById('apptName').value = '';
+    document.getElementById('apptIssue').value = '';
+    document.getElementById('apptDate').value = '';
+
+    selectedGroupId = null;
+    alert('Repair request submitted! A team will be assigned by the instructor.');
+  }
+
+  function populateStatsModal() {
+    // Calculate current total from groups
+    const calculatedTotal = groups.reduce((sum, group) => sum + group.repairs, 0);
+    document.getElementById('totalRepairsInput').value = totalRepairs;
+    document.getElementById('totalRepairsInput').placeholder = `Auto-calculated: ${calculatedTotal}`;
+
+    const container = document.getElementById('groupStatsContainer');
+    container.innerHTML = groups.map(group => `
+                <div class="form-group">
+                    <label>${group.name} (${group.period}) - Repairs Completed</label>
+                    <input type="number" id="group-${group.id}" value="${group.repairs}" min="0">
+                </div>
+            `).join('');
+  }
+
+  function updateStats() {
+    const manualTotal = parseInt(document.getElementById('totalRepairsInput').value);
+
+    groups.forEach(group => {
+      const input = document.getElementById(`group-${group.id}`);
+      if (input) {
+        group.repairs = parseInt(input.value) || 0;
+      }
+    });
+
+    // Calculate total from groups
+    const calculatedTotal = groups.reduce((sum, group) => sum + group.repairs, 0);
+
+    // Use manual total if provided and different, otherwise use calculated
+    if (!isNaN(manualTotal) && manualTotal !== calculatedTotal) {
+      totalRepairs = manualTotal;
+    } else {
+      totalRepairs = calculatedTotal;
+    }
+
+    saveData();
+    updateDisplay();
+    closeModal('updateStatsModal');
+    alert('Statistics updated!');
+  }
+
+  function calculateTotalRepairs() {
+    // Calculate total from all groups
+    const calculatedTotal = groups.reduce((sum, group) => sum + (group.repairs || 0), 0);
+
+    // Always use the calculated total from groups
+    totalRepairs = calculatedTotal;
+
+    return totalRepairs;
+  }
+
+  function updateDisplay() {
+    // Recalculate total repairs every time display updates
+    calculateTotalRepairs();
+    populateAppointmentsModal();
+
+    document.getElementById('totalRepairs').textContent = totalRepairs;
+
+    const container = document.getElementById('groupsContainer');
+    if (groups.length === 0) {
+      container.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">No groups yet. Admin can create groups.</p>';
+    } else {
+      container.innerHTML = groups.map(group => `
+                    <div class="group-card">
+                        <h3>${group.name}</h3>
+                        <span class="group-badge badge-${group.period.toLowerCase()}">${group.period} Class</span>
+                        <p style="font-size: 1.2rem; font-weight: 600; margin: 1rem 0;">
+                            ${group.repairs} Repairs Completed
+                        </p>
+                        <h4 style="margin-top: 1rem;">Top Projects:</h4>
+                        <div class="project-gallery">
+                            ${group.projects.length === 0 ?
+              '<p style="grid-column: 1/-1; text-align: center; color: #999;">No projects yet</p>' :
+              group.projects.slice(0, 3).map(p =>
+                      `<img src="${p}" class="project-img" alt="Project">`
+              ).join('')
+      }
+                        </div>
+                        ${currentRole === 'admin' ? `
+                        <input type="file" accept="image/*" onchange="uploadGroupImage(${group.id}, this)" style="margin-top:8px; margin-bottom:6px;">
+                        <button class="btn-delete-group" onclick="deleteGroup(${group.id})">
+                            Delete Group
+                        </button>
+                        ` : ''}
+                        ${currentRole === 'tech' ? `
+                        <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="viewGroupRepairs(${group.id})">
+                            View Assigned Repairs
+                        </button>
+                        ` : ''}
+                    </div>
+                `).join('');
+    }
+  }
+
+  function deleteGroup(groupId) {
+    const group = groups.find(g => g.id === groupId);
+
+    if (confirm(`Are you sure you want to delete "${group.name}"? This action cannot be undone.`)) {
+      // Remove the group
+      groups = groups.filter(g => g.id !== groupId);
+
+      // Remove any appointments assigned to this group
+      appointments = appointments.filter(a => a.groupId !== groupId);
+
+      saveData();
+      updateDisplay();
+      alert('Group deleted successfully!');
+    }
+  }
+
+  function scrollToGroups() {
+    const groupsSection = document.querySelector('.groups-section');
+    groupsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function populateAppointmentsModal() {
+    const container = document.getElementById('appointmentsContainer');
+
+    const pending = appointments.filter(a => a.status === 'pending');
+    const assigned = appointments.filter(a => a.status === 'assigned');
+    const completed = appointments.filter(a => a.status === 'completed');
+
+    if (appointments.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #999;">No repair requests yet.</p>';
+      return;
+    }
+
+    let html = '';
+
+    if (pending.length > 0) {
+      html += '<h3 style="color: #001f3f; margin-bottom: 1rem;">Pending Assignment</h3>';
+      pending.forEach(appt => {
+        html += `
+                        <div style="background: #fff3cd; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #ffc107;">
+                            <strong>${appt.name}</strong> - ${appt.device}<br>
+                            <em>${appt.issue}</em><br>
+                            <small>Preferred: ${appt.date} at ${appt.time}</small><br>
+                            <div style="margin-top: 0.5rem;">
+                                <select id="assign-${appt.id}" style="padding: 0.3rem; margin-right: 0.5rem;">
+                                    <option value="">Select Team...</option>
+                                    ${groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('')}
+                                </select>
+                                <button class="btn btn-primary" style="padding: 0.3rem 1rem;" onclick="assignToGroup(${appt.id})">Assign</button>
+                                <button class="btn btn-secondary" style="padding: 0.3rem 1rem; background: #dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
+                            </div>
+                        </div>
+                    `;
+      });
+    }
+
+    if (assigned.length > 0) {
+      html += '<h3 style="color: #001f3f; margin: 2rem 0 1rem;">Assigned to Teams</h3>';
+      assigned.forEach(appt => {
+        html += `
+                        <div style="background: #d1ecf1; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #17a2b8;">
+                            <strong>${appt.name}</strong> - ${appt.device}<br>
+                            <em>${appt.issue}</em><br>
+                            <small>Assigned to: <strong>${appt.groupName}</strong></small><br>
+                            <small>Date: ${appt.date} at ${appt.time}</small><br>
+                            <div style="margin-top: 0.5rem;">
+                                <button class="btn btn-primary" style="padding: 0.3rem 1rem; background: #28a745;" onclick="markCompleted(${appt.id})">Mark Completed</button>
+                                <button class="btn btn-secondary" style="padding: 0.3rem 1rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
+                            </div>
+                        </div>
+                    `;
+      });
+    }
+
+    if (completed.length > 0) {
+      html += '<h3 style="color: #001f3f; margin: 2rem 0 1rem;">Completed Repairs</h3>';
+      completed.forEach(appt => {
+        html += `
+                        <div style="background: #d4edda; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #28a745;">
+                            <strong>${appt.name}</strong> - ${appt.device}<br>
+                            <em>${appt.issue}</em><br>
+                            <small>Completed by: <strong>${appt.groupName}</strong></small><br>
+                            <button class="btn btn-secondary" style="padding: 0.3rem 1rem; margin-top: 0.5rem; background: #dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
+                        </div>
+                    `;
+      });
+    }
+
+    container.innerHTML = html;
+  }
+
+  function assignToGroup(apptId) {
+    const select = document.getElementById(`assign-${apptId}`);
+    const groupId = parseInt(select.value);
+
+    if (!groupId) {
+      alert('Please select a team');
+      return;
+    }
+
+    const appt = appointments.find(a => a.id === apptId);
+    const group = groups.find(g => g.id === groupId);
+
+    appt.groupId = groupId;
+    appt.groupName = group.name;
+    appt.status = 'assigned';
+
+    saveData();
+    populateAppointmentsModal();
+    alert(`Assigned to ${group.name}!`);
+  }
+
+  function unassignAppointment(apptId) {
+    const appt = appointments.find(a => a.id === apptId);
+    appt.groupId = null;
+    appt.groupName = 'Unassigned';
+    appt.status = 'pending';
+
+    saveData();
+    populateAppointmentsModal();
+  }
+
+  function markCompleted(apptId) {
+    const appt = appointments.find(a => a.id === apptId);
+    appt.status = 'completed';
+
+    saveData();
+    populateAppointmentsModal();
+    alert('Repair marked as completed!');
+  }
+
+  function deleteAppointment(apptId) {
+    if (confirm('Are you sure you want to delete this request?')) {
+      appointments = appointments.filter(a => a.id !== apptId);
+      saveData();
+      populateAppointmentsModal();
+    }
+  }
+
+  function viewGroupRepairs(groupId) {
+    const group = groups.find(g => g.id === groupId);
+    const groupAppts = appointments.filter(a => a.groupId === groupId && a.status === 'assigned');
+
+    document.getElementById('groupRepairsTitle').textContent = `${group.name} - Assigned Repairs`;
+
+    const container = document.getElementById('groupRepairsContainer');
+
+    if (groupAppts.length === 0) {
+      container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">No repairs currently assigned to this team.</p>';
+    } else {
+      container.innerHTML = groupAppts.map(appt => `
+                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #001f3f;">
+                        <strong>${appt.name}</strong> - ${appt.device}<br>
+                        <em>${appt.issue}</em><br>
+                        <small>Date: ${appt.date} at ${appt.time}</small><br>
+                        <span style="display: inline-block; margin-top: 0.5rem; padding: 0.3rem 0.8rem; background: #17a2b8; color: white; border-radius: 3px; font-size: 0.85rem;">
+                            ${appt.status === 'assigned' ? 'In Progress' : appt.status}
+                        </span>
+                    </div>
+                `).join('');
+    }
+
+    openModal('viewGroupRepairsModal');
+  }
+
+  window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+      event.target.style.display = 'none';
+    }
+  }
+
+  function uploadGroupImage(groupId, input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const group = groups.find(g => g.id === groupId);
+      if (!group.projects) group.projects = [];
+
+      group.projects.unshift(e.target.result); // add image to beginning
+
+      // Limit stored images to 4
+      if (group.projects.length > 4) {
+        group.projects = group.projects.slice(0, 4);
+      }
+
+      saveData();
+      updateDisplay();
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  function toggleAdminPanel() {
+    const role = document.getElementById("roleIndicator").textContent.trim();
+    const panel = document.getElementById("adminPanel");
+
+    if (role === "Admin") {
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+    }
+  }
+
+  function showTopic(id) {
+
+    document.querySelectorAll(".about-topic").forEach(section => {
+      section.classList.remove("active");
+    });
+
+    const target = document.getElementById(id);
+    target.classList.add("active");
+  }
+
+  function submitReview(){
+
+    const name = document.getElementById("reviewName").value;
+    const rating = document.getElementById("reviewRating").value;
+    const comment = document.getElementById("reviewComment").value;
+
+    if(!name || !comment){
+      alert("Please fill out all fields");
+      return;
+    }
+
+    reviews.push({
+      name,
+      rating,
+      comment
+    });
+
+    saveData();
+
+    closeModal("reviewModal");
+
+    alert("Thank you for your feedback!");
+
+  }
+
+
+  function toggleAdminPanel() {
+    const role = document.getElementById("roleIndicator").textContent.trim();
+    const panel = document.getElementById("adminPanel");
+
+    if (role === "Admin") {
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+    }
+  }
+
+  function showTopic(id) {
+    const sections = document.querySelectorAll(".about-topic");
+
+    sections.forEach(section => {
+      section.style.display = "none";
+      section.classList.remove("active");
+    });
+
+    const target = document.getElementById(id);
+    target.style.display = "block";
+    target.classList.add("active");
+  }
+
+  function filterTeams() {
+    const filter = document.getElementById("teamFilter").value;
+    const cards = document.querySelectorAll(".group-card");
+
+    cards.forEach(card => {
+      const badge = card.querySelector(".group-badge");
+
+      if (!badge) return;
+
+      const period = badge.textContent.includes("AM") ? "AM" : "PM";
+
+      if (filter === "all" || filter === period) {
+        card.style.display = "block";
+      } else {
+        card.style.display = "none";
+      }
+    });
+  }
+
+  function submitReview() {
+    const name = document.getElementById("reviewName").value.trim();
+    const rating = document.getElementById("reviewRating").value;
+    const comment = document.getElementById("reviewComment").value.trim();
+
+    if (!name || !comment) {
+      alert("Please fill out your name and comment.");
+      return;
+    }
+
+    const review = { name, rating, comment };
+
+    // Load existing reviews
+    const stored = JSON.parse(localStorage.getItem("customerReviews")) || [];
+    stored.push(review);
+
+    // Save reviews
+    localStorage.setItem("customerReviews", JSON.stringify(stored));
+
+    // Clear inputs
+    document.getElementById("reviewName").value = "";
+    document.getElementById("reviewComment").value = "";
+
+    closeModal('reviewModal');
+
+    renderReviews();
+  }
+
+  function renderReviews() {
+    const container = document.getElementById("reviewsContainer");
+    const stored = JSON.parse(localStorage.getItem("customerReviews")) || [];
+
+    if (stored.length === 0) {
+      container.innerHTML = "<p style='text-align:center;color:#777;'>No reviews yet.</p>";
+      return;
+    }
+
+    container.innerHTML = stored.map(r => `
+        <div class="info-card">
+            <h3>${"⭐".repeat(r.rating)}</h3>
+            <p>"${r.comment}"</p>
+            <strong>— ${r.name}</strong>
+        </div>
+    `).join("");
+  }
+
+  // Load reviews when page loads
+  document.addEventListener("DOMContentLoaded", renderReviews);
+
+
+  loadData();
+  updateRoleDisplay();
+</script>
+
+</body></html>
