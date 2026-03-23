@@ -68,7 +68,10 @@ async function login() {
     try {
         const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-login`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            },
             body: JSON.stringify({ password, role })
         });
 
