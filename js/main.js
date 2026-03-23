@@ -1,13 +1,11 @@
 // ============================================================
 // SUPABASE SETUP
-// Replace these two values with your own from:
-// Supabase Dashboard → Settings → API
 // ============================================================
 const SUPABASE_URL = 'https://qfvzgmkfkxvvcmixcmzy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdnpnbWtma3h2dmNtaXhjbXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMTQ3NjMsImV4cCI6MjA4OTc5MDc2M30.AKluwHFXo9mrWrhUuoxNquJvzQo_E6nHWH9Sfj_eEEo';
 
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// db is initialized inside DOMContentLoaded so the CDN is guaranteed to be loaded first
+let db;
 
 // ============================================================
 // STATE
@@ -56,7 +54,7 @@ async function loadStats() {
 }
 
 // ============================================================
-// LOGIN — uses Supabase Edge Function (no email needed)
+// LOGIN
 // ============================================================
 async function login() {
     const role = document.getElementById('loginRole').value;
@@ -67,24 +65,28 @@ async function login() {
         return;
     }
 
-    // Call your Supabase Edge Function to verify password securely
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password, role })
-    });
+    try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password, role })
+        });
 
-    const { success } = await res.json();
+        const { success } = await res.json();
 
-    if (success) {
-        currentRole = role;
-        sessionStorage.setItem('bocesRole', role); // persists for the tab session
-        updateRoleDisplay();
-        closeModal('loginModal');
-        document.getElementById('loginPassword').value = '';
-        alert('Login successful!');
-    } else {
-        alert('Incorrect password!');
+        if (success) {
+            currentRole = role;
+            sessionStorage.setItem('bocesRole', role);
+            updateRoleDisplay();
+            closeModal('loginModal');
+            document.getElementById('loginPassword').value = '';
+            alert('Login successful!');
+        } else {
+            alert('Incorrect password!');
+        }
+    } catch (err) {
+        console.error('Login error:', err);
+        alert('Login failed. Check your internet connection and try again.');
     }
 }
 
@@ -123,7 +125,6 @@ async function deleteGroup(groupId) {
     const group = groups.find(g => g.id === groupId);
     if (!confirm(`Are you sure you want to delete "${group.name}"? This cannot be undone.`)) return;
 
-    // Unassign any appointments from this group
     await db.from('repair_requests').update({ group_id: null, group_name: 'Unassigned', status: 'pending' }).eq('group_id', groupId);
 
     const { error } = await db.from('groups').delete().eq('id', groupId);
@@ -154,7 +155,7 @@ async function uploadGroupImage(groupId, input) {
 }
 
 // ============================================================
-// REPAIR REQUESTS (Appointments)
+// REPAIR REQUESTS
 // ============================================================
 async function submitAppointment() {
     const name = document.getElementById('apptName').value.trim();
@@ -180,7 +181,6 @@ async function submitAppointment() {
 
     appointments.push(data);
     populateAppointmentsModal();
-    saveData();
     closeModal('appointmentModal');
 
     document.getElementById('apptName').value = '';
@@ -239,7 +239,6 @@ async function markCompleted(apptId) {
     const appt = appointments.find(a => a.id === apptId);
     appt.status = 'completed';
 
-    // Increment the group's repair count
     const group = groups.find(g => g.id === appt.group_id);
     if (group) {
         group.repairs = (group.repairs || 0) + 1;
@@ -339,8 +338,9 @@ async function submitReview() {
 
 async function renderReviews() {
     const container = document.getElementById('reviewsContainer');
-    const { data, error } = await db.from('reviews').select('*').order('created_at', { ascending: false });
+    if (!container) return;
 
+    const { data, error } = await db.from('reviews').select('*').order('created_at', { ascending: false });
     if (error) { console.error('Error loading reviews:', error); return; }
 
     if (!data || data.length === 0) {
@@ -358,7 +358,7 @@ async function renderReviews() {
 }
 
 // ============================================================
-// DISPLAY / UI (unchanged from your original)
+// DISPLAY / UI
 // ============================================================
 function updateRoleDisplay() {
     populateAppointmentsModal();
@@ -386,6 +386,7 @@ function updateRoleDisplay() {
 function renderGroups() {
     calculateTotalRepairs();
     const container = document.getElementById('groupsContainer');
+    if (!container) return;
 
     if (groups.length === 0) {
         container.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">No groups yet. Admin can create groups.</p>';
@@ -419,11 +420,12 @@ function renderGroups() {
     `).join('');
 }
 
-// Alias so existing HTML onclick="updateDisplay()" still works
 function updateDisplay() { renderGroups(); }
 
 function populateAppointmentsModal() {
     const container = document.getElementById('appointmentsContainer');
+    if (!container) return;
+
     const pending = appointments.filter(a => a.status === 'pending');
     const assigned = appointments.filter(a => a.status === 'assigned');
     const completed = appointments.filter(a => a.status === 'completed');
@@ -513,7 +515,7 @@ function viewGroupRepairs(groupId) {
 }
 
 // ============================================================
-// MODAL HELPERS (unchanged)
+// MODAL HELPERS
 // ============================================================
 function openModal(id) {
     document.getElementById(id).style.display = 'flex';
@@ -591,11 +593,14 @@ function filterTeams() {
     });
 }
 
-// Restore session if tab is still open
-const savedRole = sessionStorage.getItem('bocesRole');
-if (savedRole) currentRole = savedRole;
+// ============================================================
+// START — waits for DOM so window.supabase is guaranteed loaded
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ============================================================
-// START
-// ============================================================
-document.addEventListener('DOMContentLoaded', loadData);
+    const savedRole = sessionStorage.getItem('bocesRole');
+    if (savedRole) currentRole = savedRole;
+
+    loadData();
+});
