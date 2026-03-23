@@ -322,14 +322,12 @@ async function updateStats() {
 // REVIEWS
 // ============================================================
 async function submitReview() {
-    const name = document.getElementById('reviewName').value.trim();
     const rating = parseInt(document.getElementById('reviewRating').value);
     const comment = document.getElementById('reviewComment').value.trim();
 
-    if (!name || !comment) { alert('Please fill out your name and comment.'); return; }
+    if (!comment) { alert('Please write a comment.'); return; }
 
-    const { error } = await db.from('reviews').insert({ name, rating, comment });
-    if (error) { console.error('Error submitting review:', error); alert('Failed to submit review.'); return; }
+    const { error } = await db.from('reviews').insert({ rating, comment });
 
     document.getElementById('reviewName').value = '';
     document.getElementById('reviewComment').value = '';
@@ -355,7 +353,7 @@ async function renderReviews() {
         <div class="info-card">
             <h3>${'⭐'.repeat(r.rating)}</h3>
             <p>"${r.comment}"</p>
-            <strong>— ${r.name}</strong>
+            <strong>— Anonymous</strong>
         </div>
     `).join('');
 }
