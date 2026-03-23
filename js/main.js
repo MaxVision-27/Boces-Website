@@ -322,6 +322,9 @@ async function updateStats() {
 // REVIEWS
 // ============================================================
 async function submitReview() {
+    console.log('rating el:', document.getElementById('reviewRating'));
+    console.log('comment el:', document.getElementById('reviewComment'));
+
     const rating = parseInt(document.getElementById('reviewRating').value);
     const comment = document.getElementById('reviewComment').value.trim();
 
@@ -336,7 +339,6 @@ async function submitReview() {
     renderReviews();
     alert('Thank you for your feedback!');
 }
-
 async function renderReviews() {
     const container = document.getElementById('reviewsContainer');
     if (!container) return;
