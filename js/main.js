@@ -1,89 +1,84 @@
+// ============================================================
+// SUPABASE SETUP
+// Replace these two values with your own from:
+// Supabase Dashboard → Settings → API
+// ============================================================
+const SUPABASE_URL = 'https://qfvzgmkfkxvvcmixcmzy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdnpnbWtma3h2dmNtaXhjbXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMTQ3NjMsImV4cCI6MjA4OTc5MDc2M30.AKluwHFXo9mrWrhUuoxNquJvzQo_E6nHWH9Sfj_eEEo';
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================================
+// STATE
+// ============================================================
 let currentRole = null;
 let groups = [];
 let totalRepairs = 0;
 let appointments = [];
-let reviews = [];
 let selectedGroupId = null;
 
-const passwords = {
-    admin: 'admin123',
-    tech: 'tech123'
-};
+// ============================================================
+// LOAD ALL DATA FROM SUPABASE ON PAGE START
+// ============================================================
+async function loadData() {
+    await Promise.all([
+        loadGroups(),
+        loadAppointments(),
+        loadStats(),
+        renderReviews()
+    ]);
+    updateRoleDisplay();
+}
 
-function loadData() {
-    const saved = localStorage.getItem('bocesData');
-    if (saved) {
-        const data = JSON.parse(saved);
-        groups = data.groups || [];
-        totalRepairs = data.totalRepairs || 0;
-        appointments = data.appointments || [];
-        reviews = data.reviews || [];
-    }
+async function loadGroups() {
+    const { data, error } = await db.from('groups').select('*').order('created_at', { ascending: true });
+    if (error) { console.error('Error loading groups:', error); return; }
+    groups = data || [];
     calculateTotalRepairs();
-    updateDisplay();
+    renderGroups();
 }
 
-function saveData() {
-    localStorage.setItem('bocesData', JSON.stringify({
-        groups,
-        totalRepairs,
-        appointments,
-        reviews
-    }));
+async function loadAppointments() {
+    const { data, error } = await db.from('repair_requests').select('*').order('created_at', { ascending: false });
+    if (error) { console.error('Error loading appointments:', error); return; }
+    appointments = data || [];
+    populateAppointmentsModal();
 }
 
-function openModal(id) {
-    document.getElementById(id).style.display = 'flex';
-    if (id === 'updateStatsModal') {
-        populateStatsModal();
-    }
-    if (id === 'appointmentModal' && !selectedGroupId) {
-        // Reset modal title if opened from hero button
-        document.querySelector('#appointmentModal h2').textContent = 'Schedule Repair Appointment';
-        // Show all time options
-        document.getElementById('apptTime').innerHTML = `
-                    <option>8:30 AM - 9:30 AM</option>
-                    <option>11:45 - 2:20 PM</option>
-                `;
+async function loadStats() {
+    const { data, error } = await db.from('stats').select('total_repairs').single();
+    if (error) { console.error('Error loading stats:', error); return; }
+    if (data) {
+        totalRepairs = data.total_repairs;
+        document.getElementById('totalRepairs').textContent = totalRepairs;
     }
 }
 
-function scheduleWithGroup(groupId) {
-    selectedGroupId = groupId;
-    const group = groups.find(g => g.id === groupId);
-    openModal('appointmentModal');
-
-    // Update modal title to show which group
-    const modalTitle = document.querySelector('#appointmentModal h2');
-    modalTitle.textContent = `Request Repair`;
-
-    // Set time options based on AM/PM
-    const timeSelect = document.getElementById('apptTime');
-    if (group.period === 'AM') {
-        timeSelect.innerHTML = `
-                    <option>8:30 AM - 9:30 AM</option>
-                    <option>9:30 AM - 10:30 AM</option>
-                    <option>10:30 AM - 11:30 AM</option>
-                `;
-    } else {
-        timeSelect.innerHTML = `
-                    <option>12:00 PM - 1:00 PM</option>
-                    <option>1:00 PM - 2:00 PM</option>
-                    <option>2:00 PM - 3:00 PM</option>
-                `;
-    }
-}
-
-function closeModal(id) {
-    document.getElementById(id).style.display = 'none';
-}
-
-function login() {
+// ============================================================
+// LOGIN — uses Supabase Edge Function (no email needed)
+// ============================================================
+async function login() {
     const role = document.getElementById('loginRole').value;
     const password = document.getElementById('loginPassword').value;
 
-    if (password === passwords[role]) {
+    if (!password) {
+        alert('Please enter a password');
+        return;
+    }
+
+    // Call your Supabase Edge Function to verify password securely
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, role })
+    });
+
+    const { success } = await res.json();
+
+    if (success) {
         currentRole = role;
+        sessionStorage.setItem('bocesRole', role); // persists for the tab session
         updateRoleDisplay();
         closeModal('loginModal');
         document.getElementById('loginPassword').value = '';
@@ -95,9 +90,276 @@ function login() {
 
 function logout() {
     currentRole = null;
+    sessionStorage.removeItem('bocesRole');
     updateRoleDisplay();
 }
 
+// ============================================================
+// GROUPS
+// ============================================================
+async function createGroup() {
+    const name = document.getElementById('groupName').value.trim();
+    const period = document.getElementById('groupPeriod').value;
+
+    if (!name) { alert('Please enter a group name'); return; }
+
+    const { data, error } = await db.from('groups').insert({
+        name,
+        period,
+        repairs: 0,
+        projects: []
+    }).select().single();
+
+    if (error) { console.error('Error creating group:', error); alert('Failed to create group.'); return; }
+
+    groups.push(data);
+    renderGroups();
+    closeModal('createGroupModal');
+    document.getElementById('groupName').value = '';
+    alert('Group created successfully!');
+}
+
+async function deleteGroup(groupId) {
+    const group = groups.find(g => g.id === groupId);
+    if (!confirm(`Are you sure you want to delete "${group.name}"? This cannot be undone.`)) return;
+
+    // Unassign any appointments from this group
+    await db.from('repair_requests').update({ group_id: null, group_name: 'Unassigned', status: 'pending' }).eq('group_id', groupId);
+
+    const { error } = await db.from('groups').delete().eq('id', groupId);
+    if (error) { console.error('Error deleting group:', error); return; }
+
+    groups = groups.filter(g => g.id !== groupId);
+    appointments = appointments.map(a => a.group_id === groupId ? { ...a, group_id: null, group_name: 'Unassigned', status: 'pending' } : a);
+    renderGroups();
+    alert('Group deleted successfully!');
+}
+
+async function uploadGroupImage(groupId, input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const group = groups.find(g => g.id === groupId);
+        if (!group.projects) group.projects = [];
+        group.projects.unshift(e.target.result);
+        if (group.projects.length > 4) group.projects = group.projects.slice(0, 4);
+
+        const { error } = await db.from('groups').update({ projects: group.projects }).eq('id', groupId);
+        if (error) { console.error('Error saving image:', error); return; }
+        renderGroups();
+    };
+    reader.readAsDataURL(file);
+}
+
+// ============================================================
+// REPAIR REQUESTS (Appointments)
+// ============================================================
+async function submitAppointment() {
+    const name = document.getElementById('apptName').value.trim();
+    const device = document.getElementById('apptDevice').value;
+    const issue = document.getElementById('apptIssue').value.trim();
+    const date = document.getElementById('apptDate').value;
+    const time = document.getElementById('apptTime').value;
+
+    if (!name || !issue || !date) { alert('Please fill in all required fields'); return; }
+
+    const { data, error } = await db.from('repair_requests').insert({
+        name,
+        device,
+        issue,
+        date,
+        time,
+        status: 'pending',
+        group_id: null,
+        group_name: 'Unassigned'
+    }).select().single();
+
+    if (error) { console.error('Error submitting request:', error); alert('Failed to submit request.'); return; }
+
+    appointments.push(data);
+    populateAppointmentsModal();
+    saveData();
+    closeModal('appointmentModal');
+
+    document.getElementById('apptName').value = '';
+    document.getElementById('apptIssue').value = '';
+    document.getElementById('apptDate').value = '';
+    selectedGroupId = null;
+
+    alert('Repair request submitted! A team will be assigned by the instructor.');
+}
+
+async function assignToGroup(apptId) {
+    const select = document.getElementById(`assign-${apptId}`);
+    const groupId = parseInt(select.value);
+    if (!groupId) { alert('Please select a team'); return; }
+
+    const group = groups.find(g => g.id === groupId);
+
+    const { error } = await db.from('repair_requests').update({
+        group_id: groupId,
+        group_name: group.name,
+        status: 'assigned'
+    }).eq('id', apptId);
+
+    if (error) { console.error('Error assigning:', error); return; }
+
+    const appt = appointments.find(a => a.id === apptId);
+    appt.group_id = groupId;
+    appt.group_name = group.name;
+    appt.status = 'assigned';
+
+    populateAppointmentsModal();
+    alert(`Assigned to ${group.name}!`);
+}
+
+async function unassignAppointment(apptId) {
+    const { error } = await db.from('repair_requests').update({
+        group_id: null,
+        group_name: 'Unassigned',
+        status: 'pending'
+    }).eq('id', apptId);
+
+    if (error) { console.error('Error unassigning:', error); return; }
+
+    const appt = appointments.find(a => a.id === apptId);
+    appt.group_id = null;
+    appt.group_name = 'Unassigned';
+    appt.status = 'pending';
+
+    populateAppointmentsModal();
+}
+
+async function markCompleted(apptId) {
+    const { error } = await db.from('repair_requests').update({ status: 'completed' }).eq('id', apptId);
+    if (error) { console.error('Error marking complete:', error); return; }
+
+    const appt = appointments.find(a => a.id === apptId);
+    appt.status = 'completed';
+
+    // Increment the group's repair count
+    const group = groups.find(g => g.id === appt.group_id);
+    if (group) {
+        group.repairs = (group.repairs || 0) + 1;
+        await db.from('groups').update({ repairs: group.repairs }).eq('id', group.id);
+    }
+
+    await syncStats();
+    populateAppointmentsModal();
+    renderGroups();
+    alert('Repair marked as completed!');
+}
+
+async function deleteAppointment(apptId) {
+    if (!confirm('Are you sure you want to delete this request?')) return;
+
+    const { error } = await db.from('repair_requests').delete().eq('id', apptId);
+    if (error) { console.error('Error deleting:', error); return; }
+
+    appointments = appointments.filter(a => a.id !== apptId);
+    populateAppointmentsModal();
+}
+
+// ============================================================
+// STATS
+// ============================================================
+async function syncStats() {
+    const total = groups.reduce((sum, g) => sum + (g.repairs || 0), 0);
+    totalRepairs = total;
+    document.getElementById('totalRepairs').textContent = totalRepairs;
+    await db.from('stats').update({ total_repairs: total }).eq('id', 1);
+}
+
+function calculateTotalRepairs() {
+    totalRepairs = groups.reduce((sum, g) => sum + (g.repairs || 0), 0);
+    const el = document.getElementById('totalRepairs');
+    if (el) el.textContent = totalRepairs;
+}
+
+function populateStatsModal() {
+    const calculatedTotal = groups.reduce((sum, g) => sum + g.repairs, 0);
+    document.getElementById('totalRepairsInput').value = totalRepairs;
+    document.getElementById('totalRepairsInput').placeholder = `Auto-calculated: ${calculatedTotal}`;
+
+    const container = document.getElementById('groupStatsContainer');
+    container.innerHTML = groups.map(group => `
+        <div class="form-group">
+            <label>${group.name} (${group.period}) - Repairs Completed</label>
+            <input type="number" id="group-${group.id}" value="${group.repairs}" min="0">
+        </div>
+    `).join('');
+}
+
+async function updateStats() {
+    const manualTotal = parseInt(document.getElementById('totalRepairsInput').value);
+
+    for (const group of groups) {
+        const input = document.getElementById(`group-${group.id}`);
+        if (input) {
+            const newVal = parseInt(input.value) || 0;
+            if (newVal !== group.repairs) {
+                group.repairs = newVal;
+                await db.from('groups').update({ repairs: newVal }).eq('id', group.id);
+            }
+        }
+    }
+
+    const calculatedTotal = groups.reduce((sum, g) => sum + g.repairs, 0);
+    totalRepairs = (!isNaN(manualTotal) && manualTotal !== calculatedTotal) ? manualTotal : calculatedTotal;
+
+    await db.from('stats').update({ total_repairs: totalRepairs }).eq('id', 1);
+
+    renderGroups();
+    closeModal('updateStatsModal');
+    alert('Statistics updated!');
+}
+
+// ============================================================
+// REVIEWS
+// ============================================================
+async function submitReview() {
+    const name = document.getElementById('reviewName').value.trim();
+    const rating = parseInt(document.getElementById('reviewRating').value);
+    const comment = document.getElementById('reviewComment').value.trim();
+
+    if (!name || !comment) { alert('Please fill out your name and comment.'); return; }
+
+    const { error } = await db.from('reviews').insert({ name, rating, comment });
+    if (error) { console.error('Error submitting review:', error); alert('Failed to submit review.'); return; }
+
+    document.getElementById('reviewName').value = '';
+    document.getElementById('reviewComment').value = '';
+
+    closeModal('reviewModal');
+    renderReviews();
+    alert('Thank you for your feedback!');
+}
+
+async function renderReviews() {
+    const container = document.getElementById('reviewsContainer');
+    const { data, error } = await db.from('reviews').select('*').order('created_at', { ascending: false });
+
+    if (error) { console.error('Error loading reviews:', error); return; }
+
+    if (!data || data.length === 0) {
+        container.innerHTML = "<p style='text-align:center;color:#777;'>No reviews yet.</p>";
+        return;
+    }
+
+    container.innerHTML = data.map(r => `
+        <div class="info-card">
+            <h3>${'⭐'.repeat(r.rating)}</h3>
+            <p>"${r.comment}"</p>
+            <strong>— ${r.name}</strong>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// DISPLAY / UI (unchanged from your original)
+// ============================================================
 function updateRoleDisplay() {
     populateAppointmentsModal();
     const indicator = document.getElementById('roleIndicator');
@@ -118,191 +380,50 @@ function updateRoleDisplay() {
         indicator.style.color = '#333';
         adminPanel.style.display = 'none';
     }
-
-    // Re-render groups to show/hide delete buttons based on role
-    updateDisplay();
+    renderGroups();
 }
 
-function createGroup() {
-    const name = document.getElementById('groupName').value;
-    const period = document.getElementById('groupPeriod').value;
-
-    if (!name) {
-        alert('Please enter a group name');
-        return;
-    }
-
-    groups.push({
-        id: Date.now(),
-        name,
-        period,
-        repairs: 0,
-        projects: []
-    });
-
-    saveData();
-    updateDisplay();
-    closeModal('createGroupModal');
-    document.getElementById('groupName').value = '';
-    alert('Group created successfully!');
-}
-
-function submitAppointment() {
-    const name = document.getElementById('apptName').value;
-    const device = document.getElementById('apptDevice').value;
-    const issue = document.getElementById('apptIssue').value;
-    const date = document.getElementById('apptDate').value;
-    const time = document.getElementById('apptTime').value;
-
-    if (!name || !issue || !date) {
-        alert('Please fill in all required fields');
-        return;
-    }
-
-    const appointment = {
-        id: Date.now(),
-        name,
-        device,
-        issue,
-        date,
-        time,
-        status: 'pending',
-        groupId: null,
-        groupName: 'Unassigned'
-    };
-
-    appointments.push(appointment);
-    populateAppointmentsModal();
-    console.log(appointments);
-
-    saveData();
-    closeModal('appointmentModal');
-    document.getElementById('apptName').value = '';
-    document.getElementById('apptIssue').value = '';
-    document.getElementById('apptDate').value = '';
-
-    selectedGroupId = null;
-    alert('Repair request submitted! A team will be assigned by the instructor.');
-}
-
-function populateStatsModal() {
-    // Calculate current total from groups
-    const calculatedTotal = groups.reduce((sum, group) => sum + group.repairs, 0);
-    document.getElementById('totalRepairsInput').value = totalRepairs;
-    document.getElementById('totalRepairsInput').placeholder = `Auto-calculated: ${calculatedTotal}`;
-
-    const container = document.getElementById('groupStatsContainer');
-    container.innerHTML = groups.map(group => `
-                <div class="form-group">
-                    <label>${group.name} (${group.period}) - Repairs Completed</label>
-                    <input type="number" id="group-${group.id}" value="${group.repairs}" min="0">
-                </div>
-            `).join('');
-}
-
-function updateStats() {
-    const manualTotal = parseInt(document.getElementById('totalRepairsInput').value);
-
-    groups.forEach(group => {
-        const input = document.getElementById(`group-${group.id}`);
-        if (input) {
-            group.repairs = parseInt(input.value) || 0;
-        }
-    });
-
-    // Calculate total from groups
-    const calculatedTotal = groups.reduce((sum, group) => sum + group.repairs, 0);
-
-    // Use manual total if provided and different, otherwise use calculated
-    if (!isNaN(manualTotal) && manualTotal !== calculatedTotal) {
-        totalRepairs = manualTotal;
-    } else {
-        totalRepairs = calculatedTotal;
-    }
-
-    saveData();
-    updateDisplay();
-    closeModal('updateStatsModal');
-    alert('Statistics updated!');
-}
-
-function calculateTotalRepairs() {
-    // Calculate total from all groups
-    const calculatedTotal = groups.reduce((sum, group) => sum + (group.repairs || 0), 0);
-
-    // Always use the calculated total from groups
-    totalRepairs = calculatedTotal;
-
-    return totalRepairs;
-}
-
-function updateDisplay() {
-    // Recalculate total repairs every time display updates
+function renderGroups() {
     calculateTotalRepairs();
-    populateAppointmentsModal();
-
-    document.getElementById('totalRepairs').textContent = totalRepairs;
-
     const container = document.getElementById('groupsContainer');
+
     if (groups.length === 0) {
         container.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">No groups yet. Admin can create groups.</p>';
-    } else {
-        container.innerHTML = groups.map(group => `
-                    <div class="group-card">
-                        <h3>${group.name}</h3>
-                        <span class="group-badge badge-${group.period.toLowerCase()}">${group.period} Class</span>
-                        <p style="font-size: 1.2rem; font-weight: 600; margin: 1rem 0;">
-                            ${group.repairs} Repairs Completed
-                        </p>
-                        <h4 style="margin-top: 1rem;">Top Projects:</h4>
-                        <div class="project-gallery">
-                            ${group.projects.length === 0 ?
-            '<p style="grid-column: 1/-1; text-align: center; color: #999;">No projects yet</p>' :
-            group.projects.slice(0, 3).map(p =>
-                `<img src="${p}" class="project-img" alt="Project">`
-            ).join('')
-        }
-                        </div>
-                        ${currentRole === 'admin' ? `
-                        <input type="file" accept="image/*" onchange="uploadGroupImage(${group.id}, this)" style="margin-top:8px; margin-bottom:6px;">
-                        <button class="btn-delete-group" onclick="deleteGroup(${group.id})">
-                            Delete Group
-                        </button>
-                        ` : ''}
-                        ${currentRole === 'tech' ? `
-                        <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="viewGroupRepairs(${group.id})">
-                            View Assigned Repairs
-                        </button>
-                        ` : ''}
-                    </div>
-                `).join('');
+        return;
     }
-}
 
-function deleteGroup(groupId) {
-    const group = groups.find(g => g.id === groupId);
-
-    if (confirm(`Are you sure you want to delete "${group.name}"? This action cannot be undone.`)) {
-        // Remove the group
-        groups = groups.filter(g => g.id !== groupId);
-
-        // Remove any appointments assigned to this group
-        appointments = appointments.filter(a => a.groupId !== groupId);
-
-        saveData();
-        updateDisplay();
-        alert('Group deleted successfully!');
+    container.innerHTML = groups.map(group => `
+        <div class="group-card">
+            <h3>${group.name}</h3>
+            <span class="group-badge badge-${group.period.toLowerCase()}">${group.period} Class</span>
+            <p style="font-size: 1.2rem; font-weight: 600; margin: 1rem 0;">
+                ${group.repairs} Repairs Completed
+            </p>
+            <h4 style="margin-top: 1rem;">Top Projects:</h4>
+            <div class="project-gallery">
+                ${!group.projects || group.projects.length === 0
+        ? '<p style="grid-column: 1/-1; text-align: center; color: #999;">No projects yet</p>'
+        : group.projects.slice(0, 3).map(p => `<img src="${p}" class="project-img" alt="Project">`).join('')
     }
+            </div>
+            ${currentRole === 'admin' ? `
+            <input type="file" accept="image/*" onchange="uploadGroupImage(${group.id}, this)" style="margin-top:8px; margin-bottom:6px;">
+            <button class="btn-delete-group" onclick="deleteGroup(${group.id})">Delete Group</button>
+            ` : ''}
+            ${currentRole === 'tech' ? `
+            <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="viewGroupRepairs(${group.id})">
+                View Assigned Repairs
+            </button>
+            ` : ''}
+        </div>
+    `).join('');
 }
 
-function scrollToGroups() {
-    const groupsSection = document.querySelector('.groups-section');
-    groupsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
+// Alias so existing HTML onclick="updateDisplay()" still works
+function updateDisplay() { renderGroups(); }
 
 function populateAppointmentsModal() {
     const container = document.getElementById('appointmentsContainer');
-
     const pending = appointments.filter(a => a.status === 'pending');
     const assigned = appointments.filter(a => a.status === 'assigned');
     const completed = appointments.filter(a => a.status === 'completed');
@@ -318,20 +439,19 @@ function populateAppointmentsModal() {
         html += '<h3 style="color: #001f3f; margin-bottom: 1rem;">Pending Assignment</h3>';
         pending.forEach(appt => {
             html += `
-                        <div style="background: #fff3cd; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #ffc107;">
-                            <strong>${appt.name}</strong> - ${appt.device}<br>
-                            <em>${appt.issue}</em><br>
-                            <small>Preferred: ${appt.date} at ${appt.time}</small><br>
-                            <div style="margin-top: 0.5rem;">
-                                <select id="assign-${appt.id}" style="padding: 0.3rem; margin-right: 0.5rem;">
-                                    <option value="">Select Team...</option>
-                                    ${groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('')}
-                                </select>
-                                <button class="btn btn-primary" style="padding: 0.3rem 1rem;" onclick="assignToGroup(${appt.id})">Assign</button>
-                                <button class="btn btn-secondary" style="padding: 0.3rem 1rem; background: #dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
-                            </div>
-                        </div>
-                    `;
+                <div style="background: #fff3cd; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #ffc107;">
+                    <strong>${appt.name}</strong> - ${appt.device}<br>
+                    <em>${appt.issue}</em><br>
+                    <small>Preferred: ${appt.date} at ${appt.time}</small><br>
+                    <div style="margin-top: 0.5rem;">
+                        <select id="assign-${appt.id}" style="padding: 0.3rem; margin-right: 0.5rem;">
+                            <option value="">Select Team...</option>
+                            ${groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('')}
+                        </select>
+                        <button class="btn btn-primary" style="padding: 0.3rem 1rem;" onclick="assignToGroup(${appt.id})">Assign</button>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 1rem; background: #dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
+                    </div>
+                </div>`;
         });
     }
 
@@ -339,17 +459,16 @@ function populateAppointmentsModal() {
         html += '<h3 style="color: #001f3f; margin: 2rem 0 1rem;">Assigned to Teams</h3>';
         assigned.forEach(appt => {
             html += `
-                        <div style="background: #d1ecf1; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #17a2b8;">
-                            <strong>${appt.name}</strong> - ${appt.device}<br>
-                            <em>${appt.issue}</em><br>
-                            <small>Assigned to: <strong>${appt.groupName}</strong></small><br>
-                            <small>Date: ${appt.date} at ${appt.time}</small><br>
-                            <div style="margin-top: 0.5rem;">
-                                <button class="btn btn-primary" style="padding: 0.3rem 1rem; background: #28a745;" onclick="markCompleted(${appt.id})">Mark Completed</button>
-                                <button class="btn btn-secondary" style="padding: 0.3rem 1rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
-                            </div>
-                        </div>
-                    `;
+                <div style="background: #d1ecf1; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #17a2b8;">
+                    <strong>${appt.name}</strong> - ${appt.device}<br>
+                    <em>${appt.issue}</em><br>
+                    <small>Assigned to: <strong>${appt.group_name}</strong></small><br>
+                    <small>Date: ${appt.date} at ${appt.time}</small><br>
+                    <div style="margin-top: 0.5rem;">
+                        <button class="btn btn-primary" style="padding: 0.3rem 1rem; background: #28a745;" onclick="markCompleted(${appt.id})">Mark Completed</button>
+                        <button class="btn btn-secondary" style="padding: 0.3rem 1rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
+                    </div>
+                </div>`;
         });
     }
 
@@ -357,91 +476,81 @@ function populateAppointmentsModal() {
         html += '<h3 style="color: #001f3f; margin: 2rem 0 1rem;">Completed Repairs</h3>';
         completed.forEach(appt => {
             html += `
-                        <div style="background: #d4edda; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #28a745;">
-                            <strong>${appt.name}</strong> - ${appt.device}<br>
-                            <em>${appt.issue}</em><br>
-                            <small>Completed by: <strong>${appt.groupName}</strong></small><br>
-                            <button class="btn btn-secondary" style="padding: 0.3rem 1rem; margin-top: 0.5rem; background: #dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
-                        </div>
-                    `;
+                <div style="background: #d4edda; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #28a745;">
+                    <strong>${appt.name}</strong> - ${appt.device}<br>
+                    <em>${appt.issue}</em><br>
+                    <small>Completed by: <strong>${appt.group_name}</strong></small><br>
+                    <button class="btn btn-secondary" style="padding: 0.3rem 1rem; margin-top: 0.5rem; background: #dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
+                </div>`;
         });
     }
 
     container.innerHTML = html;
 }
 
-function assignToGroup(apptId) {
-    const select = document.getElementById(`assign-${apptId}`);
-    const groupId = parseInt(select.value);
-
-    if (!groupId) {
-        alert('Please select a team');
-        return;
-    }
-
-    const appt = appointments.find(a => a.id === apptId);
-    const group = groups.find(g => g.id === groupId);
-
-    appt.groupId = groupId;
-    appt.groupName = group.name;
-    appt.status = 'assigned';
-
-    saveData();
-    populateAppointmentsModal();
-    alert(`Assigned to ${group.name}!`);
-}
-
-function unassignAppointment(apptId) {
-    const appt = appointments.find(a => a.id === apptId);
-    appt.groupId = null;
-    appt.groupName = 'Unassigned';
-    appt.status = 'pending';
-
-    saveData();
-    populateAppointmentsModal();
-}
-
-function markCompleted(apptId) {
-    const appt = appointments.find(a => a.id === apptId);
-    appt.status = 'completed';
-
-    saveData();
-    populateAppointmentsModal();
-    alert('Repair marked as completed!');
-}
-
-function deleteAppointment(apptId) {
-    if (confirm('Are you sure you want to delete this request?')) {
-        appointments = appointments.filter(a => a.id !== apptId);
-        saveData();
-        populateAppointmentsModal();
-    }
-}
-
 function viewGroupRepairs(groupId) {
     const group = groups.find(g => g.id === groupId);
-    const groupAppts = appointments.filter(a => a.groupId === groupId && a.status === 'assigned');
+    const groupAppts = appointments.filter(a => a.group_id === groupId && a.status === 'assigned');
 
     document.getElementById('groupRepairsTitle').textContent = `${group.name} - Assigned Repairs`;
 
     const container = document.getElementById('groupRepairsContainer');
-
     if (groupAppts.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">No repairs currently assigned to this team.</p>';
     } else {
         container.innerHTML = groupAppts.map(appt => `
-                    <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #001f3f;">
-                        <strong>${appt.name}</strong> - ${appt.device}<br>
-                        <em>${appt.issue}</em><br>
-                        <small>Date: ${appt.date} at ${appt.time}</small><br>
-                        <span style="display: inline-block; margin-top: 0.5rem; padding: 0.3rem 0.8rem; background: #17a2b8; color: white; border-radius: 3px; font-size: 0.85rem;">
-                            ${appt.status === 'assigned' ? 'In Progress' : appt.status}
-                        </span>
-                    </div>
-                `).join('');
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #001f3f;">
+                <strong>${appt.name}</strong> - ${appt.device}<br>
+                <em>${appt.issue}</em><br>
+                <small>Date: ${appt.date} at ${appt.time}</small><br>
+                <span style="display: inline-block; margin-top: 0.5rem; padding: 0.3rem 0.8rem; background: #17a2b8; color: white; border-radius: 3px; font-size: 0.85rem;">
+                    In Progress
+                </span>
+            </div>
+        `).join('');
     }
-
     openModal('viewGroupRepairsModal');
+}
+
+// ============================================================
+// MODAL HELPERS (unchanged)
+// ============================================================
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+    if (id === 'updateStatsModal') populateStatsModal();
+    if (id === 'appointmentModal' && !selectedGroupId) {
+        document.querySelector('#appointmentModal h2').textContent = 'Schedule Repair Appointment';
+        document.getElementById('apptTime').innerHTML = `
+            <option>8:30 AM - 9:30 AM</option>
+            <option>11:45 - 2:20 PM</option>
+        `;
+    }
+}
+
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+function scheduleWithGroup(groupId) {
+    selectedGroupId = groupId;
+    const group = groups.find(g => g.id === groupId);
+    openModal('appointmentModal');
+    document.querySelector('#appointmentModal h2').textContent = 'Request Repair';
+
+    const timeSelect = document.getElementById('apptTime');
+    if (group.period === 'AM') {
+        timeSelect.innerHTML = `
+            <option>8:30 AM - 9:30 AM</option>
+            <option>9:30 AM - 10:30 AM</option>
+            <option>10:30 AM - 11:30 AM</option>
+        `;
+    } else {
+        timeSelect.innerHTML = `
+            <option>12:00 PM - 1:00 PM</option>
+            <option>1:00 PM - 2:00 PM</option>
+            <option>2:00 PM - 3:00 PM</option>
+        `;
+    }
 }
 
 window.onclick = function(event) {
@@ -450,164 +559,43 @@ window.onclick = function(event) {
     }
 }
 
-function uploadGroupImage(groupId, input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const group = groups.find(g => g.id === groupId);
-        if (!group.projects) group.projects = [];
-
-        group.projects.unshift(e.target.result); // add image to beginning
-
-        // Limit stored images to 4
-        if (group.projects.length > 4) {
-            group.projects = group.projects.slice(0, 4);
-        }
-
-        saveData();
-        updateDisplay();
-    };
-
-    reader.readAsDataURL(file);
+function scrollToGroups() {
+    document.querySelector('.groups-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function toggleAdminPanel() {
-    const role = document.getElementById("roleIndicator").textContent.trim();
-    const panel = document.getElementById("adminPanel");
-
-    if (role === "Admin") {
-        panel.style.display = panel.style.display === "block" ? "none" : "block";
+    const role = document.getElementById('roleIndicator').textContent.trim();
+    const panel = document.getElementById('adminPanel');
+    if (role === 'Admin') {
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
     }
 }
 
 function showTopic(id) {
-
-    document.querySelectorAll(".about-topic").forEach(section => {
-        section.classList.remove("active");
+    document.querySelectorAll('.about-topic').forEach(section => {
+        section.style.display = 'none';
+        section.classList.remove('active');
     });
-
     const target = document.getElementById(id);
-    target.classList.add("active");
+    target.style.display = 'block';
+    target.classList.add('active');
 }
 
-function submitReview(){
-
-    const name = document.getElementById("reviewName").value;
-    const rating = document.getElementById("reviewRating").value;
-    const comment = document.getElementById("reviewComment").value;
-
-    if(!name || !comment){
-        alert("Please fill out all fields");
-        return;
-    }
-
-    reviews.push({
-        name,
-        rating,
-        comment
+function filterTeams() {
+    const filter = document.getElementById('teamFilter').value;
+    document.querySelectorAll('.group-card').forEach(card => {
+        const badge = card.querySelector('.group-badge');
+        if (!badge) return;
+        const period = badge.textContent.includes('AM') ? 'AM' : 'PM';
+        card.style.display = (filter === 'all' || filter === period) ? 'block' : 'none';
     });
-
-    saveData();
-
-    closeModal("reviewModal");
-
-    alert("Thank you for your feedback!");
-
 }
 
+// Restore session if tab is still open
+const savedRole = sessionStorage.getItem('bocesRole');
+if (savedRole) currentRole = savedRole;
 
-    function toggleAdminPanel() {
-    const role = document.getElementById("roleIndicator").textContent.trim();
-    const panel = document.getElementById("adminPanel");
-
-    if (role === "Admin") {
-    panel.style.display = panel.style.display === "block" ? "none" : "block";
-}
-}
-
-    function showTopic(id) {
-    const sections = document.querySelectorAll(".about-topic");
-
-    sections.forEach(section => {
-    section.style.display = "none";
-    section.classList.remove("active");
-});
-
-    const target = document.getElementById(id);
-    target.style.display = "block";
-    target.classList.add("active");
-}
-
-    function filterTeams() {
-    const filter = document.getElementById("teamFilter").value;
-    const cards = document.querySelectorAll(".group-card");
-
-    cards.forEach(card => {
-    const badge = card.querySelector(".group-badge");
-
-    if (!badge) return;
-
-    const period = badge.textContent.includes("AM") ? "AM" : "PM";
-
-    if (filter === "all" || filter === period) {
-    card.style.display = "block";
-} else {
-    card.style.display = "none";
-}
-});
-}
-
-    function submitReview() {
-    const name = document.getElementById("reviewName").value.trim();
-    const rating = document.getElementById("reviewRating").value;
-    const comment = document.getElementById("reviewComment").value.trim();
-
-    if (!name || !comment) {
-    alert("Please fill out your name and comment.");
-    return;
-}
-
-    const review = { name, rating, comment };
-
-    // Load existing reviews
-    const stored = JSON.parse(localStorage.getItem("customerReviews")) || [];
-    stored.push(review);
-
-    // Save reviews
-    localStorage.setItem("customerReviews", JSON.stringify(stored));
-
-    // Clear inputs
-    document.getElementById("reviewName").value = "";
-    document.getElementById("reviewComment").value = "";
-
-    closeModal('reviewModal');
-
-    renderReviews();
-}
-
-    function renderReviews() {
-    const container = document.getElementById("reviewsContainer");
-    const stored = JSON.parse(localStorage.getItem("customerReviews")) || [];
-
-    if (stored.length === 0) {
-    container.innerHTML = "<p style='text-align:center;color:#777;'>No reviews yet.</p>";
-    return;
-}
-
-    container.innerHTML = stored.map(r => `
-        <div class="info-card">
-            <h3>${"⭐".repeat(r.rating)}</h3>
-            <p>"${r.comment}"</p>
-            <strong>— ${r.name}</strong>
-        </div>
-    `).join("");
-}
-
-    // Load reviews when page loads
-    document.addEventListener("DOMContentLoaded", renderReviews);
-
-
-loadData();
-updateRoleDisplay();
+// ============================================================
+// START
+// ============================================================
+document.addEventListener('DOMContentLoaded', loadData);
