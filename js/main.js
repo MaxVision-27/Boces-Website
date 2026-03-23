@@ -328,8 +328,8 @@ async function submitReview() {
     if (!comment) { alert('Please write a comment.'); return; }
 
     const { error } = await db.from('reviews').insert({ rating, comment });
+    if (error) { console.error('Error submitting review:', error); alert('Failed to submit review.'); return; }
 
-    document.getElementById('reviewName').value = '';
     document.getElementById('reviewComment').value = '';
 
     closeModal('reviewModal');
