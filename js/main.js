@@ -180,8 +180,15 @@ async function submitAppointment() {
         group_name: 'Unassigned'
     }).select().single();
 
-    if (error) { console.error('Error submitting request:', error); alert('Failed to submit request.'); return; }
-
+    if (error) {
+        if (error.message.includes('Repair limit reached')) {
+            alert('Sorry, we are currently at full capacity (20 repairs). Please visit us in person or try again later.');
+        } else {
+            console.error('Error submitting request:', error);
+            alert('Failed to submit request.');
+        }
+        return;
+    }
     appointments.push(data);
     populateAppointmentsModal();
     closeModal('appointmentModal');
