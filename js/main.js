@@ -162,43 +162,77 @@ async function uploadGroupImage(groupId, input) {
 // ============================================================
 async function submitAppointment() {
     const name = document.getElementById('apptName').value.trim();
+    const email = document.getElementById('apptEmail').value.trim().toLowerCase();
     const device = document.getElementById('apptDevice').value;
     const issue = document.getElementById('apptIssue').value.trim();
     const date = document.getElementById('apptDate').value;
     const time = document.getElementById('apptTime').value;
 
-    if (!name || !issue || !date) { alert('Please fill in all required fields'); return; }
+    if (!name || !email || !issue || !date) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    // Validate email format
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    if (!validEmail) {
+        alert('Please enter a valid email address.');
+        return;
+    }
+
+    // Auto-flag suspicious content
+    const suspiciousWords = ['test', 'asdf', 'fake', 'hello', '123', 'abc', 'xxx'];
+    const isSuspicious =
+        suspiciousWords.some(word =>
+            issue.toLowerCase().includes(word) ||
+            name.toLowerCase().includes(word)
+        ) ||
+        issue.length < 15 ||
+        /^(.)\1+$/.test(issue) ||
+        !/[a-zA-Z]{3,}/.test(issue) ||
+        name.length < 2;
 
     const { data, error } = await db.from('repair_requests').insert({
         name,
+        email,
         device,
         issue,
         date,
         time,
-        status: 'pending',
+        status: isSuspicious ? 'flagged' : 'pending',
+        flagged: isSuspicious,
+        flag_reason: isSuspicious ? 'Auto-flagged: suspicious content' : null,
         group_id: null,
         group_name: 'Unassigned'
     }).select().single();
 
     if (error) {
-        if (error.message.includes('Repair limit reached')) {
-            alert('Sorry, we are currently at full capacity (20 repairs). Please visit us in person or try again later.');
+        if (error.message.includes('Too many submissions')) {
+            alert('You have already submitted 2 tickets today. Please visit us in person if this is urgent.');
+        } else if (error.message.includes('Repair limit reached')) {
+            alert('Sorry, we are currently at full capacity (20 repairs). Please try again later.');
         } else {
             console.error('Error submitting request:', error);
             alert('Failed to submit request.');
         }
         return;
     }
+
     appointments.push(data);
     populateAppointmentsModal();
     closeModal('appointmentModal');
 
     document.getElementById('apptName').value = '';
+    document.getElementById('apptEmail').value = '';
     document.getElementById('apptIssue').value = '';
     document.getElementById('apptDate').value = '';
     selectedGroupId = null;
 
-    alert('Repair request submitted! A team will be assigned by the instructor.');
+    if (isSuspicious) {
+        alert('Your request has been submitted and is pending review by our team.');
+    } else {
+        alert('Repair request submitted! A team will be assigned by the instructor.');
+    }
 }
 
 async function assignToGroup(apptId) {
@@ -271,6 +305,24 @@ async function deleteAppointment(apptId) {
     populateAppointmentsModal();
 }
 
+async function approveTicket(apptId) {
+    const { error } = await db.from('repair_requests').update({
+        status: 'pending',
+        flagged: false,
+        flag_reason: null
+    }).eq('id', apptId);
+
+    if (error) { console.error('Error approving ticket:', error); return; }
+
+    const appt = appointments.find(a => a.id === apptId);
+    appt.status = 'pending';
+    appt.flagged = false;
+    appt.flag_reason = null;
+
+    populateAppointmentsModal();
+    alert('Ticket approved and moved to pending!');
+}
+
 // ============================================================
 // STATS
 // ============================================================
@@ -329,9 +381,6 @@ async function updateStats() {
 // REVIEWS
 // ============================================================
 async function submitReview() {
-    console.log('rating el:', document.getElementById('reviewRating'));
-    console.log('comment el:', document.getElementById('reviewComment'));
-
     const rating = parseInt(document.getElementById('reviewRating').value);
     const comment = document.getElementById('reviewComment').value.trim();
 
@@ -346,6 +395,7 @@ async function submitReview() {
     renderReviews();
     alert('Thank you for your feedback!');
 }
+
 async function renderReviews() {
     const container = document.getElementById('reviewsContainer');
     if (!container) return;
@@ -363,8 +413,20 @@ async function renderReviews() {
             <h3>${'⭐'.repeat(r.rating)}</h3>
             <p>"${r.comment}"</p>
             <strong>— Anonymous</strong>
+            ${currentRole === 'admin' ? `
+            <br><button class="btn btn-secondary"
+                style="margin-top:0.5rem; background:#dc3545; padding:0.3rem 1rem;"
+                onclick="deleteReview(${r.id})">Delete</button>
+            ` : ''}
         </div>
     `).join('');
+}
+
+async function deleteReview(reviewId) {
+    if (!confirm('Delete this review?')) return;
+    const { error } = await db.from('reviews').delete().eq('id', reviewId);
+    if (error) { console.error('Error deleting review:', error); return; }
+    renderReviews();
 }
 
 // ============================================================
@@ -391,6 +453,7 @@ function updateRoleDisplay() {
         adminPanel.style.display = 'none';
     }
     renderGroups();
+    renderReviews();
 }
 
 function renderGroups() {
@@ -432,69 +495,151 @@ function renderGroups() {
 
 function updateDisplay() { renderGroups(); }
 
-function populateAppointmentsModal() {
+// ============================================================
+// TICKET MANAGER — with search, filter, sort, duplicate warning
+// ============================================================
+function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOrder = 'newest') {
     const container = document.getElementById('appointmentsContainer');
     if (!container) return;
 
-    const pending = appointments.filter(a => a.status === 'pending');
-    const assigned = appointments.filter(a => a.status === 'assigned');
-    const completed = appointments.filter(a => a.status === 'completed');
+    // Find duplicate emails
+    const emailCounts = {};
+    const nameCounts = {};
+    appointments.forEach(a => {
+        if (a.email) emailCounts[a.email.toLowerCase()] = (emailCounts[a.email.toLowerCase()] || 0) + 1;
+        nameCounts[a.name.toLowerCase()] = (nameCounts[a.name.toLowerCase()] || 0) + 1;
+    });
 
-    if (appointments.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999;">No repair requests yet.</p>';
+    // Apply filters
+    let filtered = [...appointments];
+    if (filterName.trim()) {
+        filtered = filtered.filter(a =>
+            a.name.toLowerCase().includes(filterName.toLowerCase()) ||
+            (a.email && a.email.toLowerCase().includes(filterName.toLowerCase()))
+        );
+    }
+    if (filterStatus !== 'all') {
+        filtered = filtered.filter(a => a.status === filterStatus);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+        const dateA = new Date(a.created_at);
+        const dateB = new Date(b.created_at);
+        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
+    const flagged = filtered.filter(a => a.status === 'flagged');
+    const pending = filtered.filter(a => a.status === 'pending');
+    const assigned = filtered.filter(a => a.status === 'assigned');
+    const completed = filtered.filter(a => a.status === 'completed');
+
+    // Duplicate warning — emails with more than 1 ticket
+    const duplicateEmails = Object.entries(emailCounts)
+        .filter(([_, count]) => count > 1)
+        .map(([email]) => email);
+
+    let html = `
+        <div style="display:flex; gap:8px; margin-bottom:1rem; flex-wrap:wrap;">
+            <input
+                type="text"
+                id="nameSearch"
+                placeholder="Search by name or email..."
+                value="${filterName}"
+                oninput="populateAppointmentsModal(this.value, document.getElementById('statusFilter').value, document.getElementById('sortFilter').value)"
+                style="padding:0.4rem 0.8rem; border-radius:5px; border:1px solid #ccc; flex:1; min-width:150px;">
+            <select id="statusFilter"
+                onchange="populateAppointmentsModal(document.getElementById('nameSearch').value, this.value, document.getElementById('sortFilter').value)"
+                style="padding:0.4rem; border-radius:5px; border:1px solid #ccc;">
+                <option value="all" ${filterStatus === 'all' ? 'selected' : ''}>All Status</option>
+                <option value="flagged" ${filterStatus === 'flagged' ? 'selected' : ''}>Flagged</option>
+                <option value="pending" ${filterStatus === 'pending' ? 'selected' : ''}>Pending</option>
+                <option value="assigned" ${filterStatus === 'assigned' ? 'selected' : ''}>Assigned</option>
+                <option value="completed" ${filterStatus === 'completed' ? 'selected' : ''}>Completed</option>
+            </select>
+            <select id="sortFilter"
+                onchange="populateAppointmentsModal(document.getElementById('nameSearch').value, document.getElementById('statusFilter').value, this.value)"
+                style="padding:0.4rem; border-radius:5px; border:1px solid #ccc;">
+                <option value="newest" ${sortOrder === 'newest' ? 'selected' : ''}>Newest First</option>
+                <option value="oldest" ${sortOrder === 'oldest' ? 'selected' : ''}>Oldest First</option>
+            </select>
+        </div>`;
+
+    // Duplicate warning banner
+    if (duplicateEmails.length > 0) {
+        html += `
+        <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:5px; padding:0.8rem; margin-bottom:1rem;">
+            ⚠️ <strong>Possible duplicate submissions detected:</strong><br>
+            ${duplicateEmails.map(email => `
+                <span style="display:inline-block; background:#ffc107; color:#333; padding:2px 8px; border-radius:10px; margin:3px; font-size:0.85rem; cursor:pointer;"
+                    onclick="populateAppointmentsModal('${email}', 'all', 'newest')">
+                    ${email} (${emailCounts[email]} tickets)
+                </span>
+            `).join('')}
+            <br><small style="color:#666;">Click an email to filter their tickets</small>
+        </div>`;
+    }
+
+    if (filtered.length === 0) {
+        html += '<p style="text-align:center; color:#999;">No tickets match your search.</p>';
+        container.innerHTML = html;
         return;
     }
 
-    let html = '';
-
-    if (pending.length > 0) {
-        html += '<h3 style="color: #001f3f; margin-bottom: 1rem;">Pending Assignment</h3>';
-        pending.forEach(appt => {
-            html += `
-                <div style="background: #fff3cd; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #ffc107;">
-                    <strong>${appt.name}</strong> - ${appt.device}<br>
-                    <em>${appt.issue}</em><br>
-                    <small>Preferred: ${appt.date} at ${appt.time}</small><br>
-                    <div style="margin-top: 0.5rem;">
-                        <select id="assign-${appt.id}" style="padding: 0.3rem; margin-right: 0.5rem;">
-                            <option value="">Select Team...</option>
-                            ${groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('')}
-                        </select>
-                        <button class="btn btn-primary" style="padding: 0.3rem 1rem;" onclick="assignToGroup(${appt.id})">Assign</button>
-                        <button class="btn btn-secondary" style="padding: 0.3rem 1rem; background: #dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
-                    </div>
-                </div>`;
-        });
-    }
-
-    if (assigned.length > 0) {
-        html += '<h3 style="color: #001f3f; margin: 2rem 0 1rem;">Assigned to Teams</h3>';
-        assigned.forEach(appt => {
-            html += `
-                <div style="background: #d1ecf1; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #17a2b8;">
-                    <strong>${appt.name}</strong> - ${appt.device}<br>
-                    <em>${appt.issue}</em><br>
+    // Render a single ticket card
+    const renderTicket = (appt, bgColor, borderColor) => {
+        const isDuplicateEmail = appt.email && emailCounts[appt.email.toLowerCase()] > 1;
+        return `
+        <div style="background:${bgColor}; padding:1rem; border-radius:5px; margin-bottom:1rem; border-left:4px solid ${borderColor};">
+            <strong>${appt.name}</strong>
+            ${isDuplicateEmail ? '<span style="background:#dc3545; color:white; font-size:0.75rem; padding:2px 6px; border-radius:10px; margin-left:6px;">⚠️ Duplicate Email</span>' : ''}
+            - ${appt.device}<br>
+            <small style="color:#555;">📧 ${appt.email || 'No email provided'}</small><br>
+            <em>${appt.issue}</em><br>
+            <small>Submitted: ${new Date(appt.created_at).toLocaleDateString()} at ${new Date(appt.created_at).toLocaleTimeString()}</small><br>
+            <small>Preferred: ${appt.date} at ${appt.time}</small><br>
+            ${appt.flag_reason ? `<small>🚩 ${appt.flag_reason}</small><br>` : ''}
+            <div style="margin-top:0.5rem;">
+                ${appt.status === 'flagged' ? `
+                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745;" onclick="approveTicket(${appt.id})">Approve</button>
+                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Reject</button>
+                ` : ''}
+                ${appt.status === 'pending' ? `
+                    <select id="assign-${appt.id}" style="padding:0.3rem; margin-right:0.5rem;">
+                        <option value="">Select Team...</option>
+                        ${groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('')}
+                    </select>
+                    <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="assignToGroup(${appt.id})">Assign</button>
+                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
+                ` : ''}
+                ${appt.status === 'assigned' ? `
                     <small>Assigned to: <strong>${appt.group_name}</strong></small><br>
-                    <small>Date: ${appt.date} at ${appt.time}</small><br>
-                    <div style="margin-top: 0.5rem;">
-                        <button class="btn btn-primary" style="padding: 0.3rem 1rem; background: #28a745;" onclick="markCompleted(${appt.id})">Mark Completed</button>
-                        <button class="btn btn-secondary" style="padding: 0.3rem 1rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
-                    </div>
-                </div>`;
-        });
-    }
-
-    if (completed.length > 0) {
-        html += '<h3 style="color: #001f3f; margin: 2rem 0 1rem;">Completed Repairs</h3>';
-        completed.forEach(appt => {
-            html += `
-                <div style="background: #d4edda; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #28a745;">
-                    <strong>${appt.name}</strong> - ${appt.device}<br>
-                    <em>${appt.issue}</em><br>
+                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; margin-top:0.5rem;" onclick="markCompleted(${appt.id})">Mark Completed</button>
+                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; margin-top:0.5rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
+                ` : ''}
+                ${appt.status === 'completed' ? `
                     <small>Completed by: <strong>${appt.group_name}</strong></small><br>
-                    <button class="btn btn-secondary" style="padding: 0.3rem 1rem; margin-top: 0.5rem; background: #dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
-                </div>`;
-        });
+                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; margin-top:0.5rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
+                ` : ''}
+            </div>
+        </div>`;
+    };
+
+    if (flagged.length > 0) {
+        html += '<h3 style="color:#dc3545; margin-bottom:1rem;">⚠️ Flagged for Review</h3>';
+        flagged.forEach(a => html += renderTicket(a, '#ffe0e0', '#dc3545'));
+    }
+    if (pending.length > 0) {
+        html += '<h3 style="color:#001f3f; margin-bottom:1rem;">Pending Assignment</h3>';
+        pending.forEach(a => html += renderTicket(a, '#fff3cd', '#ffc107'));
+    }
+    if (assigned.length > 0) {
+        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Assigned to Teams</h3>';
+        assigned.forEach(a => html += renderTicket(a, '#d1ecf1', '#17a2b8'));
+    }
+    if (completed.length > 0) {
+        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Completed Repairs</h3>';
+        completed.forEach(a => html += renderTicket(a, '#d4edda', '#28a745'));
     }
 
     container.innerHTML = html;
@@ -530,8 +675,9 @@ function viewGroupRepairs(groupId) {
 function openModal(id) {
     document.getElementById(id).style.display = 'flex';
     if (id === 'updateStatsModal') populateStatsModal();
+    if (id === 'manageAppointmentsModal') populateAppointmentsModal();
     if (id === 'appointmentModal' && !selectedGroupId) {
-        document.querySelector('#appointmentModal h2').textContent = 'Schedule Repair Appointment';
+        document.querySelector('#appointmentModal h2').textContent = 'Walk-In';
         document.getElementById('apptTime').innerHTML = `
             <option>8:30 AM - 9:30 AM</option>
             <option>11:45 - 2:20 PM</option>
