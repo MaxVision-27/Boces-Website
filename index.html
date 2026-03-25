@@ -254,9 +254,10 @@
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('reviewModal')">×</span>
         <h2>Leave a Review</h2>
+
         <div class="form-group">
             <label>Rating</label>
-            <select id="reviewRating">
+            <select id="reviewRating" onchange="updateReviewTags()">
                 <option value="5">⭐⭐⭐⭐⭐</option>
                 <option value="4">⭐⭐⭐⭐</option>
                 <option value="3">⭐⭐⭐</option>
@@ -264,13 +265,13 @@
                 <option value="1">⭐</option>
             </select>
         </div>
+
         <div class="form-group">
-            <label>Comment</label>
-            <textarea id="reviewComment" placeholder="Tell us about your experience..."></textarea>
+            <label>What did you think? <small style="color:#888;">(select all that apply)</small></label>
+            <div id="reviewTags" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
         </div>
-        <button class="btn btn-primary" onclick="submitReview()">
-            Submit Review
-        </button>
+
+        <button class="btn btn-primary" onclick="submitReview()">Submit Review</button>
     </div>
 </div>
 

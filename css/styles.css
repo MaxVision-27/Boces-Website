@@ -336,3 +336,27 @@ body {
 .hidden {
     display: none;
 }
+
+/* =========================================================
+   TAGS
+   ========================================================= */
+.review-tag {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 2px solid #001f3f;
+    background: white;
+    color: #001f3f;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.review-tag.selected {
+    background: #001f3f;
+    color: white;
+}
+
+.review-tag:hover {
+    background: #001f3f;
+    color: white;
+}

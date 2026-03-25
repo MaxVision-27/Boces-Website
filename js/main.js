@@ -380,16 +380,97 @@ async function updateStats() {
 // ============================================================
 // REVIEWS
 // ============================================================
+// Tags for each star level
+const reviewTagsByRating = {
+    5: [
+        '⚡ Super fast repair',
+        '😊 Incredibly friendly',
+        '💯 Outstanding service',
+        '🔧 Perfectly fixed',
+        '📱 Handled with great care',
+        '💬 Excellent communication',
+        '💰 Amazing value',
+        '🎓 Very knowledgeable',
+        '⏱️ Finished ahead of time',
+        '👍 Highly recommend',
+        '🌟 Exceeded expectations',
+        '🏆 Best repair experience'
+    ],
+    4: [
+        '⚡ Fast repair',
+        '😊 Friendly staff',
+        '💯 Great service',
+        '🔧 Fixed my issue',
+        '📱 Handled my device carefully',
+        '💬 Good communication',
+        '💰 Good value',
+        '🎓 Knowledgeable team',
+        '⏱️ Completed on time',
+        '👍 Would recommend',
+        '🔄 Minor issue but resolved'
+    ],
+    3: [
+        '⏱️ Took a bit longer than expected',
+        '💬 Communication could improve',
+        '🔧 Issue was mostly fixed',
+        '😐 Experience was okay',
+        '💰 Fair value',
+        '📋 Could be more organized',
+        '🔄 Needed a follow-up visit',
+        '👍 Decent service overall'
+    ],
+    2: [
+        '⏳ Took too long',
+        '💬 Poor communication',
+        '🔧 Issue not fully resolved',
+        '😞 Disappointing experience',
+        '💰 Not worth the wait',
+        '📋 Disorganized process',
+        '❓ Unclear about repair status',
+        '🔄 Had to come back multiple times'
+    ],
+    1: [
+        '❌ Issue not fixed at all',
+        '😠 Very poor experience',
+        '⏳ Extremely long wait',
+        '💬 No communication',
+        '📱 Device not handled carefully',
+        '💰 Waste of time',
+        '👎 Would not recommend',
+        '😔 Very disappointed'
+    ]
+};
+
+function updateReviewTags() {
+    const rating = parseInt(document.getElementById('reviewRating').value);
+    const tags = reviewTagsByRating[rating] || [];
+    const container = document.getElementById('reviewTags');
+
+    container.innerHTML = tags.map(tag => `
+        <button type="button" class="review-tag" onclick="toggleTag(this)">${tag}</button>
+    `).join('');
+}
+
+function toggleTag(btn) {
+    btn.classList.toggle('selected');
+}
+
 async function submitReview() {
     const rating = parseInt(document.getElementById('reviewRating').value);
-    const comment = document.getElementById('reviewComment').value.trim();
+    const selectedTags = [...document.querySelectorAll('.review-tag.selected')]
+        .map(btn => btn.textContent.trim());
 
-    if (!comment) { alert('Please write a comment.'); return; }
+    if (selectedTags.length === 0) {
+        alert('Please select at least one option.');
+        return;
+    }
+
+    const comment = selectedTags.join(' · ');
 
     const { error } = await db.from('reviews').insert({ rating, comment });
     if (error) { console.error('Error submitting review:', error); alert('Failed to submit review.'); return; }
 
-    document.getElementById('reviewComment').value = '';
+    document.querySelectorAll('.review-tag.selected').forEach(btn => btn.classList.remove('selected'));
 
     closeModal('reviewModal');
     renderReviews();
@@ -411,10 +492,15 @@ async function renderReviews() {
     container.innerHTML = data.map(r => `
         <div class="info-card">
             <h3>${'⭐'.repeat(r.rating)}</h3>
-            <p>"${r.comment}"</p>
-            <strong>— Anonymous</strong>
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin:0.5rem 0;">
+                ${r.comment.split(' · ').map(tag => `
+                    <span style="background:#001f3f; color:white; padding:4px 10px; border-radius:15px; font-size:0.85rem;">
+                        ${tag}
+                    </span>
+                `).join('')}
+            </div>
             ${currentRole === 'admin' ? `
-            <br><button class="btn btn-secondary"
+            <button class="btn btn-secondary"
                 style="margin-top:0.5rem; background:#dc3545; padding:0.3rem 1rem;"
                 onclick="deleteReview(${r.id})">Delete</button>
             ` : ''}
@@ -675,7 +761,7 @@ function viewGroupRepairs(groupId) {
 function openModal(id) {
     document.getElementById(id).style.display = 'flex';
     if (id === 'updateStatsModal') populateStatsModal();
-    if (id === 'manageAppointmentsModal') populateAppointmentsModal();
+    if (id === 'reviewModal') updateReviewTags();
     if (id === 'appointmentModal' && !selectedGroupId) {
         document.querySelector('#appointmentModal h2').textContent = 'Walk-In';
         document.getElementById('apptTime').innerHTML = `
