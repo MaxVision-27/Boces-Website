@@ -102,7 +102,7 @@
       <workItem from="1772808936115" duration="141000" />
       <workItem from="1772809402573" duration="193000" />
       <workItem from="1772809598114" duration="21235000" />
-      <workItem from="1774270128902" duration="2291000" />
+      <workItem from="1774270128902" duration="12872000" />
     </task>
     <task id="LOCAL-00001" summary="init commit">
       <option name="closed" value="true" />
@@ -184,7 +184,95 @@
       <option name="project" value="LOCAL" />
       <updated>1774272836929</updated>
     </task>
-    <option name="localTasksCounter" value="11" />
+    <task id="LOCAL-00011" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774274088844</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1774274088844</updated>
+    </task>
+    <task id="LOCAL-00012" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774274669523</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1774274669523</updated>
+    </task>
+    <task id="LOCAL-00013" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774295009498</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1774295009498</updated>
+    </task>
+    <task id="LOCAL-00014" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774305684400</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1774305684400</updated>
+    </task>
+    <task id="LOCAL-00015" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774306121941</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1774306121941</updated>
+    </task>
+    <task id="LOCAL-00016" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774306969020</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1774306969020</updated>
+    </task>
+    <task id="LOCAL-00017" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774308742865</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1774308742865</updated>
+    </task>
+    <task id="LOCAL-00018" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774309117718</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1774309117718</updated>
+    </task>
+    <task id="LOCAL-00019" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774309623570</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1774309623570</updated>
+    </task>
+    <task id="LOCAL-00020" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774360741524</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1774360741524</updated>
+    </task>
+    <task id="LOCAL-00021" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1774405433892</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1774405433892</updated>
+    </task>
+    <option name="localTasksCounter" value="22" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
