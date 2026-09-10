@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b8742a50-22fb-41d1-b316-799846e81048" name="Changes" comment="database setup">
+    <list default="true" id="b8742a50-22fb-41d1-b316-799846e81048" name="Changes" comment="database setup 2 (removed groups)">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/css/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/css/styles.css" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/index.html" afterDir="false" />
@@ -109,7 +109,7 @@
       <workItem from="1772809402573" duration="193000" />
       <workItem from="1772809598114" duration="21235000" />
       <workItem from="1774270128902" duration="16697000" />
-      <workItem from="1788976890842" duration="6096000" />
+      <workItem from="1788976890842" duration="8462000" />
     </task>
     <task id="LOCAL-00001" summary="init commit">
       <option name="closed" value="true" />
@@ -295,7 +295,15 @@
       <option name="project" value="LOCAL" />
       <updated>1774468656995</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="database setup">
+      <option name="closed" value="true" />
+      <created>1789074657710</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1789074657710</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -316,6 +324,7 @@
     <MESSAGE value="2 new info cards, reviews" />
     <MESSAGE value="init commit" />
     <MESSAGE value="database setup" />
-    <option name="LAST_COMMIT_MESSAGE" value="database setup" />
+    <MESSAGE value="database setup 2 (removed groups)" />
+    <option name="LAST_COMMIT_MESSAGE" value="database setup 2 (removed groups)" />
   </component>
 </project>

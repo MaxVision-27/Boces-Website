@@ -1,38 +1,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css">
-    <style>
-        .about-topic {
-            display: none;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .about-topic.active {
-            display: block;
-            opacity: 1;
-        }
-
-        /* Card hover improvements */
-        .info-card,
-        .group-card {
-            transition: transform 0.25s ease, box-shadow 0.25s ease;
-        }
-
-        .info-card:hover,
-        .group-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 12px 28px rgba(0,0,0,0.15);
-        }
-    </style>
+    <link rel="stylesheet" href="css/styles.css?v=3">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
-    <script src="js/effects.js" defer></script>
-    <script src="js/main.js" defer></script>
+    <script src="js/effects.js?v=3" defer></script>
+    <script src="js/main.js?v=3" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -46,7 +22,6 @@
         <span class="site-nav-brand">BarryTech Repair Lab</span>
         <div class="site-nav-links">
             <a href="#about">About</a>
-            <a href="#teams">Our Techs</a>
             <a href="#reviews">Reviews</a>
             <a href="#" onclick="openModal('trackModal'); return false;">Track Repair</a>
         </div>
@@ -63,7 +38,7 @@
     <h2>BarryTech Repair Lab</h2>
     <p class="hero-tagline">"We Break the Price, Not Your Device"</p>
     <div class="hero-buttons">
-        <button class="btn btn-primary" onclick="scrollToGroups()">Meet Our Tech Teams</button>
+        <button class="btn btn-primary" onclick="scrollToAbout()">Get to Know Us</button>
         <button class="btn btn-secondary" onclick="openModal('trackModal')">Track Your Repair</button>
     </div>
     <p class="hero-note">Bring your device to our classroom (C220) and one of our techs will get you set up — no online form needed.</p>
@@ -71,44 +46,49 @@
 
 <div class="section" id="about">
     <h2>About Us</h2>
-    <div class="info-grid">
-        <div class="info-card">
+    <p class="about-intro">Tap a topic to explore.</p>
+    <div class="about-pills">
+        <button type="button" class="about-pill active" onclick="showTopic('topic-repairs', this)">Expert Repairs</button>
+        <button type="button" class="about-pill" onclick="showTopic('topic-pricing', this)">Pricing</button>
+        <button type="button" class="about-pill" onclick="showTopic('topic-time', this)">Repair Time</button>
+        <button type="button" class="about-pill" onclick="showTopic('topic-tracking', this)">Tracking</button>
+        <button type="button" class="about-pill" onclick="showTopic('topic-location', this)">Location</button>
+        <button type="button" class="about-pill" onclick="showTopic('topic-services', this)">Services</button>
+        <button type="button" class="about-pill" onclick="showTopic('topic-ai', this)">AI Engineers</button>
+        <button type="button" class="about-pill" onclick="showTopic('topic-warranty', this)">Warranties</button>
+    </div>
+    <div class="about-panel">
+        <div class="about-topic active" id="topic-repairs">
             <h3>Expert Repairs</h3>
-            <p>Our skilled students repair computers, laptops, tablets, and smartphones with professional-grade tools and techniques.</p>
+            <p>Our skilled students repair computers, laptops, tablets, and smartphones using professional-grade tools and techniques.</p>
         </div>
-        <div class="info-card">
+        <div class="about-topic" id="topic-pricing">
             <h3>How Pricing Works</h3>
-            <p>Our labor is free, but if any parts are damaged the customer will need to order the replacement parts.</p>
-            <p>Examples: Phone Screen ($40–$125), Battery ($20–$60), RAM ($20–$80), Laptop Screen ($80–$200)</p>
+            <p>Labor is always free. If a part needs replacing, you just cover the part: screens $40–$200, batteries $20–$60, RAM $20–$80.</p>
         </div>
-        <div class="info-card">
+        <div class="about-topic" id="topic-time">
             <h3>Repair Time</h3>
-            <p>Most repairs are completed within 2–7 school days. If parts need to be ordered, repair times may vary.</p>
+            <p>Most repairs are done in 2–7 school days. Ordering a part can add extra time.</p>
         </div>
-        <div class="info-card">
-            <h3>Ticketing & Workflow System</h3>
-            <p>Each repair is logged into a ticketing system that tracks device details, reported issues, assigned technicians, repair status, and completion data.</p>
+        <div class="about-topic" id="topic-tracking">
+            <h3>Tracking Your Repair</h3>
+            <p>Every repair gets a tracking code at drop-off — use it under "Track Repair" anytime to check your status. No account needed.</p>
         </div>
-        <div class="info-card">
+        <div class="about-topic" id="topic-location">
             <h3>Where We're Located</h3>
-            <p>Our classroom (C220) is located on the right side of the building next to Joe's Store.</p>
+            <p>Our classroom (C220) is on the right side of the building, next to Joe's Store.</p>
         </div>
-        <div class="info-card">
+        <div class="about-topic" id="topic-services">
             <h3>Our Services</h3>
-            <p>We repair computers, laptops, tablets, and smartphones, and also provide data recovery and software installation services.</p>
+            <p>Computers, laptops, tablets, and phones — plus data recovery and software installs.</p>
         </div>
-        <div class="info-card">
+        <div class="about-topic" id="topic-ai">
             <h3>AI Engineers</h3>
-            <p>Artificial Intelligence is becoming a huge part of modern technology.
-                Our team can help explain how AI works, how tools like ChatGPT generate responses, and how machine learning systems learn from data.
-                Whether you're curious about AI or want to start learning about it, we're happy to help.
-            </p>
+            <p>Curious about AI? Our team can explain how tools like ChatGPT actually work and how machine learning systems learn.</p>
         </div>
-        <div class="info-card">
+        <div class="about-topic" id="topic-warranty">
             <h3>Warranty Education</h3>
-            <p>We help customers understand how device warranties work and what they cover.
-                Our team can explain when a repair may affect a warranty and help you determine the best repair option for your device.
-            </p>
+            <p>Not sure if a repair affects your warranty? We'll help you understand your coverage and pick the best option.</p>
         </div>
     </div>
 </div>
@@ -119,42 +99,20 @@
     <p style="font-size: 1.2rem;">Devices successfully repaired and counting!</p>
 </div>
 
-<div class="section groups-section" id="teams">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; gap:20px; flex-wrap:wrap;">
-        <div style="display:flex; align-items:center; gap:12px;">
-            <h2 style="margin-bottom:0;">Our Techs</h2>
-            <select id="teamFilter" style="padding:6px 10px; border-radius:6px;" onchange="filterTeams()">
-                <option value="all">All Teams</option>
-                <option value="AM">AM Class</option>
-                <option value="PM">PM Class</option>
-            </select>
-        </div>
-        <button class="btn btn-primary" id="techNewTicketBtn" style="background:#17a2b8; color:white; display:none;"
-                onclick="openTechTicketModal()">
-            New Ticket
-        </button>
-        <button class="btn btn-primary" style="background:#2e7d32; color:white;"
-                onclick="openModal('reviewModal')">
-            Leave a Review
-        </button>
-    </div>
-    <div class="groups-container" id="groupsContainer"></div>
-</div>
-
 <!-- Login Modal -->
 <div class="modal" id="loginModal" style="display: none;">
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('loginModal')">×</span>
         <h2>Staff Login</h2>
         <div class="form-group">
-            <label>Role</label>
+            <label for="loginRole">Role</label>
             <select id="loginRole">
                 <option value="admin">Admin (Teacher)</option>
                 <option value="tech">Tech (Student)</option>
             </select>
         </div>
         <div class="form-group">
-            <label>Password</label>
+            <label for="loginPassword">Password</label>
             <input type="password" id="loginPassword" placeholder="Enter password">
         </div>
         <button class="btn btn-primary" onclick="login()">Login</button>
@@ -165,9 +123,18 @@
 <div class="admin-panel" id="adminPanel" style="display: none; position: fixed; top: 60px; right: 20px;">
     <h3 style="margin-bottom: 1rem;">Admin Panel</h3>
     <button class="btn btn-primary" onclick="openModal('createGroupModal')">Create Group</button>
+    <button class="btn btn-primary" onclick="openManageGroups()">Manage Groups</button>
     <button class="btn btn-primary" onclick="openManageTechs()">Manage Techs</button>
     <button class="btn btn-primary" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
     <button class="btn btn-primary" onclick="openModal('manageAppointmentsModal')">Manage Appointments</button>
+    <button class="btn btn-primary" onclick="logout()">Logout</button>
+</div>
+
+<!-- Tech Toolbar -->
+<div class="admin-panel" id="techToolbar" style="display: none; position: fixed; top: 60px; right: 20px;">
+    <h3 style="margin-bottom: 1rem;">Tech Tools</h3>
+    <button class="btn btn-primary" style="background:#17a2b8; color:white;" onclick="openTechTicketModal()">New Ticket</button>
+    <button class="btn btn-primary" onclick="openMyQueue()">My Queue</button>
     <button class="btn btn-primary" onclick="logout()">Logout</button>
 </div>
 
@@ -177,11 +144,11 @@
         <span class="close-btn" onclick="closeModal('createGroupModal')">×</span>
         <h2>Create New Group</h2>
         <div class="form-group">
-            <label>Group Name</label>
+            <label for="groupName">Group Name</label>
             <input type="text" id="groupName" placeholder="e.g., Team Alpha">
         </div>
         <div class="form-group">
-            <label>Class Period</label>
+            <label for="groupPeriod">Class Period</label>
             <select id="groupPeriod">
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>
@@ -196,7 +163,7 @@
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('updateStatsModal')">×</span>
         <h2>Update Statistics</h2>
-        <input type="number" id="totalRepairsInput" style="display:none;">
+        <input type="number" id="totalRepairsInput" aria-label="Total repairs override" style="display:none;">
         <div id="groupStatsContainer"></div>
         <button class="btn btn-primary" onclick="updateStats()">Save Changes</button>
     </div>
@@ -227,7 +194,7 @@
         <h2>Leave a Review</h2>
 
         <div class="form-group">
-            <label>Rating</label>
+            <label for="reviewRating">Rating</label>
             <select id="reviewRating" onchange="updateReviewTags()">
                 <option value="5">⭐⭐⭐⭐⭐</option>
                 <option value="4">⭐⭐⭐⭐</option>
@@ -248,7 +215,12 @@
 
 <!-- Customer Reviews Section -->
 <div class="section" id="reviews">
-    <h2>Customer Reviews</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem; gap:20px; flex-wrap:wrap;">
+        <h2 style="margin-bottom:0;">Customer Reviews</h2>
+        <button class="btn btn-primary" style="background:#2e7d32; color:white;" onclick="openModal('reviewModal')">
+            Leave a Review
+        </button>
+    </div>
     <div id="reviewsContainer"></div>
 </div>
 
@@ -259,7 +231,7 @@
         <h2>Track Your Repair</h2>
         <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Enter the tracking code our tech gave you when you dropped off your device.</p>
         <div class="form-group">
-            <label>Tracking Code</label>
+            <label for="trackCodeInput">Tracking Code</label>
             <input type="text" id="trackCodeInput" placeholder="e.g. BT4X92" style="text-transform: uppercase;" onkeydown="if(event.key==='Enter'){trackRepair();}">
         </div>
         <button class="btn btn-primary" style="background:#003d7a; color:white;" onclick="trackRepair()">Look Up</button>
@@ -278,6 +250,16 @@
     </div>
 </div>
 
+<!-- Manage Groups Modal (Admin) -->
+<div class="modal" id="manageGroupsModal">
+    <div class="modal-content" style="max-width: 650px;">
+        <span class="close-btn" onclick="closeModal('manageGroupsModal')">×</span>
+        <h2>Manage Groups</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Upload project photos or delete a team. Use "Create Group" to add a new one.</p>
+        <div class="groups-container" id="manageGroupsContainer"></div>
+    </div>
+</div>
+
 <!-- Manage Techs Modal (Admin) -->
 <div class="modal" id="manageTechsModal">
     <div class="modal-content" style="max-width: 550px;">
@@ -286,8 +268,8 @@
         <div class="form-group">
             <label>Add a Tech</label>
             <div style="display:flex; gap:8px;">
-                <input type="text" id="newTechName" placeholder="Student name" style="flex:1;">
-                <select id="newTechGroup" style="flex:1;"></select>
+                <input type="text" id="newTechName" placeholder="Student name" aria-label="Student name" style="flex:1;">
+                <select id="newTechGroup" aria-label="Assign to group" style="flex:1;"></select>
             </div>
             <button class="btn btn-primary" style="background:#003d7a; color:white; margin-top:0.5rem;" onclick="addTech()">Add Tech</button>
         </div>
@@ -303,15 +285,15 @@
         <h2>New Ticket</h2>
         <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">This ticket will be created and assigned directly to your team.</p>
         <div class="form-group">
-            <label>Customer Name</label>
+            <label for="techApptName">Customer Name</label>
             <input type="text" id="techApptName" placeholder="Full name">
         </div>
         <div class="form-group">
-            <label>Customer Email (optional)</label>
+            <label for="techApptEmail">Customer Email (optional)</label>
             <input type="email" id="techApptEmail" placeholder="yourname@school.edu">
         </div>
         <div class="form-group">
-            <label>Device Type</label>
+            <label for="techApptDevice">Device Type</label>
             <select id="techApptDevice">
                 <option>Laptop</option>
                 <option>Desktop</option>
@@ -321,11 +303,11 @@
             </select>
         </div>
         <div class="form-group">
-            <label>Issue Description</label>
+            <label for="techApptIssue">Issue Description</label>
             <textarea id="techApptIssue" rows="3" placeholder="Describe the problem in detail"></textarea>
         </div>
         <div class="form-group">
-            <label>Availability</label>
+            <label for="techApptDate">Availability</label>
             <select id="techApptDate">
                 <option>Monday</option>
                 <option>Tuesday</option>
@@ -335,7 +317,7 @@
             </select>
         </div>
         <div class="form-group">
-            <label>Time</label>
+            <label for="techApptTime">Time</label>
             <select id="techApptTime">
                 <option>8:30 AM - 9:30 AM</option>
                 <option>9:30 AM - 10:30 AM</option>

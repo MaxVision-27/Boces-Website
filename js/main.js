@@ -39,7 +39,7 @@ async function loadGroups() {
     if (error) { console.error('Error loading groups:', error); return; }
     groups = data || [];
     calculateTotalRepairs();
-    renderGroups();
+    refreshGroupsUI();
 }
 
 async function loadAppointments() {
@@ -207,7 +207,7 @@ async function createGroup() {
     if (error) { console.error('Error creating group:', error); alert('Failed to create group.'); return; }
 
     groups.push(data);
-    renderGroups();
+    refreshGroupsUI();
     closeModal('createGroupModal');
     document.getElementById('groupName').value = '';
     alert('Group created successfully!');
@@ -227,7 +227,7 @@ async function deleteGroup(groupId) {
     appointments = appointments.map(a => a.group_id === groupId ? { ...a, group_id: null, group_name: 'Unassigned', status: 'pending' } : a);
     techs = techs.map(t => t.group_id === groupId ? { ...t, group_id: null } : t);
     if (currentTechGroupId === groupId) currentTechGroupId = null;
-    renderGroups();
+    refreshGroupsUI();
     alert('Group deleted successfully!');
 }
 
@@ -244,7 +244,7 @@ async function uploadGroupImage(groupId, input) {
 
         const { error } = await db.from('groups').update({ projects: group.projects }).eq('id', groupId);
         if (error) { console.error('Error saving image:', error); return; }
-        renderGroups();
+        refreshGroupsUI();
     };
     reader.readAsDataURL(file);
 }
@@ -529,7 +529,7 @@ async function markCompleted(apptId) {
 
     await syncStats();
     populateAppointmentsModal();
-    renderGroups();
+    refreshGroupsUI();
     if (document.getElementById('viewGroupRepairsModal').style.display === 'flex' && appt.group_id) {
         viewGroupRepairs(appt.group_id);
     }
@@ -595,7 +595,7 @@ async function updateStats() {
 
     await db.from('stats').update({ total_repairs: totalRepairs }).eq('id', 1);
 
-    renderGroups();
+    refreshGroupsUI();
     closeModal('updateStatsModal');
     alert('Statistics updated!');
 }
@@ -747,7 +747,7 @@ function updateRoleDisplay() {
     populateAppointmentsModal();
     const indicator = document.getElementById('roleIndicator');
     const adminPanel = document.getElementById('adminPanel');
-    const techNewTicketBtn = document.getElementById('techNewTicketBtn');
+    const techToolbar = document.getElementById('techToolbar');
     const navLoginBtn = document.querySelector('.btn-nav-login');
 
     if (currentRole === 'admin') {
@@ -756,31 +756,52 @@ function updateRoleDisplay() {
         indicator.style.color = '#333';
         indicator.classList.remove('hidden');
         adminPanel.style.display = 'block';
+        techToolbar.style.display = 'none';
     } else if (currentRole === 'tech') {
         indicator.textContent = currentTechName ? `Tech: ${currentTechName}` : 'Tech';
         indicator.style.background = '#4169e1';
         indicator.style.color = 'white';
         indicator.classList.remove('hidden');
         adminPanel.style.display = 'none';
+        techToolbar.style.display = 'block';
     } else {
         indicator.classList.add('hidden');
         adminPanel.style.display = 'none';
+        techToolbar.style.display = 'none';
     }
 
     if (navLoginBtn) navLoginBtn.style.display = currentRole ? 'none' : 'inline-block';
-    if (techNewTicketBtn) techNewTicketBtn.style.display = currentRole === 'tech' ? 'inline-block' : 'none';
 
-    renderGroups();
+    calculateTotalRepairs();
     renderReviews();
 }
 
-function renderGroups() {
+function openMyQueue() {
+    if (!currentTechGroupId) { alert('You need to be assigned to a team first. Ask your teacher to add you in Manage Techs.'); return; }
+    viewGroupRepairs(currentTechGroupId);
+}
+
+// Called anywhere group data changes — keeps the total-repairs stat and
+// (if it happens to be open) the Manage Groups modal in sync.
+function refreshGroupsUI() {
     calculateTotalRepairs();
-    const container = document.getElementById('groupsContainer');
+    const modal = document.getElementById('manageGroupsModal');
+    if (modal && modal.style.display === 'flex') populateManageGroupsModal();
+}
+
+// Groups have no public-facing display anymore — this is the admin-only
+// management view (create/delete groups, upload project photos).
+function openManageGroups() {
+    populateManageGroupsModal();
+    openModal('manageGroupsModal');
+}
+
+function populateManageGroupsModal() {
+    const container = document.getElementById('manageGroupsContainer');
     if (!container) return;
 
     if (groups.length === 0) {
-        container.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">No groups yet. Admin can create groups.</p>';
+        container.innerHTML = '<p style="text-align: center; color: #999;">No groups yet.</p>';
         return;
     }
 
@@ -788,32 +809,20 @@ function renderGroups() {
         <div class="group-card">
             <h3>${group.name}</h3>
             <span class="group-badge badge-${group.period.toLowerCase()}">${group.period} Class</span>
-            <p style="font-size: 1.2rem; font-weight: 600; margin: 1rem 0;">
+            <p style="font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0;">
                 ${group.repairs} Repairs Completed
             </p>
-            <h4 style="margin-top: 1rem;">Top Projects:</h4>
             <div class="project-gallery">
                 ${!group.projects || group.projects.length === 0
-        ? '<p style="grid-column: 1/-1; text-align: center; color: #999;">No projects yet</p>'
+        ? '<p style="grid-column: 1/-1; text-align: center; color: #999; font-size: 0.85rem;">No project photos yet</p>'
         : group.projects.slice(0, 3).map(p => `<img src="${p}" class="project-img" alt="Project">`).join('')
     }
             </div>
-            ${currentRole === 'admin' ? `
             <input type="file" accept="image/*" onchange="uploadGroupImage(${group.id}, this)" style="margin-top:8px; margin-bottom:6px;">
             <button class="btn-delete-group" onclick="deleteGroup(${group.id})">Delete Group</button>
-            ` : ''}
-            ${currentRole === 'tech' ? `
-            <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="viewGroupRepairs(${group.id})">
-                ${currentTechGroupId === group.id ? 'Open My Queue' : 'View Repairs'}
-            </button>
-            ` : ''}
         </div>
     `).join('');
-
-    if (window.refreshCardTilt) window.refreshCardTilt();
 }
-
-function updateDisplay() { renderGroups(); }
 
 // ============================================================
 // TICKET MANAGER — with search, filter, sort, duplicate warning
@@ -1031,8 +1040,8 @@ window.onclick = function(event) {
     }
 }
 
-function scrollToGroups() {
-    document.querySelector('.groups-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+function scrollToAbout() {
+    document.getElementById('about').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Clicking the role badge opens the Admin panel for Admin, or the
@@ -1046,24 +1055,12 @@ function onRoleIndicatorClick() {
     }
 }
 
-function showTopic(id) {
-    document.querySelectorAll('.about-topic').forEach(section => {
-        section.style.display = 'none';
-        section.classList.remove('active');
-    });
-    const target = document.getElementById(id);
-    target.style.display = 'block';
-    target.classList.add('active');
-}
+function showTopic(id, btn) {
+    document.querySelectorAll('.about-topic').forEach(section => section.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
 
-function filterTeams() {
-    const filter = document.getElementById('teamFilter').value;
-    document.querySelectorAll('.group-card').forEach(card => {
-        const badge = card.querySelector('.group-badge');
-        if (!badge) return;
-        const period = badge.textContent.includes('AM') ? 'AM' : 'PM';
-        card.style.display = (filter === 'all' || filter === period) ? 'block' : 'none';
-    });
+    document.querySelectorAll('.about-pill').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
 }
 
 // ============================================================
