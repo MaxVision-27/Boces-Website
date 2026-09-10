@@ -14,7 +14,10 @@ let currentRole = null;
 let groups = [];
 let totalRepairs = 0;
 let appointments = [];
-let selectedGroupId = null;
+let techs = [];
+let currentTechId = null;
+let currentTechName = null;
+let currentTechGroupId = null;
 
 // ============================================================
 // LOAD ALL DATA FROM SUPABASE ON PAGE START
@@ -24,8 +27,10 @@ async function loadData() {
         loadGroups(),
         loadAppointments(),
         loadStats(),
+        loadTechs(),
         renderReviews()
     ]);
+    hydrateTechIdentity();
     updateRoleDisplay();
 }
 
@@ -50,6 +55,29 @@ async function loadStats() {
     if (data) {
         totalRepairs = data.total_repairs;
         document.getElementById('totalRepairs').textContent = totalRepairs;
+    }
+}
+
+async function loadTechs() {
+    const { data, error } = await db.from('techs').select('*').order('name', { ascending: true });
+    if (error) { console.error('Error loading techs:', error); return; }
+    techs = data || [];
+}
+
+// Reattach currentTechName/currentTechGroupId from the roster after a saved
+// session (sessionStorage only kept the id). If the roster no longer has
+// that id (teacher removed them), clear the stale identity.
+function hydrateTechIdentity() {
+    if (!currentTechId) return;
+    const tech = techs.find(t => t.id === currentTechId);
+    if (tech) {
+        currentTechName = tech.name;
+        currentTechGroupId = tech.group_id;
+    } else {
+        currentTechId = null;
+        currentTechName = null;
+        currentTechGroupId = null;
+        sessionStorage.removeItem('bocesTechId');
     }
 }
 
@@ -83,7 +111,17 @@ async function login() {
             updateRoleDisplay();
             closeModal('loginModal');
             document.getElementById('loginPassword').value = '';
-            alert('Login successful!');
+
+            if (role === 'tech') {
+                const savedTechId = sessionStorage.getItem('bocesTechId');
+                if (savedTechId && techs.find(t => t.id === parseInt(savedTechId))) {
+                    selectTech(parseInt(savedTechId), false);
+                } else {
+                    openTechPicker();
+                }
+            } else {
+                alert('Login successful!');
+            }
         } else {
             alert('Incorrect password!');
         }
@@ -95,8 +133,59 @@ async function login() {
 
 function logout() {
     currentRole = null;
+    currentTechId = null;
+    currentTechName = null;
+    currentTechGroupId = null;
     sessionStorage.removeItem('bocesRole');
+    sessionStorage.removeItem('bocesTechId');
     updateRoleDisplay();
+}
+
+// ============================================================
+// TECH IDENTITY (roster picker shown after "Tech" login)
+// ============================================================
+function openTechPicker() {
+    const container = document.getElementById('techPickerContainer');
+
+    if (techs.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;">No techs on the roster yet. Ask your teacher to add you in Manage Techs.</p>';
+    } else {
+        const byGroup = {};
+        techs.forEach(t => {
+            const key = t.group_id || 'unassigned';
+            if (!byGroup[key]) byGroup[key] = [];
+            byGroup[key].push(t);
+        });
+
+        let html = '';
+        groups.forEach(g => {
+            if (byGroup[g.id]) {
+                html += `<div class="roster-group-label">${g.name} (${g.period})</div>`;
+                html += byGroup[g.id].map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${t.name}</button>`).join('');
+            }
+        });
+        if (byGroup['unassigned']) {
+            html += `<div class="roster-group-label">Unassigned</div>`;
+            html += byGroup['unassigned'].map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${t.name}</button>`).join('');
+        }
+        container.innerHTML = html;
+    }
+
+    openModal('techPickerModal');
+}
+
+function selectTech(techId, showAlert = true) {
+    const tech = techs.find(t => t.id === techId);
+    if (!tech) return;
+
+    currentTechId = tech.id;
+    currentTechName = tech.name;
+    currentTechGroupId = tech.group_id;
+    sessionStorage.setItem('bocesTechId', tech.id);
+
+    closeModal('techPickerModal');
+    updateRoleDisplay();
+    if (showAlert) alert(`Welcome, ${tech.name}!`);
 }
 
 // ============================================================
@@ -129,12 +218,15 @@ async function deleteGroup(groupId) {
     if (!confirm(`Are you sure you want to delete "${group.name}"? This cannot be undone.`)) return;
 
     await db.from('repair_requests').update({ group_id: null, group_name: 'Unassigned', status: 'pending' }).eq('group_id', groupId);
+    await db.from('techs').update({ group_id: null }).eq('group_id', groupId);
 
     const { error } = await db.from('groups').delete().eq('id', groupId);
     if (error) { console.error('Error deleting group:', error); return; }
 
     groups = groups.filter(g => g.id !== groupId);
     appointments = appointments.map(a => a.group_id === groupId ? { ...a, group_id: null, group_name: 'Unassigned', status: 'pending' } : a);
+    techs = techs.map(t => t.group_id === groupId ? { ...t, group_id: null } : t);
+    if (currentTechGroupId === groupId) currentTechGroupId = null;
     renderGroups();
     alert('Group deleted successfully!');
 }
@@ -158,81 +250,199 @@ async function uploadGroupImage(groupId, input) {
 }
 
 // ============================================================
-// REPAIR REQUESTS
+// TECH ROSTER MANAGEMENT (Admin)
 // ============================================================
-async function submitAppointment() {
-    const name = document.getElementById('apptName').value.trim();
-    const email = document.getElementById('apptEmail').value.trim().toLowerCase();
-    const device = document.getElementById('apptDevice').value;
-    const issue = document.getElementById('apptIssue').value.trim();
-    const date = document.getElementById('apptDate').value;
-    const time = document.getElementById('apptTime').value;
+function openManageTechs() {
+    populateManageTechsModal();
+    openModal('manageTechsModal');
+}
 
-    if (!name || !email || !issue || !date) {
-        alert('Please fill in all required fields');
+function populateManageTechsModal() {
+    const groupOptions = groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('');
+    const newTechGroupSelect = document.getElementById('newTechGroup');
+    if (newTechGroupSelect) newTechGroupSelect.innerHTML = `<option value="">Unassigned</option>${groupOptions}`;
+
+    const list = document.getElementById('techsListContainer');
+    if (!list) return;
+
+    if (techs.length === 0) {
+        list.innerHTML = '<p style="color:#999;">No techs on the roster yet.</p>';
         return;
     }
 
-    // Validate email format
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!validEmail) {
-        alert('Please enter a valid email address.');
+    list.innerHTML = techs.map(t => `
+        <div class="tech-row">
+            <strong>${t.name}</strong>
+            <select onchange="reassignTech(${t.id}, this.value)">
+                <option value="">Unassigned</option>
+                ${groups.map(g => `<option value="${g.id}" ${t.group_id === g.id ? 'selected' : ''}>${g.name} (${g.period})</option>`).join('')}
+            </select>
+            <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; background:#dc3545; color:white; border:none;" onclick="deleteTech(${t.id})">Remove</button>
+        </div>
+    `).join('');
+}
+
+async function addTech() {
+    const nameInput = document.getElementById('newTechName');
+    const groupSelect = document.getElementById('newTechGroup');
+    const name = nameInput.value.trim();
+    const groupId = groupSelect.value ? parseInt(groupSelect.value) : null;
+
+    if (!name) { alert('Please enter a name'); return; }
+
+    const { data, error } = await db.from('techs').insert({ name, group_id: groupId }).select().single();
+    if (error) { console.error('Error adding tech:', error); alert('Failed to add tech.'); return; }
+
+    techs.push(data);
+    techs.sort((a, b) => a.name.localeCompare(b.name));
+    nameInput.value = '';
+    populateManageTechsModal();
+}
+
+async function reassignTech(techId, groupIdRaw) {
+    const groupId = groupIdRaw ? parseInt(groupIdRaw) : null;
+    const { error } = await db.from('techs').update({ group_id: groupId }).eq('id', techId);
+    if (error) { console.error('Error reassigning tech:', error); return; }
+
+    const tech = techs.find(t => t.id === techId);
+    if (tech) tech.group_id = groupId;
+    if (currentTechId === techId) currentTechGroupId = groupId;
+}
+
+async function deleteTech(techId) {
+    if (!confirm('Remove this tech from the roster?')) return;
+
+    const { error } = await db.from('techs').delete().eq('id', techId);
+    if (error) { console.error('Error deleting tech:', error); return; }
+
+    techs = techs.filter(t => t.id !== techId);
+    if (currentTechId === techId) {
+        currentTechId = null;
+        currentTechName = null;
+        currentTechGroupId = null;
+        sessionStorage.removeItem('bocesTechId');
+        updateRoleDisplay();
+    }
+    populateManageTechsModal();
+}
+
+// ============================================================
+// REPAIR REQUESTS — created directly by a logged-in Tech
+// ============================================================
+function openTechTicketModal() {
+    if (!currentTechId) { openTechPicker(); return; }
+    if (!currentTechGroupId) { alert('You need to be assigned to a team first. Ask your teacher to add you in Manage Techs.'); return; }
+    openModal('techTicketModal');
+}
+
+// Short, easy-to-write-down code (no 0/O/1/I to avoid mix-ups) so a
+// customer can look their ticket up later without an account.
+function generateTrackingCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+}
+
+async function submitTechTicket() {
+    if (!currentTechGroupId) { alert('You need to be assigned to a team first.'); return; }
+
+    const name = document.getElementById('techApptName').value.trim();
+    const email = document.getElementById('techApptEmail').value.trim().toLowerCase();
+    const device = document.getElementById('techApptDevice').value;
+    const issue = document.getElementById('techApptIssue').value.trim();
+    const date = document.getElementById('techApptDate').value;
+    const time = document.getElementById('techApptTime').value;
+
+    if (!name || !issue) {
+        alert('Please fill in the customer name and issue.');
         return;
     }
 
-    // Auto-flag suspicious content
-    const suspiciousWords = ['test', 'asdf', 'fake', 'hello', '123', 'abc', 'xxx'];
-    const isSuspicious =
-        suspiciousWords.some(word =>
-            issue.toLowerCase().includes(word) ||
-            name.toLowerCase().includes(word)
-        ) ||
-        issue.length < 15 ||
-        /^(.)\1+$/.test(issue) ||
-        !/[a-zA-Z]{3,}/.test(issue) ||
-        name.length < 2;
+    const group = groups.find(g => g.id === currentTechGroupId);
 
-    const { data, error } = await db.from('repair_requests').insert({
-        name,
-        email,
-        device,
-        issue,
-        date,
-        time,
-        status: isSuspicious ? 'flagged' : 'pending',
-        flagged: isSuspicious,
-        flag_reason: isSuspicious ? 'Auto-flagged: suspicious content' : null,
-        group_id: null,
-        group_name: 'Unassigned'
-    }).select().single();
+    let data, error;
+    for (let attempt = 0; attempt < 5; attempt++) {
+        const trackingCode = generateTrackingCode();
+        ({ data, error } = await db.from('repair_requests').insert({
+            name,
+            email,
+            device,
+            issue,
+            date,
+            time,
+            status: 'assigned',
+            flagged: false,
+            flag_reason: null,
+            group_id: currentTechGroupId,
+            group_name: group ? group.name : 'Unassigned',
+            created_by: currentTechName,
+            tracking_code: trackingCode
+        }).select().single());
 
-    if (error) {
-        if (error.message.includes('Too many submissions')) {
-            alert('You have already submitted 2 tickets today. Please visit us in person if this is urgent.');
-        } else if (error.message.includes('Repair limit reached')) {
-            alert('Sorry, we are currently at full capacity (20 repairs). Please try again later.');
-        } else {
-            console.error('Error submitting request:', error);
-            alert('Failed to submit request.');
-        }
-        return;
+        if (!error || error.code !== '23505') break; // 23505 = unique_violation, try a new code
     }
+
+    if (error) { console.error('Error creating ticket:', error); alert('Failed to create ticket.'); return; }
 
     appointments.push(data);
     populateAppointmentsModal();
-    closeModal('appointmentModal');
+    closeModal('techTicketModal');
 
-    document.getElementById('apptName').value = '';
-    document.getElementById('apptEmail').value = '';
-    document.getElementById('apptIssue').value = '';
-    document.getElementById('apptDate').value = '';
-    selectedGroupId = null;
+    document.getElementById('techApptName').value = '';
+    document.getElementById('techApptEmail').value = '';
+    document.getElementById('techApptIssue').value = '';
 
-    if (isSuspicious) {
-        alert('Your request has been submitted and is pending review by our team.');
-    } else {
-        alert('Repair request submitted! A team will be assigned by the instructor.');
+    alert(`Ticket created!\n\nTracking code: ${data.tracking_code}\n\nGive this to the customer — they can enter it on the site under "Track Repair" to check their status.`);
+}
+
+// ============================================================
+// PUBLIC TICKET TRACKING (lookup by code, no login needed)
+// ============================================================
+const trackStatusMeta = {
+    pending: { label: 'Pending Assignment', color: '#ffc107', text: '#333' },
+    assigned: { label: 'Assigned to a Team', color: '#17a2b8', text: 'white' },
+    in_progress: { label: 'In Progress', color: '#0d6efd', text: 'white' },
+    completed: { label: 'Completed', color: '#28a745', text: 'white' }
+};
+
+async function trackRepair() {
+    const input = document.getElementById('trackCodeInput');
+    const result = document.getElementById('trackResult');
+    const code = input.value.trim().toUpperCase();
+
+    if (!code) {
+        result.innerHTML = '<p style="color:#dc3545; margin-top:1rem;">Please enter a tracking code.</p>';
+        return;
     }
+
+    result.innerHTML = '<p style="color:#777; margin-top:1rem;">Looking up your repair...</p>';
+
+    const { data, error } = await db.from('repair_requests')
+        .select('device, issue, status, created_at')
+        .eq('tracking_code', code)
+        .maybeSingle();
+
+    if (error) {
+        console.error('Error tracking repair:', error);
+        result.innerHTML = '<p style="color:#dc3545; margin-top:1rem;">Something went wrong. Please try again.</p>';
+        return;
+    }
+
+    if (!data) {
+        result.innerHTML = '<p style="color:#dc3545; margin-top:1rem;">No repair found with that code. Double-check it and try again.</p>';
+        return;
+    }
+
+    const meta = trackStatusMeta[data.status] || { label: data.status, color: '#999', text: 'white' };
+    result.innerHTML = `
+        <div class="info-card" style="text-align:left; margin-top:1rem;">
+            <h3>${data.device}</h3>
+            <p style="color:#555;"><em>${data.issue}</em></p>
+            <span class="group-badge" style="background:${meta.color}; color:${meta.text}; margin-top:0.5rem;">${meta.label}</span>
+            <p style="margin-top:0.8rem; font-size:0.85rem; color:#999;">Submitted ${new Date(data.created_at).toLocaleDateString()}</p>
+        </div>
+    `;
 }
 
 async function assignToGroup(apptId) {
@@ -276,6 +486,34 @@ async function unassignAppointment(apptId) {
     populateAppointmentsModal();
 }
 
+async function startProgress(apptId) {
+    const { error } = await db.from('repair_requests').update({ status: 'in_progress' }).eq('id', apptId);
+    if (error) { console.error('Error starting progress:', error); return; }
+
+    const appt = appointments.find(a => a.id === apptId);
+    appt.status = 'in_progress';
+
+    populateAppointmentsModal();
+    if (document.getElementById('viewGroupRepairsModal').style.display === 'flex') {
+        viewGroupRepairs(appt.group_id);
+    }
+}
+
+async function saveTicketNotes(apptId) {
+    const notesField = document.getElementById(`notes-${apptId}`);
+    const partsField = document.getElementById(`parts-${apptId}`);
+    const notes = notesField.value.trim();
+    const partsUsed = partsField.value.trim();
+
+    const { error } = await db.from('repair_requests').update({ notes, parts_used: partsUsed }).eq('id', apptId);
+    if (error) { console.error('Error saving notes:', error); alert('Failed to save notes.'); return; }
+
+    const appt = appointments.find(a => a.id === apptId);
+    appt.notes = notes;
+    appt.parts_used = partsUsed;
+    alert('Notes saved!');
+}
+
 async function markCompleted(apptId) {
     const { error } = await db.from('repair_requests').update({ status: 'completed' }).eq('id', apptId);
     if (error) { console.error('Error marking complete:', error); return; }
@@ -292,6 +530,9 @@ async function markCompleted(apptId) {
     await syncStats();
     populateAppointmentsModal();
     renderGroups();
+    if (document.getElementById('viewGroupRepairsModal').style.display === 'flex' && appt.group_id) {
+        viewGroupRepairs(appt.group_id);
+    }
     alert('Repair marked as completed!');
 }
 
@@ -303,24 +544,6 @@ async function deleteAppointment(apptId) {
 
     appointments = appointments.filter(a => a.id !== apptId);
     populateAppointmentsModal();
-}
-
-async function approveTicket(apptId) {
-    const { error } = await db.from('repair_requests').update({
-        status: 'pending',
-        flagged: false,
-        flag_reason: null
-    }).eq('id', apptId);
-
-    if (error) { console.error('Error approving ticket:', error); return; }
-
-    const appt = appointments.find(a => a.id === apptId);
-    appt.status = 'pending';
-    appt.flagged = false;
-    appt.flag_reason = null;
-
-    populateAppointmentsModal();
-    alert('Ticket approved and moved to pending!');
 }
 
 // ============================================================
@@ -506,6 +729,8 @@ async function renderReviews() {
             ` : ''}
         </div>
     `).join('');
+
+    if (window.refreshCardTilt) window.refreshCardTilt();
 }
 
 async function deleteReview(reviewId) {
@@ -522,22 +747,29 @@ function updateRoleDisplay() {
     populateAppointmentsModal();
     const indicator = document.getElementById('roleIndicator');
     const adminPanel = document.getElementById('adminPanel');
+    const techNewTicketBtn = document.getElementById('techNewTicketBtn');
+    const navLoginBtn = document.querySelector('.btn-nav-login');
 
     if (currentRole === 'admin') {
         indicator.textContent = 'Admin';
         indicator.style.background = '#ffd700';
+        indicator.style.color = '#333';
+        indicator.classList.remove('hidden');
         adminPanel.style.display = 'block';
     } else if (currentRole === 'tech') {
-        indicator.textContent = 'Tech';
+        indicator.textContent = currentTechName ? `Tech: ${currentTechName}` : 'Tech';
         indicator.style.background = '#4169e1';
         indicator.style.color = 'white';
+        indicator.classList.remove('hidden');
         adminPanel.style.display = 'none';
     } else {
-        indicator.textContent = 'Guest';
-        indicator.style.background = 'white';
-        indicator.style.color = '#333';
+        indicator.classList.add('hidden');
         adminPanel.style.display = 'none';
     }
+
+    if (navLoginBtn) navLoginBtn.style.display = currentRole ? 'none' : 'inline-block';
+    if (techNewTicketBtn) techNewTicketBtn.style.display = currentRole === 'tech' ? 'inline-block' : 'none';
+
     renderGroups();
     renderReviews();
 }
@@ -572,11 +804,13 @@ function renderGroups() {
             ` : ''}
             ${currentRole === 'tech' ? `
             <button class="btn btn-primary" style="width: 100%; margin-top: 0.5rem;" onclick="viewGroupRepairs(${group.id})">
-                View Assigned Repairs
+                ${currentTechGroupId === group.id ? 'Open My Queue' : 'View Repairs'}
             </button>
             ` : ''}
         </div>
     `).join('');
+
+    if (window.refreshCardTilt) window.refreshCardTilt();
 }
 
 function updateDisplay() { renderGroups(); }
@@ -615,9 +849,9 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
         return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
 
-    const flagged = filtered.filter(a => a.status === 'flagged');
     const pending = filtered.filter(a => a.status === 'pending');
     const assigned = filtered.filter(a => a.status === 'assigned');
+    const inProgress = filtered.filter(a => a.status === 'in_progress');
     const completed = filtered.filter(a => a.status === 'completed');
 
     // Duplicate warning — emails with more than 1 ticket
@@ -638,9 +872,9 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
                 onchange="populateAppointmentsModal(document.getElementById('nameSearch').value, this.value, document.getElementById('sortFilter').value)"
                 style="padding:0.4rem; border-radius:5px; border:1px solid #ccc;">
                 <option value="all" ${filterStatus === 'all' ? 'selected' : ''}>All Status</option>
-                <option value="flagged" ${filterStatus === 'flagged' ? 'selected' : ''}>Flagged</option>
                 <option value="pending" ${filterStatus === 'pending' ? 'selected' : ''}>Pending</option>
                 <option value="assigned" ${filterStatus === 'assigned' ? 'selected' : ''}>Assigned</option>
+                <option value="in_progress" ${filterStatus === 'in_progress' ? 'selected' : ''}>In Progress</option>
                 <option value="completed" ${filterStatus === 'completed' ? 'selected' : ''}>Completed</option>
             </select>
             <select id="sortFilter"
@@ -675,21 +909,19 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
     // Render a single ticket card
     const renderTicket = (appt, bgColor, borderColor) => {
         const isDuplicateEmail = appt.email && emailCounts[appt.email.toLowerCase()] > 1;
+        const createdByStaff = appt.created_by && appt.created_by !== 'customer';
         return `
         <div style="background:${bgColor}; padding:1rem; border-radius:5px; margin-bottom:1rem; border-left:4px solid ${borderColor};">
             <strong>${appt.name}</strong>
             ${isDuplicateEmail ? '<span style="background:#dc3545; color:white; font-size:0.75rem; padding:2px 6px; border-radius:10px; margin-left:6px;">⚠️ Duplicate Email</span>' : ''}
             - ${appt.device}<br>
             <small style="color:#555;">📧 ${appt.email || 'No email provided'}</small><br>
+            ${createdByStaff ? `<small style="color:#555;">👤 Entered by tech: ${appt.created_by}</small><br>` : ''}
+            ${appt.tracking_code ? `<small style="color:#555;">🔑 Tracking code: <strong>${appt.tracking_code}</strong></small><br>` : ''}
             <em>${appt.issue}</em><br>
             <small>Submitted: ${new Date(appt.created_at).toLocaleDateString()} at ${new Date(appt.created_at).toLocaleTimeString()}</small><br>
             <small>Preferred: ${appt.date} at ${appt.time}</small><br>
-            ${appt.flag_reason ? `<small>🚩 ${appt.flag_reason}</small><br>` : ''}
             <div style="margin-top:0.5rem;">
-                ${appt.status === 'flagged' ? `
-                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745;" onclick="approveTicket(${appt.id})">Approve</button>
-                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Reject</button>
-                ` : ''}
                 ${appt.status === 'pending' ? `
                     <select id="assign-${appt.id}" style="padding:0.3rem; margin-right:0.5rem;">
                         <option value="">Select Team...</option>
@@ -700,21 +932,26 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
                 ` : ''}
                 ${appt.status === 'assigned' ? `
                     <small>Assigned to: <strong>${appt.group_name}</strong></small><br>
+                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8; margin-top:0.5rem;" onclick="startProgress(${appt.id})">Start Progress</button>
+                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; margin-top:0.5rem;" onclick="markCompleted(${appt.id})">Mark Completed</button>
+                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; margin-top:0.5rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
+                ` : ''}
+                ${appt.status === 'in_progress' ? `
+                    <small>In progress with: <strong>${appt.group_name}</strong></small><br>
+                    ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
+                    ${appt.parts_used ? `<small>🔩 Parts: ${appt.parts_used}</small><br>` : ''}
                     <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; margin-top:0.5rem;" onclick="markCompleted(${appt.id})">Mark Completed</button>
                     <button class="btn btn-secondary" style="padding:0.3rem 1rem; margin-top:0.5rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
                 ` : ''}
                 ${appt.status === 'completed' ? `
                     <small>Completed by: <strong>${appt.group_name}</strong></small><br>
+                    ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
                     <button class="btn btn-secondary" style="padding:0.3rem 1rem; margin-top:0.5rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
                 ` : ''}
             </div>
         </div>`;
     };
 
-    if (flagged.length > 0) {
-        html += '<h3 style="color:#dc3545; margin-bottom:1rem;">⚠️ Flagged for Review</h3>';
-        flagged.forEach(a => html += renderTicket(a, '#ffe0e0', '#dc3545'));
-    }
     if (pending.length > 0) {
         html += '<h3 style="color:#001f3f; margin-bottom:1rem;">Pending Assignment</h3>';
         pending.forEach(a => html += renderTicket(a, '#fff3cd', '#ffc107'));
@@ -722,6 +959,10 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
     if (assigned.length > 0) {
         html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Assigned to Teams</h3>';
         assigned.forEach(a => html += renderTicket(a, '#d1ecf1', '#17a2b8'));
+    }
+    if (inProgress.length > 0) {
+        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">In Progress</h3>';
+        inProgress.forEach(a => html += renderTicket(a, '#cfe2ff', '#0d6efd'));
     }
     if (completed.length > 0) {
         html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Completed Repairs</h3>';
@@ -733,24 +974,40 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
 
 function viewGroupRepairs(groupId) {
     const group = groups.find(g => g.id === groupId);
-    const groupAppts = appointments.filter(a => a.group_id === groupId && a.status === 'assigned');
+    const isOwnGroup = currentRole === 'tech' && currentTechGroupId === groupId;
+    const groupAppts = appointments.filter(a => a.group_id === groupId && (a.status === 'assigned' || a.status === 'in_progress'));
 
-    document.getElementById('groupRepairsTitle').textContent = `${group.name} - Assigned Repairs`;
+    document.getElementById('groupRepairsTitle').textContent = `${group.name} - Repair Queue`;
 
     const container = document.getElementById('groupRepairsContainer');
     if (groupAppts.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">No repairs currently assigned to this team.</p>';
     } else {
-        container.innerHTML = groupAppts.map(appt => `
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 5px; margin-bottom: 1rem; border-left: 4px solid #001f3f;">
+        container.innerHTML = groupAppts.map(appt => {
+            const inProgress = appt.status === 'in_progress';
+            return `
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid ${inProgress ? '#0d6efd' : '#ffc107'};">
                 <strong>${appt.name}</strong> - ${appt.device}<br>
                 <em>${appt.issue}</em><br>
                 <small>Date: ${appt.date} at ${appt.time}</small><br>
-                <span style="display: inline-block; margin-top: 0.5rem; padding: 0.3rem 0.8rem; background: #17a2b8; color: white; border-radius: 3px; font-size: 0.85rem;">
-                    In Progress
+                <span style="display: inline-block; margin: 0.5rem 0; padding: 0.3rem 0.8rem; background: ${inProgress ? '#0d6efd' : '#ffc107'}; color: ${inProgress ? 'white' : '#333'}; border-radius: 3px; font-size: 0.85rem;">
+                    ${inProgress ? 'In Progress' : 'Assigned'}
                 </span>
-            </div>
-        `).join('');
+                ${isOwnGroup ? `
+                <div style="margin-top:0.5rem;">
+                    <textarea id="notes-${appt.id}" class="ticket-note-field" placeholder="Diagnosis / progress notes..." rows="2">${appt.notes || ''}</textarea>
+                    <input type="text" id="parts-${appt.id}" class="ticket-note-field" placeholder="Parts used (optional)" value="${appt.parts_used || ''}">
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                        <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="saveTicketNotes(${appt.id})">Save Notes</button>
+                        ${!inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8; color:white;" onclick="startProgress(${appt.id})">Start Progress</button>` : ''}
+                        ${inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="markCompleted(${appt.id})">Mark Completed</button>` : ''}
+                    </div>
+                </div>
+                ` : `
+                ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
+                `}
+            </div>`;
+        }).join('');
     }
     openModal('viewGroupRepairsModal');
 }
@@ -762,39 +1019,10 @@ function openModal(id) {
     document.getElementById(id).style.display = 'flex';
     if (id === 'updateStatsModal') populateStatsModal();
     if (id === 'reviewModal') updateReviewTags();
-    if (id === 'appointmentModal' && !selectedGroupId) {
-        document.querySelector('#appointmentModal h2').textContent = 'Walk-In';
-        document.getElementById('apptTime').innerHTML = `
-            <option>8:30 AM - 9:30 AM</option>
-            <option>11:45 - 2:20 PM</option>
-        `;
-    }
 }
 
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
-}
-
-function scheduleWithGroup(groupId) {
-    selectedGroupId = groupId;
-    const group = groups.find(g => g.id === groupId);
-    openModal('appointmentModal');
-    document.querySelector('#appointmentModal h2').textContent = 'Request Repair';
-
-    const timeSelect = document.getElementById('apptTime');
-    if (group.period === 'AM') {
-        timeSelect.innerHTML = `
-            <option>8:30 AM - 9:30 AM</option>
-            <option>9:30 AM - 10:30 AM</option>
-            <option>10:30 AM - 11:30 AM</option>
-        `;
-    } else {
-        timeSelect.innerHTML = `
-            <option>12:00 PM - 1:00 PM</option>
-            <option>1:00 PM - 2:00 PM</option>
-            <option>2:00 PM - 3:00 PM</option>
-        `;
-    }
 }
 
 window.onclick = function(event) {
@@ -807,11 +1035,14 @@ function scrollToGroups() {
     document.querySelector('.groups-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function toggleAdminPanel() {
-    const role = document.getElementById('roleIndicator').textContent.trim();
-    const panel = document.getElementById('adminPanel');
-    if (role === 'Admin') {
+// Clicking the role badge opens the Admin panel for Admin, or the
+// tech identity picker for Tech (so a different student can switch in).
+function onRoleIndicatorClick() {
+    if (currentRole === 'admin') {
+        const panel = document.getElementById('adminPanel');
         panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    } else if (currentRole === 'tech') {
+        openTechPicker();
     }
 }
 
@@ -843,6 +1074,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const savedRole = sessionStorage.getItem('bocesRole');
     if (savedRole) currentRole = savedRole;
+
+    const savedTechId = sessionStorage.getItem('bocesTechId');
+    if (savedTechId) currentTechId = parseInt(savedTechId);
 
     loadData();
 });
