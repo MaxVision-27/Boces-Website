@@ -274,6 +274,86 @@ body {
 }
 
 /* =========================================================
+   ABOUT — click-to-explore topic pills
+   ========================================================= */
+
+.about-intro {
+    text-align: center;
+    color: var(--ink-soft);
+    margin-top: -1rem;
+    margin-bottom: 2rem;
+}
+
+.about-pills {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .6rem;
+    margin-bottom: 2rem;
+}
+
+.about-pill {
+    padding: .55rem 1.1rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--ink);
+    font-size: .9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+.about-pill:hover {
+    border-color: var(--navy-700);
+    background: white;
+    box-shadow: var(--shadow-sm);
+}
+
+.about-pill.active {
+    background: var(--navy-900);
+    border-color: var(--navy-900);
+    color: white;
+}
+
+.about-panel {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    min-height: 140px;
+}
+
+.about-topic {
+    display: none;
+    opacity: 0;
+    animation: about-topic-in .3s ease forwards;
+}
+
+.about-topic.active {
+    display: block;
+}
+
+@keyframes about-topic-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.about-topic h3 {
+    color: var(--navy-900);
+    margin-bottom: .75rem;
+    font-size: 1.3rem;
+}
+
+.about-topic p {
+    color: var(--ink-soft);
+    font-size: 1.05rem;
+}
+
+/* =========================================================
    STATS SECTION
    ========================================================= */
 
@@ -292,14 +372,6 @@ body {
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
-}
-
-/* =========================================================
-   GROUP / TEAM SECTION
-   ========================================================= */
-
-.groups-section {
-    background: var(--surface-alt);
 }
 
 .group-card h3 {
