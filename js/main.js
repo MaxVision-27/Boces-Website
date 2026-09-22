@@ -148,7 +148,7 @@ function openTechPicker() {
     const container = document.getElementById('techPickerContainer');
 
     if (techs.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">No techs on the roster yet. Ask your teacher to add you in Manage Techs.</p>';
+        container.innerHTML = '<p style="text-align:center;color:#999;">No students have been added yet. Ask your teacher to add you to a project in Manage Projects.</p>';
     } else {
         const byGroup = {};
         techs.forEach(t => {
@@ -189,13 +189,17 @@ function selectTech(techId, showAlert = true) {
 }
 
 // ============================================================
-// GROUPS
+// PROJECTS — admin creates a project, students are added directly to
+// it by name. No separate roster: adding a student always happens in
+// the context of the project they're working on.
 // ============================================================
-async function createGroup() {
-    const name = document.getElementById('groupName').value.trim();
-    const period = document.getElementById('groupPeriod').value;
+async function createProject() {
+    const nameInput = document.getElementById('newProjectName');
+    const periodSelect = document.getElementById('newProjectPeriod');
+    const name = nameInput.value.trim();
+    const period = periodSelect.value;
 
-    if (!name) { alert('Please enter a group name'); return; }
+    if (!name) { alert('Please enter a project name'); return; }
 
     const { data, error } = await db.from('groups').insert({
         name,
@@ -204,31 +208,30 @@ async function createGroup() {
         projects: []
     }).select().single();
 
-    if (error) { console.error('Error creating group:', error); alert('Failed to create group.'); return; }
+    if (error) { console.error('Error creating project:', error); alert('Failed to create project.'); return; }
 
     groups.push(data);
-    refreshGroupsUI();
-    closeModal('createGroupModal');
-    document.getElementById('groupName').value = '';
-    alert('Group created successfully!');
+    calculateTotalRepairs();
+    nameInput.value = '';
+    populateManageProjectsModal();
 }
 
-async function deleteGroup(groupId) {
+async function deleteProject(groupId) {
     const group = groups.find(g => g.id === groupId);
-    if (!confirm(`Are you sure you want to delete "${group.name}"? This cannot be undone.`)) return;
+    if (!confirm(`Are you sure you want to delete "${group.name}"? Students on it will become unassigned. This cannot be undone.`)) return;
 
     await db.from('repair_requests').update({ group_id: null, group_name: 'Unassigned', status: 'pending' }).eq('group_id', groupId);
     await db.from('techs').update({ group_id: null }).eq('group_id', groupId);
 
     const { error } = await db.from('groups').delete().eq('id', groupId);
-    if (error) { console.error('Error deleting group:', error); return; }
+    if (error) { console.error('Error deleting project:', error); return; }
 
     groups = groups.filter(g => g.id !== groupId);
     appointments = appointments.map(a => a.group_id === groupId ? { ...a, group_id: null, group_name: 'Unassigned', status: 'pending' } : a);
     techs = techs.map(t => t.group_id === groupId ? { ...t, group_id: null } : t);
     if (currentTechGroupId === groupId) currentTechGroupId = null;
     refreshGroupsUI();
-    alert('Group deleted successfully!');
+    alert('Project deleted successfully!');
 }
 
 async function uploadGroupImage(groupId, input) {
@@ -249,71 +252,36 @@ async function uploadGroupImage(groupId, input) {
     reader.readAsDataURL(file);
 }
 
-// ============================================================
-// TECH ROSTER MANAGEMENT (Admin)
-// ============================================================
-function openManageTechs() {
-    populateManageTechsModal();
-    openModal('manageTechsModal');
-}
-
-function populateManageTechsModal() {
-    const groupOptions = groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('');
-    const newTechGroupSelect = document.getElementById('newTechGroup');
-    if (newTechGroupSelect) newTechGroupSelect.innerHTML = `<option value="">Unassigned</option>${groupOptions}`;
-
-    const list = document.getElementById('techsListContainer');
-    if (!list) return;
-
-    if (techs.length === 0) {
-        list.innerHTML = '<p style="color:#999;">No techs on the roster yet.</p>';
-        return;
-    }
-
-    list.innerHTML = techs.map(t => `
-        <div class="tech-row">
-            <strong>${t.name}</strong>
-            <select onchange="reassignTech(${t.id}, this.value)">
-                <option value="">Unassigned</option>
-                ${groups.map(g => `<option value="${g.id}" ${t.group_id === g.id ? 'selected' : ''}>${g.name} (${g.period})</option>`).join('')}
-            </select>
-            <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; background:#dc3545; color:white; border:none;" onclick="deleteTech(${t.id})">Remove</button>
-        </div>
-    `).join('');
-}
-
-async function addTech() {
-    const nameInput = document.getElementById('newTechName');
-    const groupSelect = document.getElementById('newTechGroup');
-    const name = nameInput.value.trim();
-    const groupId = groupSelect.value ? parseInt(groupSelect.value) : null;
+async function addStudentToProject(groupId) {
+    const input = document.getElementById(`newStudentName-${groupId}`);
+    const name = input.value.trim();
 
     if (!name) { alert('Please enter a name'); return; }
 
     const { data, error } = await db.from('techs').insert({ name, group_id: groupId }).select().single();
-    if (error) { console.error('Error adding tech:', error); alert('Failed to add tech.'); return; }
+    if (error) { console.error('Error adding student:', error); alert('Failed to add student.'); return; }
 
     techs.push(data);
     techs.sort((a, b) => a.name.localeCompare(b.name));
-    nameInput.value = '';
-    populateManageTechsModal();
+    populateManageProjectsModal();
 }
 
-async function reassignTech(techId, groupIdRaw) {
+async function reassignStudent(techId, groupIdRaw) {
     const groupId = groupIdRaw ? parseInt(groupIdRaw) : null;
     const { error } = await db.from('techs').update({ group_id: groupId }).eq('id', techId);
-    if (error) { console.error('Error reassigning tech:', error); return; }
+    if (error) { console.error('Error reassigning student:', error); return; }
 
     const tech = techs.find(t => t.id === techId);
     if (tech) tech.group_id = groupId;
     if (currentTechId === techId) currentTechGroupId = groupId;
+    populateManageProjectsModal();
 }
 
-async function deleteTech(techId) {
-    if (!confirm('Remove this tech from the roster?')) return;
+async function removeStudent(techId) {
+    if (!confirm('Remove this student?')) return;
 
     const { error } = await db.from('techs').delete().eq('id', techId);
-    if (error) { console.error('Error deleting tech:', error); return; }
+    if (error) { console.error('Error removing student:', error); return; }
 
     techs = techs.filter(t => t.id !== techId);
     if (currentTechId === techId) {
@@ -323,7 +291,7 @@ async function deleteTech(techId) {
         sessionStorage.removeItem('bocesTechId');
         updateRoleDisplay();
     }
-    populateManageTechsModal();
+    populateManageProjectsModal();
 }
 
 // ============================================================
@@ -331,7 +299,7 @@ async function deleteTech(techId) {
 // ============================================================
 function openTechTicketModal() {
     if (!currentTechId) { openTechPicker(); return; }
-    if (!currentTechGroupId) { alert('You need to be assigned to a team first. Ask your teacher to add you in Manage Techs.'); return; }
+    if (!currentTechGroupId) { alert('You need to be assigned to a project first. Ask your teacher to add you in Manage Projects.'); return; }
     openModal('techTicketModal');
 }
 
@@ -345,7 +313,7 @@ function generateTrackingCode() {
 }
 
 async function submitTechTicket() {
-    if (!currentTechGroupId) { alert('You need to be assigned to a team first.'); return; }
+    if (!currentTechGroupId) { alert('You need to be assigned to a project first.'); return; }
 
     const name = document.getElementById('techApptName').value.trim();
     const email = document.getElementById('techApptEmail').value.trim().toLowerCase();
@@ -401,7 +369,7 @@ async function submitTechTicket() {
 // ============================================================
 const trackStatusMeta = {
     pending: { label: 'Pending Assignment', color: '#ffc107', text: '#333' },
-    assigned: { label: 'Assigned to a Team', color: '#17a2b8', text: 'white' },
+    assigned: { label: 'Assigned to a Project', color: '#17a2b8', text: 'white' },
     in_progress: { label: 'In Progress', color: '#0d6efd', text: 'white' },
     completed: { label: 'Completed', color: '#28a745', text: 'white' }
 };
@@ -448,7 +416,7 @@ async function trackRepair() {
 async function assignToGroup(apptId) {
     const select = document.getElementById(`assign-${apptId}`);
     const groupId = parseInt(select.value);
-    if (!groupId) { alert('Please select a team'); return; }
+    if (!groupId) { alert('Please select a project'); return; }
 
     const group = groups.find(g => g.id === groupId);
 
@@ -777,51 +745,110 @@ function updateRoleDisplay() {
 }
 
 function openMyQueue() {
-    if (!currentTechGroupId) { alert('You need to be assigned to a team first. Ask your teacher to add you in Manage Techs.'); return; }
+    if (!currentTechGroupId) { alert('You need to be assigned to a project first. Ask your teacher to add you in Manage Projects.'); return; }
     viewGroupRepairs(currentTechGroupId);
 }
 
-// Called anywhere group data changes — keeps the total-repairs stat and
-// (if it happens to be open) the Manage Groups modal in sync.
+// Called anywhere project/student data changes — keeps the total-repairs
+// stat and (if it happens to be open) the Manage Projects modal in sync.
 function refreshGroupsUI() {
     calculateTotalRepairs();
-    const modal = document.getElementById('manageGroupsModal');
-    if (modal && modal.style.display === 'flex') populateManageGroupsModal();
+    const modal = document.getElementById('manageProjectsModal');
+    if (modal && modal.style.display === 'flex') populateManageProjectsModal();
 }
 
-// Groups have no public-facing display anymore — this is the admin-only
-// management view (create/delete groups, upload project photos).
-function openManageGroups() {
-    populateManageGroupsModal();
-    openModal('manageGroupsModal');
+// The one admin screen for projects and students: create a project, upload
+// its photos, and add/reassign/remove the students working on it — all in
+// one place instead of a separate roster you manage independently.
+function openManageProjects() {
+    populateManageProjectsModal();
+    openModal('manageProjectsModal');
 }
 
-function populateManageGroupsModal() {
-    const container = document.getElementById('manageGroupsContainer');
+function populateManageProjectsModal() {
+    const container = document.getElementById('manageProjectsContainer');
     if (!container) return;
 
+    let html = `
+        <div class="form-group" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
+            <label for="newProjectName">New Project</label>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="newProjectName" placeholder="e.g., Website Redesign" style="flex:2;" onkeydown="if(event.key==='Enter'){createProject();}">
+                <select id="newProjectPeriod" aria-label="Class period" style="flex:1;">
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" style="background:#003d7a; color:white; margin-top:0.5rem;" onclick="createProject()">Create Project</button>
+        </div>
+    `;
+
     if (groups.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999;">No groups yet.</p>';
-        return;
+        html += '<p style="text-align: center; color: #999;">No projects yet. Create one above.</p>';
+    } else {
+        html += groups.map(group => {
+            const students = techs.filter(t => t.group_id === group.id);
+            return `
+            <div class="group-card" style="margin-bottom: 1.25rem;">
+                <h3>${group.name}</h3>
+                <span class="group-badge badge-${group.period.toLowerCase()}">${group.period} Class</span>
+                <p style="font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0;">
+                    ${group.repairs} Repairs Completed
+                </p>
+                <div class="project-gallery">
+                    ${!group.projects || group.projects.length === 0
+                ? '<p style="grid-column: 1/-1; text-align: center; color: #999; font-size: 0.85rem;">No photos yet</p>'
+                : group.projects.slice(0, 3).map(p => `<img src="${p}" class="project-img" alt="Photo">`).join('')
+            }
+                </div>
+                <input type="file" accept="image/*" onchange="uploadGroupImage(${group.id}, this)" style="margin-top:8px; margin-bottom:10px;">
+
+                <h4 style="margin: 0.75rem 0 0.5rem; font-size: 0.95rem; color: var(--navy-900);">Students</h4>
+                ${students.length === 0
+                ? '<p style="color:#999; font-size:0.85rem; margin-bottom:0.5rem;">No students assigned yet.</p>'
+                : students.map(t => `
+                    <div class="tech-row">
+                        <strong>${t.name}</strong>
+                        <select onchange="reassignStudent(${t.id}, this.value)" aria-label="Reassign ${t.name}">
+                            <option value="">Unassigned</option>
+                            ${groups.map(g => `<option value="${g.id}" ${t.group_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
+                        </select>
+                        <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; background:#dc3545; color:white; border:none;" onclick="removeStudent(${t.id})">Remove</button>
+                    </div>
+                `).join('')
+            }
+                <div style="display:flex; gap:8px; margin-top:0.5rem;">
+                    <input type="text" id="newStudentName-${group.id}" placeholder="Student name" aria-label="New student name" style="flex:1;" onkeydown="if(event.key==='Enter'){addStudentToProject(${group.id});}">
+                    <button class="btn btn-primary" style="padding:0.4rem 0.9rem; background:#2e7d32; color:white;" onclick="addStudentToProject(${group.id})">Add</button>
+                </div>
+
+                <button class="btn-delete-group" onclick="deleteProject(${group.id})" style="margin-top:1rem;">Delete Project</button>
+            </div>
+        `;
+        }).join('');
     }
 
-    container.innerHTML = groups.map(group => `
-        <div class="group-card">
-            <h3>${group.name}</h3>
-            <span class="group-badge badge-${group.period.toLowerCase()}">${group.period} Class</span>
-            <p style="font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0;">
-                ${group.repairs} Repairs Completed
-            </p>
-            <div class="project-gallery">
-                ${!group.projects || group.projects.length === 0
-        ? '<p style="grid-column: 1/-1; text-align: center; color: #999; font-size: 0.85rem;">No project photos yet</p>'
-        : group.projects.slice(0, 3).map(p => `<img src="${p}" class="project-img" alt="Project">`).join('')
-    }
+    const unassigned = techs.filter(t => !t.group_id);
+    if (unassigned.length > 0) {
+        html += `
+            <div class="group-card" style="margin-bottom: 1.25rem; border-style: dashed;">
+                <h3>Unassigned Students</h3>
+                <p style="font-size:0.85rem; color:#999; margin-bottom:0.5rem;">Their project was deleted, or they haven't been assigned one yet.</p>
+                ${unassigned.map(t => `
+                    <div class="tech-row">
+                        <strong>${t.name}</strong>
+                        <select onchange="reassignStudent(${t.id}, this.value)" aria-label="Reassign ${t.name}">
+                            <option value="">Unassigned</option>
+                            ${groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}
+                        </select>
+                        <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; background:#dc3545; color:white; border:none;" onclick="removeStudent(${t.id})">Remove</button>
+                    </div>
+                `).join('')}
             </div>
-            <input type="file" accept="image/*" onchange="uploadGroupImage(${group.id}, this)" style="margin-top:8px; margin-bottom:6px;">
-            <button class="btn-delete-group" onclick="deleteGroup(${group.id})">Delete Group</button>
-        </div>
-    `).join('');
+        `;
+    }
+
+    container.innerHTML = html;
 }
 
 // ============================================================
@@ -933,7 +960,7 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
             <div style="margin-top:0.5rem;">
                 ${appt.status === 'pending' ? `
                     <select id="assign-${appt.id}" style="padding:0.3rem; margin-right:0.5rem;">
-                        <option value="">Select Team...</option>
+                        <option value="">Select Project...</option>
                         ${groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('')}
                     </select>
                     <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="assignToGroup(${appt.id})">Assign</button>
@@ -966,7 +993,7 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
         pending.forEach(a => html += renderTicket(a, '#fff3cd', '#ffc107'));
     }
     if (assigned.length > 0) {
-        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Assigned to Teams</h3>';
+        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Assigned to Projects</h3>';
         assigned.forEach(a => html += renderTicket(a, '#d1ecf1', '#17a2b8'));
     }
     if (inProgress.length > 0) {
@@ -990,7 +1017,7 @@ function viewGroupRepairs(groupId) {
 
     const container = document.getElementById('groupRepairsContainer');
     if (groupAppts.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">No repairs currently assigned to this team.</p>';
+        container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">No repairs currently assigned to this project.</p>';
     } else {
         container.innerHTML = groupAppts.map(appt => {
             const inProgress = appt.status === 'in_progress';
