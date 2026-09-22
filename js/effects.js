@@ -8,50 +8,78 @@
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const isSmallViewport = () => window.innerWidth < 640;
 
-// Builds a low-poly wireframe screwdriver (handle + ferrule + shaft + flathead
-// tip) out of plain Three.js primitives — no external model/CDN needed.
-function buildScrewdriver() {
+// Wireframe hero shape — a desktop monitor on computer-sized screens, a
+// phone on phone-sized screens, since this is a device repair shop. Picked
+// once at load based on viewport width (see initHeroScene).
+function buildMonitor() {
     const group = new THREE.Group();
     const gold = 0xffd700;
     const cyan = 0x22d3ee;
     const white = 0xffffff;
 
-    const handle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.5, 0.62, 2.1, 10),
+    const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(3.2, 2.0, 0.12),
         new THREE.MeshBasicMaterial({ color: gold, wireframe: true })
     );
-    handle.position.y = 1.55;
-    group.add(handle);
+    group.add(frame);
 
-    const cap = new THREE.Mesh(
-        new THREE.SphereGeometry(0.5, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-        new THREE.MeshBasicMaterial({ color: gold, wireframe: true })
+    const screen = new THREE.Mesh(
+        new THREE.BoxGeometry(2.9, 1.7, 0.02),
+        new THREE.MeshBasicMaterial({ color: cyan, wireframe: true, transparent: true, opacity: 0.7 })
     );
-    cap.position.y = 2.6;
-    group.add(cap);
+    screen.position.z = 0.08;
+    group.add(screen);
 
-    const ferrule = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.3, 0.38, 0.35, 10),
-        new THREE.MeshBasicMaterial({ color: cyan, wireframe: true })
-    );
-    ferrule.position.y = 0.32;
-    group.add(ferrule);
-
-    const shaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.1, 0.1, 2.9, 8),
-        new THREE.MeshBasicMaterial({ color: white, wireframe: true, transparent: true, opacity: 0.85 })
-    );
-    shaft.position.y = -1.1;
-    group.add(shaft);
-
-    const tip = new THREE.Mesh(
-        new THREE.BoxGeometry(0.34, 0.32, 0.045),
+    const neck = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 0.6, 10),
         new THREE.MeshBasicMaterial({ color: white, wireframe: true })
     );
-    tip.position.y = -2.68;
-    group.add(tip);
+    neck.position.y = -1.3;
+    group.add(neck);
 
-    group.scale.setScalar(0.85);
+    const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.7, 0.8, 0.1, 20),
+        new THREE.MeshBasicMaterial({ color: white, wireframe: true })
+    );
+    base.position.y = -1.65;
+    group.add(base);
+
+    return group;
+}
+
+function buildPhone() {
+    const group = new THREE.Group();
+    const gold = 0xffd700;
+    const cyan = 0x22d3ee;
+    const white = 0xffffff;
+
+    const body = new THREE.Mesh(
+        new THREE.BoxGeometry(1.35, 2.7, 0.16),
+        new THREE.MeshBasicMaterial({ color: gold, wireframe: true })
+    );
+    group.add(body);
+
+    const screen = new THREE.Mesh(
+        new THREE.BoxGeometry(1.15, 2.35, 0.02),
+        new THREE.MeshBasicMaterial({ color: cyan, wireframe: true, transparent: true, opacity: 0.7 })
+    );
+    screen.position.z = 0.09;
+    group.add(screen);
+
+    const camera = new THREE.Mesh(
+        new THREE.RingGeometry(0.05, 0.09, 16),
+        new THREE.MeshBasicMaterial({ color: white, wireframe: true, side: THREE.DoubleSide })
+    );
+    camera.position.set(0, 1.2, 0.1);
+    group.add(camera);
+
+    const homeBar = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.05, 0.02),
+        new THREE.MeshBasicMaterial({ color: white, wireframe: true })
+    );
+    homeBar.position.set(0, -1.2, 0.1);
+    group.add(homeBar);
+
     return group;
 }
 
@@ -71,7 +99,7 @@ function initHeroScene() {
     const camera = new THREE.PerspectiveCamera(45, hero.clientWidth / hero.clientHeight, 0.1, 100);
     camera.position.set(0, 0, 7.5);
 
-    const group = buildScrewdriver();
+    const group = isSmallViewport() ? buildPhone() : buildMonitor();
     scene.add(group);
 
     const orbiters = [];
@@ -97,18 +125,22 @@ function initHeroScene() {
     window.addEventListener('resize', resize);
 
     if (prefersReducedMotion) {
-        group.rotation.set(0.5, 0.6, 0.35);
+        group.rotation.set(0.15, 0.5, 0.05);
         renderer.render(scene, camera);
         return;
     }
 
+    // Monitor/phone are flat slabs, not rods — a full spin carries them
+    // edge-on to the camera twice a cycle and they nearly vanish. Swinging
+    // back and forth within a capped arc (never reaching 90°) keeps the
+    // face visible the whole time, like a product showcase turntable.
     const clock = new THREE.Clock();
     (function animate() {
         requestAnimationFrame(animate);
         const t = clock.getElapsedTime();
-        group.rotation.y = t * 0.3;
-        group.rotation.x = 0.5 + Math.sin(t * 0.25) * 0.4;
-        group.rotation.z = 0.3 + Math.cos(t * 0.2) * 0.3;
+        group.rotation.y = Math.sin(t * 0.28) * 0.55;
+        group.rotation.x = Math.sin(t * 0.35) * 0.12;
+        group.rotation.z = Math.sin(t * 0.2) * 0.06;
 
         orbiters.forEach(o => {
             const angle = t * o.speed + o.offset;
