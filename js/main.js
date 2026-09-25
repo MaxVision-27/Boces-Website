@@ -16,6 +16,7 @@ let appointments = [];
 let techs = [];
 let currentTechId = null;
 let currentTechName = null;
+let myTimeLogs = [];
 
 // ============================================================
 // LOAD ALL DATA FROM SUPABASE ON PAGE START
@@ -806,7 +807,9 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
 // ============================================================
 // MY TICKETS (Tech) — tickets the current student is assigned to
 // ============================================================
-function viewMyTickets() {
+async function viewMyTickets() {
+    await loadMyTimeLogs();
+
     const activeAppts = appointments.filter(a =>
         (a.assigned_tech_ids || []).includes(currentTechId) && (a.status === 'assigned' || a.status === 'in_progress')
     );
@@ -844,6 +847,7 @@ function viewMyTickets() {
                             ${inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="markCompleted(${appt.id})">Mark Completed</button>` : ''}
                         </div>
                     </div>
+                    ${renderLogTimeSection(appt.id)}
                 </div>`;
             }).join('');
         } else {
@@ -857,6 +861,7 @@ function viewMyTickets() {
                     <strong>${appt.name}</strong> - ${appt.device}<br>
                     <em>${appt.issue}</em><br>
                     ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
+                    ${renderLogTimeSection(appt.id)}
                 </div>
             `).join('');
         }
@@ -864,6 +869,159 @@ function viewMyTickets() {
 
     container.innerHTML = html;
     openModal('myTicketsModal');
+}
+
+// ============================================================
+// TIME TRACKING — hours a tech logs per ticket, per day. Feeds both
+// the "Log time worked" control on each ticket and the "My Hours" tab
+// they use to transfer entries onto the school's paper time sheet.
+// ============================================================
+async function loadMyTimeLogs() {
+    if (!currentTechId) { myTimeLogs = []; return; }
+
+    const { data, error } = await db.from('time_logs')
+        .select('*')
+        .eq('tech_id', currentTechId)
+        .order('work_date', { ascending: false })
+        .order('created_at', { ascending: false });
+
+    if (error) { console.error('Error loading time logs:', error); return; }
+    myTimeLogs = data || [];
+}
+
+function todayDateStr() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+// start/end come from <input type="time"> as "HH:MM" (24h) — the same
+// format Postgres' `time` column round-trips, so no conversion on the way in.
+function hoursBetween(startTime, endTime) {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+}
+
+function formatTime12h(timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+function renderLogTimeSection(apptId) {
+    const entries = myTimeLogs.filter(l => l.ticket_id === apptId);
+    const entriesHtml = entries.length > 0
+        ? entries.map(l => `
+            <div style="font-size:0.8rem; color:#555; display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
+                <span>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}: ${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</span>
+                <span style="cursor:pointer; color:#dc3545;" onclick="deleteTimeLog(${l.id})" title="Delete entry">✕</span>
+            </div>`).join('')
+        : '<span style="font-size:0.8rem; color:#999;">No time logged yet</span>';
+
+    return `
+        <div style="margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid rgba(0,0,0,0.08);">
+            <small style="display:block; margin-bottom:0.3rem; color:#555;">Log time worked:</small>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:0.5rem;">
+                <input type="date" id="logDate-${apptId}" value="${todayDateStr()}" style="padding:0.3rem; border-radius:5px; border:1px solid #ccc;">
+                <input type="time" id="logStart-${apptId}" style="padding:0.3rem; border-radius:5px; border:1px solid #ccc;">
+                <small style="color:#999;">to</small>
+                <input type="time" id="logEnd-${apptId}" style="padding:0.3rem; border-radius:5px; border:1px solid #ccc;">
+                <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="logTime(${apptId})">Log Time</button>
+            </div>
+            ${entriesHtml}
+        </div>
+    `;
+}
+
+async function logTime(ticketId) {
+    const dateField = document.getElementById(`logDate-${ticketId}`);
+    const startField = document.getElementById(`logStart-${ticketId}`);
+    const endField = document.getElementById(`logEnd-${ticketId}`);
+    const workDate = dateField.value;
+    const startTime = startField.value;
+    const endTime = endField.value;
+
+    if (!workDate) { alert('Please pick the date you worked on this.'); return; }
+    if (!startTime || !endTime) { alert('Please enter the time you started and finished.'); return; }
+    if (hoursBetween(startTime, endTime) <= 0) { alert('End time must be after start time.'); return; }
+
+    const { error } = await db.from('time_logs').insert({
+        ticket_id: ticketId,
+        tech_id: currentTechId,
+        work_date: workDate,
+        start_time: startTime,
+        end_time: endTime
+    });
+
+    if (error) { console.error('Error logging time:', error); alert('Failed to log time.'); return; }
+
+    await viewMyTickets();
+}
+
+async function deleteTimeLog(logId) {
+    if (!confirm('Delete this time entry?')) return;
+
+    const { error } = await db.from('time_logs').delete().eq('id', logId);
+    if (error) { console.error('Error deleting time log:', error); return; }
+
+    myTimeLogs = myTimeLogs.filter(l => l.id !== logId);
+
+    if (document.getElementById('myTicketsModal').style.display === 'flex') viewMyTickets();
+    if (document.getElementById('myHoursModal').style.display === 'flex') renderMyHours();
+}
+
+async function openMyHours() {
+    await loadMyTimeLogs();
+    renderMyHours();
+    openModal('myHoursModal');
+}
+
+function renderMyHours() {
+    const container = document.getElementById('myHoursContainer');
+    if (!container) return;
+
+    if (myTimeLogs.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:2rem;">No hours logged yet.</p>';
+        return;
+    }
+
+    const total = myTimeLogs.reduce((sum, l) => sum + hoursBetween(l.start_time, l.end_time), 0);
+
+    const rows = myTimeLogs.map(l => {
+        const ticket = appointments.find(a => a.id === l.ticket_id);
+        const label = ticket ? `${ticket.name} - ${ticket.device}` : 'Deleted ticket';
+        return `
+            <tr>
+                <td style="padding:0.4rem; border-bottom:1px solid #eee;">${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}</td>
+                <td style="padding:0.4rem; border-bottom:1px solid #eee;">${label}</td>
+                <td style="padding:0.4rem; border-bottom:1px solid #eee; white-space:nowrap;">${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)}</td>
+                <td style="padding:0.4rem; border-bottom:1px solid #eee; text-align:right;">${hoursBetween(l.start_time, l.end_time).toFixed(2)}</td>
+                <td style="padding:0.4rem; border-bottom:1px solid #eee; text-align:right;"><span style="cursor:pointer; color:#dc3545;" onclick="deleteTimeLog(${l.id})" title="Delete entry">✕</span></td>
+            </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+        <p style="font-size:0.9rem; color:#555; margin-bottom:1rem;">Use this to fill in your paper time sheet.</p>
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="text-align:left; border-bottom:2px solid #001f3f;">
+                    <th style="padding:0.4rem;">Date</th>
+                    <th style="padding:0.4rem;">Ticket</th>
+                    <th style="padding:0.4rem;">Time</th>
+                    <th style="padding:0.4rem; text-align:right;">Hours</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+            <tfoot>
+                <tr style="font-weight:bold; border-top:2px solid #001f3f;">
+                    <td style="padding:0.4rem;" colspan="3">Total</td>
+                    <td style="padding:0.4rem; text-align:right;">${total.toFixed(2)}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    `;
 }
 
 // ============================================================

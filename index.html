@@ -8,7 +8,7 @@
         window.THREE = THREE;
     </script>
     <script src="js/effects.js?v=10" defer></script>
-    <script src="js/main.js?v=10" defer></script>
+    <script src="js/main.js?v=12" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -133,6 +133,7 @@
     <h3 style="margin-bottom: 1rem;">Tech Tools</h3>
     <button class="btn btn-primary" style="background:#17a2b8; color:white;" onclick="openTechTicketModal()">New Ticket</button>
     <button class="btn btn-primary" onclick="viewMyTickets()">My Tickets</button>
+    <button class="btn btn-primary" onclick="openMyHours()">My Hours</button>
     <button class="btn btn-primary" onclick="logout()">Logout</button>
 </div>
 
@@ -165,6 +166,15 @@
         <span class="close-btn" onclick="closeModal('myTicketsModal')">×</span>
         <h2>My Tickets</h2>
         <div id="myTicketsContainer" style="max-height: 500px; overflow-y: auto;"></div>
+    </div>
+</div>
+
+<!-- My Hours Modal (Tech) -->
+<div class="modal" id="myHoursModal">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="close-btn" onclick="closeModal('myHoursModal')">×</span>
+        <h2>My Hours</h2>
+        <div id="myHoursContainer" style="max-height: 500px; overflow-y: auto;"></div>
     </div>
 </div>
 
