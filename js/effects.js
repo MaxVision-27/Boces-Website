@@ -214,7 +214,7 @@ function initBackgroundField() {
 function initCardTilt() {
     if (prefersReducedMotion || isSmallViewport()) return;
 
-    document.querySelectorAll('.info-card, .group-card').forEach(card => {
+    document.querySelectorAll('.info-card').forEach(card => {
         card.addEventListener('mousemove', (e) => {
             const rect = card.getBoundingClientRect();
             const x = (e.clientX - rect.left) / rect.width - 0.5;

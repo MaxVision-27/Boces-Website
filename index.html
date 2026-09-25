@@ -1,14 +1,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=9">
+    <link rel="stylesheet" href="css/styles.css?v=10">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
-    <script src="js/effects.js?v=9" defer></script>
-    <script src="js/main.js?v=9" defer></script>
+    <script src="js/effects.js?v=10" defer></script>
+    <script src="js/main.js?v=10" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -122,9 +122,9 @@
 <!-- Admin Panel -->
 <div class="admin-panel" id="adminPanel" style="display: none; position: fixed; top: 60px; right: 20px;">
     <h3 style="margin-bottom: 1rem;">Admin Panel</h3>
-    <button class="btn btn-primary" onclick="openManageProjects()">Manage Projects</button>
+    <button class="btn btn-primary" onclick="openManageStudents()">Manage Students</button>
     <button class="btn btn-primary" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
-    <button class="btn btn-primary" onclick="openModal('manageAppointmentsModal')">Manage Appointments</button>
+    <button class="btn btn-primary" onclick="openModal('ticketPoolModal')">Ticket Pool</button>
     <button class="btn btn-primary" onclick="logout()">Logout</button>
 </div>
 
@@ -132,7 +132,7 @@
 <div class="admin-panel" id="techToolbar" style="display: none; position: fixed; top: 60px; right: 20px;">
     <h3 style="margin-bottom: 1rem;">Tech Tools</h3>
     <button class="btn btn-primary" style="background:#17a2b8; color:white;" onclick="openTechTicketModal()">New Ticket</button>
-    <button class="btn btn-primary" onclick="openMyQueue()">My Queue</button>
+    <button class="btn btn-primary" onclick="viewMyTickets()">My Tickets</button>
     <button class="btn btn-primary" onclick="logout()">Logout</button>
 </div>
 
@@ -141,27 +141,30 @@
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('updateStatsModal')">×</span>
         <h2>Update Statistics</h2>
-        <input type="number" id="totalRepairsInput" aria-label="Total repairs override" style="display:none;">
-        <div id="groupStatsContainer"></div>
+        <div class="form-group">
+            <label for="totalRepairsInput">Total Repairs Completed</label>
+            <input type="number" id="totalRepairsInput" min="0">
+        </div>
         <button class="btn btn-primary" onclick="updateStats()">Save Changes</button>
     </div>
 </div>
 
-<!-- Manage Appointments Modal -->
-<div class="modal" id="manageAppointmentsModal">
+<!-- Ticket Pool Modal -->
+<div class="modal" id="ticketPoolModal">
     <div class="modal-content" style="max-width: 800px;">
-        <span class="close-btn" onclick="closeModal('manageAppointmentsModal')">×</span>
-        <h2>Manage Repair Requests</h2>
+        <span class="close-btn" onclick="closeModal('ticketPoolModal')">×</span>
+        <h2>Ticket Pool</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Every repair ticket lands here. Assign one or more students to work it.</p>
         <div id="appointmentsContainer" style="max-height: 500px; overflow-y: auto;"></div>
     </div>
 </div>
 
-<!-- View Group Repairs Modal -->
-<div class="modal" id="viewGroupRepairsModal">
+<!-- My Tickets Modal (Tech) -->
+<div class="modal" id="myTicketsModal">
     <div class="modal-content" style="max-width: 700px;">
-        <span class="close-btn" onclick="closeModal('viewGroupRepairsModal')">×</span>
-        <h2 id="groupRepairsTitle">Assigned Repairs</h2>
-        <div id="groupRepairsContainer" style="max-height: 500px; overflow-y: auto;"></div>
+        <span class="close-btn" onclick="closeModal('myTicketsModal')">×</span>
+        <h2>My Tickets</h2>
+        <div id="myTicketsContainer" style="max-height: 500px; overflow-y: auto;"></div>
     </div>
 </div>
 
@@ -228,13 +231,13 @@
     </div>
 </div>
 
-<!-- Manage Projects Modal (Admin) — projects and their students, together -->
-<div class="modal" id="manageProjectsModal">
-    <div class="modal-content" style="max-width: 650px;">
-        <span class="close-btn" onclick="closeModal('manageProjectsModal')">×</span>
-        <h2>Manage Projects</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Create a project, then add students to it by name. Students working on the same project are grouped together.</p>
-        <div class="groups-container" id="manageProjectsContainer"></div>
+<!-- Manage Students Modal (Admin) -->
+<div class="modal" id="manageStudentsModal">
+    <div class="modal-content" style="max-width: 550px;">
+        <span class="close-btn" onclick="closeModal('manageStudentsModal')">×</span>
+        <h2>Manage Students</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Add a student by name. They'll show up in the "Who are you?" list after logging in as Tech, and you can assign them to tickets in the Ticket Pool.</p>
+        <div id="manageStudentsContainer"></div>
     </div>
 </div>
 
@@ -243,7 +246,7 @@
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('techTicketModal')">×</span>
         <h2>New Ticket</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">This ticket will be created and assigned directly to your project.</p>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">This ticket will be created and assigned to you. An admin can add more students in the Ticket Pool.</p>
         <div class="form-group">
             <label for="techApptName">Customer Name</label>
             <input type="text" id="techApptName" placeholder="Full name">

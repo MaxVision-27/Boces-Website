@@ -11,20 +11,17 @@ let db;
 // STATE
 // ============================================================
 let currentRole = null;
-let groups = [];
 let totalRepairs = 0;
 let appointments = [];
 let techs = [];
 let currentTechId = null;
 let currentTechName = null;
-let currentTechGroupId = null;
 
 // ============================================================
 // LOAD ALL DATA FROM SUPABASE ON PAGE START
 // ============================================================
 async function loadData() {
     await Promise.all([
-        loadGroups(),
         loadAppointments(),
         loadStats(),
         loadTechs(),
@@ -34,18 +31,11 @@ async function loadData() {
     updateRoleDisplay();
 }
 
-async function loadGroups() {
-    const { data, error } = await db.from('groups').select('*').order('created_at', { ascending: true });
-    if (error) { console.error('Error loading groups:', error); return; }
-    groups = data || [];
-    calculateTotalRepairs();
-    refreshGroupsUI();
-}
-
 async function loadAppointments() {
     const { data, error } = await db.from('repair_requests').select('*').order('created_at', { ascending: false });
     if (error) { console.error('Error loading appointments:', error); return; }
     appointments = data || [];
+    calculateTotalRepairs();
     populateAppointmentsModal();
 }
 
@@ -64,19 +54,17 @@ async function loadTechs() {
     techs = data || [];
 }
 
-// Reattach currentTechName/currentTechGroupId from the roster after a saved
-// session (sessionStorage only kept the id). If the roster no longer has
-// that id (teacher removed them), clear the stale identity.
+// Reattach currentTechName from the roster after a saved session
+// (sessionStorage only kept the id). If the roster no longer has that id
+// (teacher removed them), clear the stale identity.
 function hydrateTechIdentity() {
     if (!currentTechId) return;
     const tech = techs.find(t => t.id === currentTechId);
     if (tech) {
         currentTechName = tech.name;
-        currentTechGroupId = tech.group_id;
     } else {
         currentTechId = null;
         currentTechName = null;
-        currentTechGroupId = null;
         sessionStorage.removeItem('bocesTechId');
     }
 }
@@ -135,40 +123,21 @@ function logout() {
     currentRole = null;
     currentTechId = null;
     currentTechName = null;
-    currentTechGroupId = null;
     sessionStorage.removeItem('bocesRole');
     sessionStorage.removeItem('bocesTechId');
     updateRoleDisplay();
 }
 
 // ============================================================
-// TECH IDENTITY (roster picker shown after "Tech" login)
+// TECH IDENTITY (picker shown after "Tech" login)
 // ============================================================
 function openTechPicker() {
     const container = document.getElementById('techPickerContainer');
 
     if (techs.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">No students have been added yet. Ask your teacher to add you to a project in Manage Projects.</p>';
+        container.innerHTML = '<p style="text-align:center;color:#999;">No students have been added yet. Ask your teacher to add you in Manage Students.</p>';
     } else {
-        const byGroup = {};
-        techs.forEach(t => {
-            const key = t.group_id || 'unassigned';
-            if (!byGroup[key]) byGroup[key] = [];
-            byGroup[key].push(t);
-        });
-
-        let html = '';
-        groups.forEach(g => {
-            if (byGroup[g.id]) {
-                html += `<div class="roster-group-label">${g.name} (${g.period})</div>`;
-                html += byGroup[g.id].map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${t.name}</button>`).join('');
-            }
-        });
-        if (byGroup['unassigned']) {
-            html += `<div class="roster-group-label">Unassigned</div>`;
-            html += byGroup['unassigned'].map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${t.name}</button>`).join('');
-        }
-        container.innerHTML = html;
+        container.innerHTML = techs.map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${t.name}</button>`).join('');
     }
 
     openModal('techPickerModal');
@@ -180,7 +149,6 @@ function selectTech(techId, showAlert = true) {
 
     currentTechId = tech.id;
     currentTechName = tech.name;
-    currentTechGroupId = tech.group_id;
     sessionStorage.setItem('bocesTechId', tech.id);
 
     closeModal('techPickerModal');
@@ -189,117 +157,94 @@ function selectTech(techId, showAlert = true) {
 }
 
 // ============================================================
-// PROJECTS — admin creates a project, students are added directly to
-// it by name. No separate roster: adding a student always happens in
-// the context of the project they're working on.
+// STUDENTS (Admin) — just a name. No project/group of any kind;
+// who's working what is decided per-ticket in the Ticket Pool.
 // ============================================================
-async function createProject() {
-    const nameInput = document.getElementById('newProjectName');
-    const periodSelect = document.getElementById('newProjectPeriod');
-    const name = nameInput.value.trim();
-    const period = periodSelect.value;
-
-    if (!name) { alert('Please enter a project name'); return; }
-
-    const { data, error } = await db.from('groups').insert({
-        name,
-        period,
-        repairs: 0,
-        projects: []
-    }).select().single();
-
-    if (error) { console.error('Error creating project:', error); alert('Failed to create project.'); return; }
-
-    groups.push(data);
-    calculateTotalRepairs();
-    nameInput.value = '';
-    populateManageProjectsModal();
+function openManageStudents() {
+    populateManageStudentsModal();
+    openModal('manageStudentsModal');
 }
 
-async function deleteProject(groupId) {
-    const group = groups.find(g => g.id === groupId);
-    if (!confirm(`Are you sure you want to delete "${group.name}"? Students on it will become unassigned. This cannot be undone.`)) return;
+function populateManageStudentsModal() {
+    const container = document.getElementById('manageStudentsContainer');
+    if (!container) return;
 
-    await db.from('repair_requests').update({ group_id: null, group_name: 'Unassigned', status: 'pending' }).eq('group_id', groupId);
-    await db.from('techs').update({ group_id: null }).eq('group_id', groupId);
+    let html = `
+        <div class="form-group" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
+            <label for="newStudentName">Add Student</label>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="newStudentName" placeholder="Student name" style="flex:1;" onkeydown="if(event.key==='Enter'){addStudent();}">
+                <button class="btn btn-primary" style="background:#003d7a; color:white;" onclick="addStudent()">Add</button>
+            </div>
+        </div>
+    `;
 
-    const { error } = await db.from('groups').delete().eq('id', groupId);
-    if (error) { console.error('Error deleting project:', error); return; }
+    if (techs.length === 0) {
+        html += '<p style="text-align:center; color:#999;">No students yet.</p>';
+    } else {
+        html += techs.map(t => `
+            <div class="tech-row">
+                <strong>${t.name}</strong>
+                <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; background:#dc3545; color:white; border:none;" onclick="removeStudent(${t.id})">Remove</button>
+            </div>
+        `).join('');
+    }
 
-    groups = groups.filter(g => g.id !== groupId);
-    appointments = appointments.map(a => a.group_id === groupId ? { ...a, group_id: null, group_name: 'Unassigned', status: 'pending' } : a);
-    techs = techs.map(t => t.group_id === groupId ? { ...t, group_id: null } : t);
-    if (currentTechGroupId === groupId) currentTechGroupId = null;
-    refreshGroupsUI();
-    alert('Project deleted successfully!');
+    container.innerHTML = html;
 }
 
-async function uploadGroupImage(groupId, input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const group = groups.find(g => g.id === groupId);
-        if (!group.projects) group.projects = [];
-        group.projects.unshift(e.target.result);
-        if (group.projects.length > 4) group.projects = group.projects.slice(0, 4);
-
-        const { error } = await db.from('groups').update({ projects: group.projects }).eq('id', groupId);
-        if (error) { console.error('Error saving image:', error); return; }
-        refreshGroupsUI();
-    };
-    reader.readAsDataURL(file);
-}
-
-async function addStudentToProject(groupId) {
-    const input = document.getElementById(`newStudentName-${groupId}`);
+async function addStudent() {
+    const input = document.getElementById('newStudentName');
     const name = input.value.trim();
 
     if (!name) { alert('Please enter a name'); return; }
 
-    const { data, error } = await db.from('techs').insert({ name, group_id: groupId }).select().single();
+    const { data, error } = await db.from('techs').insert({ name }).select().single();
     if (error) { console.error('Error adding student:', error); alert('Failed to add student.'); return; }
 
     techs.push(data);
     techs.sort((a, b) => a.name.localeCompare(b.name));
-    populateManageProjectsModal();
-}
-
-async function reassignStudent(techId, groupIdRaw) {
-    const groupId = groupIdRaw ? parseInt(groupIdRaw) : null;
-    const { error } = await db.from('techs').update({ group_id: groupId }).eq('id', techId);
-    if (error) { console.error('Error reassigning student:', error); return; }
-
-    const tech = techs.find(t => t.id === techId);
-    if (tech) tech.group_id = groupId;
-    if (currentTechId === techId) currentTechGroupId = groupId;
-    populateManageProjectsModal();
+    input.value = '';
+    populateManageStudentsModal();
 }
 
 async function removeStudent(techId) {
-    if (!confirm('Remove this student?')) return;
+    if (!confirm('Remove this student? They will be unassigned from any tickets.')) return;
 
     const { error } = await db.from('techs').delete().eq('id', techId);
     if (error) { console.error('Error removing student:', error); return; }
 
     techs = techs.filter(t => t.id !== techId);
+
+    // Strip them out of any ticket they were assigned to — assigned_tech_ids
+    // is a plain array column, not a foreign key, so this has to happen
+    // from the app rather than a DB cascade.
+    const affected = appointments.filter(a => (a.assigned_tech_ids || []).includes(techId));
+    for (const appt of affected) {
+        const newIds = appt.assigned_tech_ids.filter(id => id !== techId);
+        const newStatus = newIds.length === 0 ? 'pending' : appt.status;
+        await db.from('repair_requests').update({ assigned_tech_ids: newIds, status: newStatus }).eq('id', appt.id);
+        appt.assigned_tech_ids = newIds;
+        appt.status = newStatus;
+    }
+
     if (currentTechId === techId) {
         currentTechId = null;
         currentTechName = null;
-        currentTechGroupId = null;
         sessionStorage.removeItem('bocesTechId');
         updateRoleDisplay();
     }
-    populateManageProjectsModal();
+    populateManageStudentsModal();
+    populateAppointmentsModal();
 }
 
 // ============================================================
-// REPAIR REQUESTS — created directly by a logged-in Tech
+// REPAIR REQUESTS — created directly by a logged-in Tech. No project
+// is required; the creating student is assigned automatically and can
+// pick up teammates (or be reassigned entirely) later from the pool.
 // ============================================================
 function openTechTicketModal() {
     if (!currentTechId) { openTechPicker(); return; }
-    if (!currentTechGroupId) { alert('You need to be assigned to a project first. Ask your teacher to add you in Manage Projects.'); return; }
     openModal('techTicketModal');
 }
 
@@ -313,8 +258,6 @@ function generateTrackingCode() {
 }
 
 async function submitTechTicket() {
-    if (!currentTechGroupId) { alert('You need to be assigned to a project first.'); return; }
-
     const name = document.getElementById('techApptName').value.trim();
     const email = document.getElementById('techApptEmail').value.trim().toLowerCase();
     const device = document.getElementById('techApptDevice').value;
@@ -326,8 +269,6 @@ async function submitTechTicket() {
         alert('Please fill in the customer name and issue.');
         return;
     }
-
-    const group = groups.find(g => g.id === currentTechGroupId);
 
     let data, error;
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -342,8 +283,7 @@ async function submitTechTicket() {
             status: 'assigned',
             flagged: false,
             flag_reason: null,
-            group_id: currentTechGroupId,
-            group_name: group ? group.name : 'Unassigned',
+            assigned_tech_ids: [currentTechId],
             created_by: currentTechName,
             tracking_code: trackingCode
         }).select().single());
@@ -368,8 +308,8 @@ async function submitTechTicket() {
 // PUBLIC TICKET TRACKING (lookup by code, no login needed)
 // ============================================================
 const trackStatusMeta = {
-    pending: { label: 'Pending Assignment', color: '#ffc107', text: '#333' },
-    assigned: { label: 'Assigned to a Project', color: '#17a2b8', text: 'white' },
+    pending: { label: 'In the Pool', color: '#ffc107', text: '#333' },
+    assigned: { label: 'Assigned', color: '#17a2b8', text: 'white' },
     in_progress: { label: 'In Progress', color: '#0d6efd', text: 'white' },
     completed: { label: 'Completed', color: '#28a745', text: 'white' }
 };
@@ -407,51 +347,39 @@ async function trackRepair() {
         <div class="info-card" style="text-align:left; margin-top:1rem;">
             <h3>${data.device}</h3>
             <p style="color:#555;"><em>${data.issue}</em></p>
-            <span class="group-badge" style="background:${meta.color}; color:${meta.text}; margin-top:0.5rem;">${meta.label}</span>
+            <span class="status-badge" style="background:${meta.color}; color:${meta.text}; margin-top:0.5rem;">${meta.label}</span>
             <p style="margin-top:0.8rem; font-size:0.85rem; color:#999;">Submitted ${new Date(data.created_at).toLocaleDateString()}</p>
         </div>
     `;
 }
 
-async function assignToGroup(apptId) {
-    const select = document.getElementById(`assign-${apptId}`);
-    const groupId = parseInt(select.value);
-    if (!groupId) { alert('Please select a project'); return; }
+// ============================================================
+// TICKET ASSIGNMENT — one or more students per ticket
+// ============================================================
+async function updateTicketAssignment(apptId) {
+    const checkboxes = document.querySelectorAll(`.assign-tech-${apptId}:checked`);
+    const techIds = [...checkboxes].map(cb => parseInt(cb.value));
+    const appt = appointments.find(a => a.id === apptId);
 
-    const group = groups.find(g => g.id === groupId);
+    let newStatus = appt.status;
+    if (techIds.length === 0) {
+        newStatus = 'pending';
+    } else if (appt.status === 'pending') {
+        newStatus = 'assigned';
+    }
 
     const { error } = await db.from('repair_requests').update({
-        group_id: groupId,
-        group_name: group.name,
-        status: 'assigned'
+        assigned_tech_ids: techIds,
+        status: newStatus
     }).eq('id', apptId);
 
-    if (error) { console.error('Error assigning:', error); return; }
+    if (error) { console.error('Error updating assignment:', error); return; }
 
-    const appt = appointments.find(a => a.id === apptId);
-    appt.group_id = groupId;
-    appt.group_name = group.name;
-    appt.status = 'assigned';
+    appt.assigned_tech_ids = techIds;
+    appt.status = newStatus;
 
     populateAppointmentsModal();
-    alert(`Assigned to ${group.name}!`);
-}
-
-async function unassignAppointment(apptId) {
-    const { error } = await db.from('repair_requests').update({
-        group_id: null,
-        group_name: 'Unassigned',
-        status: 'pending'
-    }).eq('id', apptId);
-
-    if (error) { console.error('Error unassigning:', error); return; }
-
-    const appt = appointments.find(a => a.id === apptId);
-    appt.group_id = null;
-    appt.group_name = 'Unassigned';
-    appt.status = 'pending';
-
-    populateAppointmentsModal();
+    alert('Assignment updated!');
 }
 
 async function startProgress(apptId) {
@@ -462,9 +390,7 @@ async function startProgress(apptId) {
     appt.status = 'in_progress';
 
     populateAppointmentsModal();
-    if (document.getElementById('viewGroupRepairsModal').style.display === 'flex') {
-        viewGroupRepairs(appt.group_id);
-    }
+    if (document.getElementById('myTicketsModal').style.display === 'flex') viewMyTickets();
 }
 
 async function saveTicketNotes(apptId) {
@@ -489,18 +415,9 @@ async function markCompleted(apptId) {
     const appt = appointments.find(a => a.id === apptId);
     appt.status = 'completed';
 
-    const group = groups.find(g => g.id === appt.group_id);
-    if (group) {
-        group.repairs = (group.repairs || 0) + 1;
-        await db.from('groups').update({ repairs: group.repairs }).eq('id', group.id);
-    }
-
     await syncStats();
     populateAppointmentsModal();
-    refreshGroupsUI();
-    if (document.getElementById('viewGroupRepairsModal').style.display === 'flex' && appt.group_id) {
-        viewGroupRepairs(appt.group_id);
-    }
+    if (document.getElementById('myTicketsModal').style.display === 'flex') viewMyTickets();
     alert('Repair marked as completed!');
 }
 
@@ -515,55 +432,35 @@ async function deleteAppointment(apptId) {
 }
 
 // ============================================================
-// STATS
+// STATS — total repairs is now just a count of completed tickets,
+// with a manual override still available for edge cases.
 // ============================================================
 async function syncStats() {
-    const total = groups.reduce((sum, g) => sum + (g.repairs || 0), 0);
-    totalRepairs = total;
-    document.getElementById('totalRepairs').textContent = totalRepairs;
-    await db.from('stats').update({ total_repairs: total }).eq('id', 1);
+    calculateTotalRepairs();
+    await db.from('stats').update({ total_repairs: totalRepairs }).eq('id', 1);
 }
 
 function calculateTotalRepairs() {
-    totalRepairs = groups.reduce((sum, g) => sum + (g.repairs || 0), 0);
+    totalRepairs = appointments.filter(a => a.status === 'completed').length;
     const el = document.getElementById('totalRepairs');
     if (el) el.textContent = totalRepairs;
 }
 
 function populateStatsModal() {
-    const calculatedTotal = groups.reduce((sum, g) => sum + g.repairs, 0);
-    document.getElementById('totalRepairsInput').value = totalRepairs;
-    document.getElementById('totalRepairsInput').placeholder = `Auto-calculated: ${calculatedTotal}`;
-
-    const container = document.getElementById('groupStatsContainer');
-    container.innerHTML = groups.map(group => `
-        <div class="form-group">
-            <label>${group.name} (${group.period}) - Repairs Completed</label>
-            <input type="number" id="group-${group.id}" value="${group.repairs}" min="0">
-        </div>
-    `).join('');
+    const calculatedTotal = appointments.filter(a => a.status === 'completed').length;
+    const input = document.getElementById('totalRepairsInput');
+    input.value = totalRepairs;
+    input.placeholder = `Auto-calculated: ${calculatedTotal}`;
 }
 
 async function updateStats() {
     const manualTotal = parseInt(document.getElementById('totalRepairsInput').value);
-
-    for (const group of groups) {
-        const input = document.getElementById(`group-${group.id}`);
-        if (input) {
-            const newVal = parseInt(input.value) || 0;
-            if (newVal !== group.repairs) {
-                group.repairs = newVal;
-                await db.from('groups').update({ repairs: newVal }).eq('id', group.id);
-            }
-        }
-    }
-
-    const calculatedTotal = groups.reduce((sum, g) => sum + g.repairs, 0);
+    const calculatedTotal = appointments.filter(a => a.status === 'completed').length;
     totalRepairs = (!isNaN(manualTotal) && manualTotal !== calculatedTotal) ? manualTotal : calculatedTotal;
 
     await db.from('stats').update({ total_repairs: totalRepairs }).eq('id', 1);
 
-    refreshGroupsUI();
+    document.getElementById('totalRepairs').textContent = totalRepairs;
     closeModal('updateStatsModal');
     alert('Statistics updated!');
 }
@@ -744,115 +641,9 @@ function updateRoleDisplay() {
     renderReviews();
 }
 
-function openMyQueue() {
-    if (!currentTechGroupId) { alert('You need to be assigned to a project first. Ask your teacher to add you in Manage Projects.'); return; }
-    viewGroupRepairs(currentTechGroupId);
-}
-
-// Called anywhere project/student data changes — keeps the total-repairs
-// stat and (if it happens to be open) the Manage Projects modal in sync.
-function refreshGroupsUI() {
-    calculateTotalRepairs();
-    const modal = document.getElementById('manageProjectsModal');
-    if (modal && modal.style.display === 'flex') populateManageProjectsModal();
-}
-
-// The one admin screen for projects and students: create a project, upload
-// its photos, and add/reassign/remove the students working on it — all in
-// one place instead of a separate roster you manage independently.
-function openManageProjects() {
-    populateManageProjectsModal();
-    openModal('manageProjectsModal');
-}
-
-function populateManageProjectsModal() {
-    const container = document.getElementById('manageProjectsContainer');
-    if (!container) return;
-
-    let html = `
-        <div class="form-group" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
-            <label for="newProjectName">New Project</label>
-            <div style="display:flex; gap:8px;">
-                <input type="text" id="newProjectName" placeholder="e.g., Website Redesign" style="flex:2;" onkeydown="if(event.key==='Enter'){createProject();}">
-                <select id="newProjectPeriod" aria-label="Class period" style="flex:1;">
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                </select>
-            </div>
-            <button class="btn btn-primary" style="background:#003d7a; color:white; margin-top:0.5rem;" onclick="createProject()">Create Project</button>
-        </div>
-    `;
-
-    if (groups.length === 0) {
-        html += '<p style="text-align: center; color: #999;">No projects yet. Create one above.</p>';
-    } else {
-        html += groups.map(group => {
-            const students = techs.filter(t => t.group_id === group.id);
-            return `
-            <div class="group-card" style="margin-bottom: 1.25rem;">
-                <h3>${group.name}</h3>
-                <span class="group-badge badge-${group.period.toLowerCase()}">${group.period} Class</span>
-                <p style="font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0;">
-                    ${group.repairs} Repairs Completed
-                </p>
-                <div class="project-gallery">
-                    ${!group.projects || group.projects.length === 0
-                ? '<p style="grid-column: 1/-1; text-align: center; color: #999; font-size: 0.85rem;">No photos yet</p>'
-                : group.projects.slice(0, 3).map(p => `<img src="${p}" class="project-img" alt="Photo">`).join('')
-            }
-                </div>
-                <input type="file" accept="image/*" onchange="uploadGroupImage(${group.id}, this)" style="margin-top:8px; margin-bottom:10px;">
-
-                <h4 style="margin: 0.75rem 0 0.5rem; font-size: 0.95rem; color: var(--navy-900);">Students</h4>
-                ${students.length === 0
-                ? '<p style="color:#999; font-size:0.85rem; margin-bottom:0.5rem;">No students assigned yet.</p>'
-                : students.map(t => `
-                    <div class="tech-row">
-                        <strong>${t.name}</strong>
-                        <select onchange="reassignStudent(${t.id}, this.value)" aria-label="Reassign ${t.name}">
-                            <option value="">Unassigned</option>
-                            ${groups.map(g => `<option value="${g.id}" ${t.group_id === g.id ? 'selected' : ''}>${g.name}</option>`).join('')}
-                        </select>
-                        <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; background:#dc3545; color:white; border:none;" onclick="removeStudent(${t.id})">Remove</button>
-                    </div>
-                `).join('')
-            }
-                <div style="display:flex; gap:8px; margin-top:0.5rem;">
-                    <input type="text" id="newStudentName-${group.id}" placeholder="Student name" aria-label="New student name" style="flex:1;" onkeydown="if(event.key==='Enter'){addStudentToProject(${group.id});}">
-                    <button class="btn btn-primary" style="padding:0.4rem 0.9rem; background:#2e7d32; color:white;" onclick="addStudentToProject(${group.id})">Add</button>
-                </div>
-
-                <button class="btn-delete-group" onclick="deleteProject(${group.id})" style="margin-top:1rem;">Delete Project</button>
-            </div>
-        `;
-        }).join('');
-    }
-
-    const unassigned = techs.filter(t => !t.group_id);
-    if (unassigned.length > 0) {
-        html += `
-            <div class="group-card" style="margin-bottom: 1.25rem; border-style: dashed;">
-                <h3>Unassigned Students</h3>
-                <p style="font-size:0.85rem; color:#999; margin-bottom:0.5rem;">Their project was deleted, or they haven't been assigned one yet.</p>
-                ${unassigned.map(t => `
-                    <div class="tech-row">
-                        <strong>${t.name}</strong>
-                        <select onchange="reassignStudent(${t.id}, this.value)" aria-label="Reassign ${t.name}">
-                            <option value="">Unassigned</option>
-                            ${groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('')}
-                        </select>
-                        <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; background:#dc3545; color:white; border:none;" onclick="removeStudent(${t.id})">Remove</button>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
-
-    container.innerHTML = html;
-}
-
 // ============================================================
-// TICKET MANAGER — with search, filter, sort, duplicate warning
+// TICKET POOL (Admin) — every ticket, with checkboxes to assign
+// one or more students directly. Replaces the old per-project queue.
 // ============================================================
 function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOrder = 'newest') {
     const container = document.getElementById('appointmentsContainer');
@@ -860,10 +651,8 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
 
     // Find duplicate emails
     const emailCounts = {};
-    const nameCounts = {};
     appointments.forEach(a => {
         if (a.email) emailCounts[a.email.toLowerCase()] = (emailCounts[a.email.toLowerCase()] || 0) + 1;
-        nameCounts[a.name.toLowerCase()] = (nameCounts[a.name.toLowerCase()] || 0) + 1;
     });
 
     // Apply filters
@@ -908,7 +697,7 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
                 onchange="populateAppointmentsModal(document.getElementById('nameSearch').value, this.value, document.getElementById('sortFilter').value)"
                 style="padding:0.4rem; border-radius:5px; border:1px solid #ccc;">
                 <option value="all" ${filterStatus === 'all' ? 'selected' : ''}>All Status</option>
-                <option value="pending" ${filterStatus === 'pending' ? 'selected' : ''}>Pending</option>
+                <option value="pending" ${filterStatus === 'pending' ? 'selected' : ''}>In the Pool</option>
                 <option value="assigned" ${filterStatus === 'assigned' ? 'selected' : ''}>Assigned</option>
                 <option value="in_progress" ${filterStatus === 'in_progress' ? 'selected' : ''}>In Progress</option>
                 <option value="completed" ${filterStatus === 'completed' ? 'selected' : ''}>Completed</option>
@@ -945,55 +734,61 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
     // Render a single ticket card
     const renderTicket = (appt, bgColor, borderColor) => {
         const isDuplicateEmail = appt.email && emailCounts[appt.email.toLowerCase()] > 1;
-        const createdByStaff = appt.created_by && appt.created_by !== 'customer';
+        const assignedIds = appt.assigned_tech_ids || [];
+        const assignedNames = assignedIds.map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
+
+        const assignmentEditor = `
+            <div style="margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid rgba(0,0,0,0.08);">
+                <small style="display:block; margin-bottom:0.3rem; color:#555;">Assign students:</small>
+                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">
+                    ${techs.length === 0 ? '<span style="color:#999; font-size:0.85rem;">No students added yet</span>' : techs.map(t => `
+                        <label style="display:inline-flex; align-items:center; gap:4px; background:white; padding:3px 8px; border-radius:10px; border:1px solid #ccc; font-size:0.85rem; cursor:pointer;">
+                            <input type="checkbox" class="assign-tech-${appt.id}" value="${t.id}" ${assignedIds.includes(t.id) ? 'checked' : ''}>
+                            ${t.name}
+                        </label>
+                    `).join('')}
+                </div>
+                <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="updateTicketAssignment(${appt.id})">Save Assignment</button>
+            </div>
+        `;
+
         return `
         <div style="background:${bgColor}; padding:1rem; border-radius:5px; margin-bottom:1rem; border-left:4px solid ${borderColor};">
             <strong>${appt.name}</strong>
             ${isDuplicateEmail ? '<span style="background:#dc3545; color:white; font-size:0.75rem; padding:2px 6px; border-radius:10px; margin-left:6px;">⚠️ Duplicate Email</span>' : ''}
             - ${appt.device}<br>
             <small style="color:#555;">📧 ${appt.email || 'No email provided'}</small><br>
-            ${createdByStaff ? `<small style="color:#555;">👤 Entered by tech: ${appt.created_by}</small><br>` : ''}
+            ${appt.created_by ? `<small style="color:#555;">👤 Created by: ${appt.created_by}</small><br>` : ''}
             ${appt.tracking_code ? `<small style="color:#555;">🔑 Tracking code: <strong>${appt.tracking_code}</strong></small><br>` : ''}
             <em>${appt.issue}</em><br>
             <small>Submitted: ${new Date(appt.created_at).toLocaleDateString()} at ${new Date(appt.created_at).toLocaleTimeString()}</small><br>
             <small>Preferred: ${appt.date} at ${appt.time}</small><br>
+            ${assignedNames.length > 0
+                ? `<small>Assigned to: <strong>${assignedNames.join(', ')}</strong></small><br>`
+                : '<small style="color:#999;">Unassigned — in the pool</small><br>'}
+            ${appt.status === 'in_progress' && appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
+            ${appt.status === 'in_progress' && appt.parts_used ? `<small>🔩 Parts: ${appt.parts_used}</small><br>` : ''}
+            ${appt.status === 'completed' && appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
             <div style="margin-top:0.5rem;">
-                ${appt.status === 'pending' ? `
-                    <select id="assign-${appt.id}" style="padding:0.3rem; margin-right:0.5rem;">
-                        <option value="">Select Project...</option>
-                        ${groups.map(g => `<option value="${g.id}">${g.name} (${g.period})</option>`).join('')}
-                    </select>
-                    <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="assignToGroup(${appt.id})">Assign</button>
-                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
-                ` : ''}
                 ${appt.status === 'assigned' ? `
-                    <small>Assigned to: <strong>${appt.group_name}</strong></small><br>
-                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8; margin-top:0.5rem;" onclick="startProgress(${appt.id})">Start Progress</button>
-                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; margin-top:0.5rem;" onclick="markCompleted(${appt.id})">Mark Completed</button>
-                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; margin-top:0.5rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
+                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8;" onclick="startProgress(${appt.id})">Start Progress</button>
+                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745;" onclick="markCompleted(${appt.id})">Mark Completed</button>
                 ` : ''}
                 ${appt.status === 'in_progress' ? `
-                    <small>In progress with: <strong>${appt.group_name}</strong></small><br>
-                    ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
-                    ${appt.parts_used ? `<small>🔩 Parts: ${appt.parts_used}</small><br>` : ''}
-                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; margin-top:0.5rem;" onclick="markCompleted(${appt.id})">Mark Completed</button>
-                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; margin-top:0.5rem;" onclick="unassignAppointment(${appt.id})">Unassign</button>
+                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745;" onclick="markCompleted(${appt.id})">Mark Completed</button>
                 ` : ''}
-                ${appt.status === 'completed' ? `
-                    <small>Completed by: <strong>${appt.group_name}</strong></small><br>
-                    ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
-                    <button class="btn btn-secondary" style="padding:0.3rem 1rem; margin-top:0.5rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
-                ` : ''}
+                <button class="btn btn-secondary" style="padding:0.3rem 1rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
             </div>
+            ${appt.status !== 'completed' ? assignmentEditor : ''}
         </div>`;
     };
 
     if (pending.length > 0) {
-        html += '<h3 style="color:#001f3f; margin-bottom:1rem;">Pending Assignment</h3>';
+        html += '<h3 style="color:#001f3f; margin-bottom:1rem;">In the Pool</h3>';
         pending.forEach(a => html += renderTicket(a, '#fff3cd', '#ffc107'));
     }
     if (assigned.length > 0) {
-        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Assigned to Projects</h3>';
+        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Assigned</h3>';
         assigned.forEach(a => html += renderTicket(a, '#d1ecf1', '#17a2b8'));
     }
     if (inProgress.length > 0) {
@@ -1008,44 +803,67 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
     container.innerHTML = html;
 }
 
-function viewGroupRepairs(groupId) {
-    const group = groups.find(g => g.id === groupId);
-    const isOwnGroup = currentRole === 'tech' && currentTechGroupId === groupId;
-    const groupAppts = appointments.filter(a => a.group_id === groupId && (a.status === 'assigned' || a.status === 'in_progress'));
+// ============================================================
+// MY TICKETS (Tech) — tickets the current student is assigned to
+// ============================================================
+function viewMyTickets() {
+    const activeAppts = appointments.filter(a =>
+        (a.assigned_tech_ids || []).includes(currentTechId) && (a.status === 'assigned' || a.status === 'in_progress')
+    );
+    const completedAppts = appointments.filter(a =>
+        (a.assigned_tech_ids || []).includes(currentTechId) && a.status === 'completed'
+    );
 
-    document.getElementById('groupRepairsTitle').textContent = `${group.name} - Repair Queue`;
+    const container = document.getElementById('myTicketsContainer');
+    let html = '';
 
-    const container = document.getElementById('groupRepairsContainer');
-    if (groupAppts.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999; padding: 2rem;">No repairs currently assigned to this project.</p>';
+    if (activeAppts.length === 0 && completedAppts.length === 0) {
+        html = '<p style="text-align: center; color: #999; padding: 2rem;">No tickets assigned to you yet.</p>';
     } else {
-        container.innerHTML = groupAppts.map(appt => {
-            const inProgress = appt.status === 'in_progress';
-            return `
-            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid ${inProgress ? '#0d6efd' : '#ffc107'};">
-                <strong>${appt.name}</strong> - ${appt.device}<br>
-                <em>${appt.issue}</em><br>
-                <small>Date: ${appt.date} at ${appt.time}</small><br>
-                <span style="display: inline-block; margin: 0.5rem 0; padding: 0.3rem 0.8rem; background: ${inProgress ? '#0d6efd' : '#ffc107'}; color: ${inProgress ? 'white' : '#333'}; border-radius: 3px; font-size: 0.85rem;">
-                    ${inProgress ? 'In Progress' : 'Assigned'}
-                </span>
-                ${isOwnGroup ? `
-                <div style="margin-top:0.5rem;">
-                    <textarea id="notes-${appt.id}" class="ticket-note-field" placeholder="Diagnosis / progress notes..." rows="2">${appt.notes || ''}</textarea>
-                    <input type="text" id="parts-${appt.id}" class="ticket-note-field" placeholder="Parts used (optional)" value="${appt.parts_used || ''}">
-                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                        <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="saveTicketNotes(${appt.id})">Save Notes</button>
-                        ${!inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8; color:white;" onclick="startProgress(${appt.id})">Start Progress</button>` : ''}
-                        ${inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="markCompleted(${appt.id})">Mark Completed</button>` : ''}
+        if (activeAppts.length > 0) {
+            html += activeAppts.map(appt => {
+                const inProgress = appt.status === 'in_progress';
+                const teammates = (appt.assigned_tech_ids || [])
+                    .map(id => techs.find(t => t.id === id)?.name)
+                    .filter(n => n && n !== currentTechName);
+                return `
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid ${inProgress ? '#0d6efd' : '#ffc107'};">
+                    <strong>${appt.name}</strong> - ${appt.device}<br>
+                    <em>${appt.issue}</em><br>
+                    <small>Date: ${appt.date} at ${appt.time}</small><br>
+                    ${teammates.length > 0 ? `<small>Working with: ${teammates.join(', ')}</small><br>` : ''}
+                    <span style="display: inline-block; margin: 0.5rem 0; padding: 0.3rem 0.8rem; background: ${inProgress ? '#0d6efd' : '#ffc107'}; color: ${inProgress ? 'white' : '#333'}; border-radius: 3px; font-size: 0.85rem;">
+                        ${inProgress ? 'In Progress' : 'Assigned'}
+                    </span>
+                    <div style="margin-top:0.5rem;">
+                        <textarea id="notes-${appt.id}" class="ticket-note-field" placeholder="Diagnosis / progress notes..." rows="2">${appt.notes || ''}</textarea>
+                        <input type="text" id="parts-${appt.id}" class="ticket-note-field" placeholder="Parts used (optional)" value="${appt.parts_used || ''}">
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="saveTicketNotes(${appt.id})">Save Notes</button>
+                            ${!inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8; color:white;" onclick="startProgress(${appt.id})">Start Progress</button>` : ''}
+                            ${inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="markCompleted(${appt.id})">Mark Completed</button>` : ''}
+                        </div>
                     </div>
+                </div>`;
+            }).join('');
+        } else {
+            html += '<p style="text-align:center; color:#999; padding:1rem;">No active tickets right now.</p>';
+        }
+
+        if (completedAppts.length > 0) {
+            html += '<h3 style="color:#001f3f; margin:1.5rem 0 1rem;">Completed</h3>';
+            html += completedAppts.map(appt => `
+                <div style="background:#d4edda; padding:1rem; border-radius:8px; margin-bottom:1rem; border-left:4px solid #28a745;">
+                    <strong>${appt.name}</strong> - ${appt.device}<br>
+                    <em>${appt.issue}</em><br>
+                    ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
                 </div>
-                ` : `
-                ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
-                `}
-            </div>`;
-        }).join('');
+            `).join('');
+        }
     }
-    openModal('viewGroupRepairsModal');
+
+    container.innerHTML = html;
+    openModal('myTicketsModal');
 }
 
 // ============================================================
