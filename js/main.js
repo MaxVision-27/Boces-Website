@@ -17,6 +17,7 @@ let techs = [];
 let currentTechId = null;
 let currentTechName = null;
 let myTimeLogs = [];
+let deletedAppointments = [];
 
 // ============================================================
 // LOAD ALL DATA FROM SUPABASE ON PAGE START
@@ -33,11 +34,17 @@ async function loadData() {
 }
 
 async function loadAppointments() {
-    const { data, error } = await db.from('repair_requests').select('*').order('created_at', { ascending: false });
+    const { data, error } = await db.from('repair_requests').select('*').is('deleted_at', null).order('created_at', { ascending: false });
     if (error) { console.error('Error loading appointments:', error); return; }
     appointments = data || [];
     calculateTotalRepairs();
     populateAppointmentsModal();
+}
+
+async function loadDeletedAppointments() {
+    const { data, error } = await db.from('repair_requests').select('*').not('deleted_at', 'is', null).order('deleted_at', { ascending: false });
+    if (error) { console.error('Error loading deleted tickets:', error); return; }
+    deletedAppointments = data || [];
 }
 
 async function loadStats() {
@@ -330,6 +337,7 @@ async function trackRepair() {
     const { data, error } = await db.from('repair_requests')
         .select('device, issue, status, created_at')
         .eq('tracking_code', code)
+        .is('deleted_at', null)
         .maybeSingle();
 
     if (error) {
@@ -422,14 +430,37 @@ async function markCompleted(apptId) {
     alert('Repair marked as completed!');
 }
 
+// Soft-delete: the row (and its tracking code) stays in the database
+// with deleted_at set, just hidden from the active pool, so a mistaken
+// click can be undone from the "Deleted" filter instead of losing the
+// ticket for good.
 async function deleteAppointment(apptId) {
-    if (!confirm('Are you sure you want to delete this request?')) return;
+    if (!confirm('Delete this ticket? It leaves the pool but can be restored from the "Deleted" filter.')) return;
 
-    const { error } = await db.from('repair_requests').delete().eq('id', apptId);
+    const { error } = await db.from('repair_requests').update({ deleted_at: new Date().toISOString() }).eq('id', apptId);
     if (error) { console.error('Error deleting:', error); return; }
 
     appointments = appointments.filter(a => a.id !== apptId);
     populateAppointmentsModal();
+}
+
+async function restoreAppointment(apptId) {
+    const { data, error } = await db.from('repair_requests').update({ deleted_at: null }).eq('id', apptId).select().single();
+    if (error) { console.error('Error restoring ticket:', error); return; }
+
+    deletedAppointments = deletedAppointments.filter(a => a.id !== apptId);
+    appointments.push(data);
+    populateAppointmentsModal(document.getElementById('nameSearch')?.value || '', 'deleted', document.getElementById('sortFilter')?.value || 'newest');
+}
+
+async function permanentlyDeleteAppointment(apptId) {
+    if (!confirm('Permanently delete this ticket? This cannot be undone.')) return;
+
+    const { error } = await db.from('repair_requests').delete().eq('id', apptId);
+    if (error) { console.error('Error permanently deleting:', error); return; }
+
+    deletedAppointments = deletedAppointments.filter(a => a.id !== apptId);
+    populateAppointmentsModal(document.getElementById('nameSearch')?.value || '', 'deleted', document.getElementById('sortFilter')?.value || 'newest');
 }
 
 // ============================================================
@@ -646,6 +677,11 @@ function updateRoleDisplay() {
 // TICKET POOL (Admin) — every ticket, with checkboxes to assign
 // one or more students directly. Replaces the old per-project queue.
 // ============================================================
+async function onStatusFilterChange(value) {
+    if (value === 'deleted') await loadDeletedAppointments();
+    populateAppointmentsModal(document.getElementById('nameSearch').value, value, document.getElementById('sortFilter').value);
+}
+
 function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOrder = 'newest') {
     const container = document.getElementById('appointmentsContainer');
     if (!container) return;
@@ -695,13 +731,14 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
                 oninput="populateAppointmentsModal(this.value, document.getElementById('statusFilter').value, document.getElementById('sortFilter').value)"
                 style="padding:0.4rem 0.8rem; border-radius:5px; border:1px solid #ccc; flex:1; min-width:150px;">
             <select id="statusFilter"
-                onchange="populateAppointmentsModal(document.getElementById('nameSearch').value, this.value, document.getElementById('sortFilter').value)"
+                onchange="onStatusFilterChange(this.value)"
                 style="padding:0.4rem; border-radius:5px; border:1px solid #ccc;">
                 <option value="all" ${filterStatus === 'all' ? 'selected' : ''}>All Status</option>
                 <option value="pending" ${filterStatus === 'pending' ? 'selected' : ''}>In the Pool</option>
                 <option value="assigned" ${filterStatus === 'assigned' ? 'selected' : ''}>Assigned</option>
                 <option value="in_progress" ${filterStatus === 'in_progress' ? 'selected' : ''}>In Progress</option>
                 <option value="completed" ${filterStatus === 'completed' ? 'selected' : ''}>Completed</option>
+                <option value="deleted" ${filterStatus === 'deleted' ? 'selected' : ''}>Deleted</option>
             </select>
             <select id="sortFilter"
                 onchange="populateAppointmentsModal(document.getElementById('nameSearch').value, document.getElementById('statusFilter').value, this.value)"
@@ -710,6 +747,38 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
                 <option value="oldest" ${sortOrder === 'oldest' ? 'selected' : ''}>Oldest First</option>
             </select>
         </div>`;
+
+    if (filterStatus === 'deleted') {
+        let deletedFiltered = [...deletedAppointments];
+        if (filterName.trim()) {
+            deletedFiltered = deletedFiltered.filter(a =>
+                a.name.toLowerCase().includes(filterName.toLowerCase()) ||
+                (a.email && a.email.toLowerCase().includes(filterName.toLowerCase()))
+            );
+        }
+        deletedFiltered.sort((a, b) => {
+            const dateA = new Date(a.deleted_at);
+            const dateB = new Date(b.deleted_at);
+            return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+        });
+
+        html += deletedFiltered.length === 0
+            ? '<p style="text-align:center; color:#999;">No deleted tickets.</p>'
+            : deletedFiltered.map(appt => `
+                <div style="background:#f8d7da; padding:1rem; border-radius:5px; margin-bottom:1rem; border-left:4px solid #dc3545;">
+                    <strong>${appt.name}</strong> - ${appt.device}<br>
+                    <small style="color:#555;">📧 ${appt.email || 'No email provided'}</small><br>
+                    <em>${appt.issue}</em><br>
+                    <small>Deleted: ${new Date(appt.deleted_at).toLocaleDateString()} at ${new Date(appt.deleted_at).toLocaleTimeString()}</small><br>
+                    <div style="margin-top:0.5rem;">
+                        <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745;" onclick="restoreAppointment(${appt.id})">Restore</button>
+                        <button class="btn btn-secondary" style="padding:0.3rem 1rem; background:#dc3545;" onclick="permanentlyDeleteAppointment(${appt.id})">Delete Forever</button>
+                    </div>
+                </div>`).join('');
+
+        container.innerHTML = html;
+        return;
+    }
 
     // Duplicate warning banner
     if (duplicateEmails.length > 0) {
