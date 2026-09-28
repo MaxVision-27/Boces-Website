@@ -18,6 +18,10 @@ let currentTechId = null;
 let currentTechName = null;
 let myTimeLogs = [];
 let deletedAppointments = [];
+// Session token from staff_login(). Sent as x-staff-token on every
+// request so the database's row-level security can tell staff apart
+// from the public — tickets, students and hours are staff-only.
+let staffToken = null;
 
 // ============================================================
 // LOAD ALL DATA FROM SUPABASE ON PAGE START
@@ -89,49 +93,51 @@ async function login() {
         return;
     }
 
-    try {
-        const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-            },
-            body: JSON.stringify({ password, role })
-        });
+    const { data: token, error } = await db.rpc('staff_login', { p_role: role, p_password: password });
 
-        const { success } = await res.json();
-
-        if (success) {
-            currentRole = role;
-            sessionStorage.setItem('bocesRole', role);
-            updateRoleDisplay();
-            closeModal('loginModal');
-            document.getElementById('loginPassword').value = '';
-
-            if (role === 'tech') {
-                const savedTechId = sessionStorage.getItem('bocesTechId');
-                if (savedTechId && techs.find(t => t.id === parseInt(savedTechId))) {
-                    selectTech(parseInt(savedTechId), false);
-                } else {
-                    openTechPicker();
-                }
-            } else {
-                alert('Login successful!');
-            }
-        } else {
-            alert('Incorrect password!');
-        }
-    } catch (err) {
-        console.error('Login error:', err);
+    if (error) {
+        console.error('Login error:', error);
         alert('Login failed. Check your internet connection and try again.');
+        return;
+    }
+    if (!token) {
+        alert('Incorrect password!');
+        return;
+    }
+
+    staffToken = token;
+    currentRole = role;
+    sessionStorage.setItem('bocesStaffToken', token);
+    closeModal('loginModal');
+    document.getElementById('loginPassword').value = '';
+
+    // Tickets, students and hours only come back once the token is set.
+    await loadData();
+
+    if (role === 'tech') {
+        const savedTechId = sessionStorage.getItem('bocesTechId');
+        if (savedTechId && techs.find(t => t.id === parseInt(savedTechId))) {
+            selectTech(parseInt(savedTechId), false);
+        } else {
+            openTechPicker();
+        }
+    } else {
+        alert('Login successful!');
     }
 }
 
-function logout() {
+async function logout() {
+    if (staffToken) await db.rpc('staff_logout');
+
+    staffToken = null;
     currentRole = null;
     currentTechId = null;
     currentTechName = null;
-    sessionStorage.removeItem('bocesRole');
+    appointments = [];
+    deletedAppointments = [];
+    techs = [];
+    myTimeLogs = [];
+    sessionStorage.removeItem('bocesStaffToken');
     sessionStorage.removeItem('bocesTechId');
     updateRoleDisplay();
 }
@@ -334,11 +340,7 @@ async function trackRepair() {
 
     result.innerHTML = '<p style="color:#777; margin-top:1rem;">Looking up your repair...</p>';
 
-    const { data, error } = await db.from('repair_requests')
-        .select('device, issue, status, created_at')
-        .eq('tracking_code', code)
-        .is('deleted_at', null)
-        .maybeSingle();
+    const { data, error } = await db.rpc('track_repair', { p_code: code }).maybeSingle();
 
     if (error) {
         console.error('Error tracking repair:', error);
@@ -441,6 +443,7 @@ async function deleteAppointment(apptId) {
     if (error) { console.error('Error deleting:', error); return; }
 
     appointments = appointments.filter(a => a.id !== apptId);
+    await syncStats();
     populateAppointmentsModal();
 }
 
@@ -450,6 +453,7 @@ async function restoreAppointment(apptId) {
 
     deletedAppointments = deletedAppointments.filter(a => a.id !== apptId);
     appointments.push(data);
+    await syncStats();
     populateAppointmentsModal(document.getElementById('nameSearch')?.value || '', 'deleted', document.getElementById('sortFilter')?.value || 'newest');
 }
 
@@ -473,6 +477,9 @@ async function syncStats() {
 }
 
 function calculateTotalRepairs() {
+    // The public can't read tickets, so for them the count on the page
+    // comes from the stats row (loadStats) rather than being recounted.
+    if (!currentRole) return;
     totalRepairs = appointments.filter(a => a.status === 'completed').length;
     const el = document.getElementById('totalRepairs');
     if (el) el.textContent = totalRepairs;
@@ -1138,14 +1145,32 @@ function showTopic(id, btn) {
 // ============================================================
 // START — waits for DOM so window.supabase is guaranteed loaded
 // ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+document.addEventListener('DOMContentLoaded', async () => {
+    db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: {
+            fetch: (url, options = {}) => {
+                const headers = new Headers(options.headers);
+                if (staffToken) headers.set('x-staff-token', staffToken);
+                return fetch(url, { ...options, headers });
+            }
+        }
+    });
 
-    const savedRole = sessionStorage.getItem('bocesRole');
-    if (savedRole) currentRole = savedRole;
-
-    const savedTechId = sessionStorage.getItem('bocesTechId');
-    if (savedTechId) currentTechId = parseInt(savedTechId);
+    // The role comes from the server, not sessionStorage, so an expired
+    // or forged session just lands on the public view.
+    staffToken = sessionStorage.getItem('bocesStaffToken');
+    if (staffToken) {
+        const { data: role } = await db.rpc('current_staff_role');
+        if (role) {
+            currentRole = role;
+            const savedTechId = sessionStorage.getItem('bocesTechId');
+            if (savedTechId) currentTechId = parseInt(savedTechId);
+        } else {
+            staffToken = null;
+            sessionStorage.removeItem('bocesStaffToken');
+            sessionStorage.removeItem('bocesTechId');
+        }
+    }
 
     loadData();
 });
