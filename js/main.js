@@ -276,8 +276,6 @@ async function submitTechTicket() {
     const email = document.getElementById('techApptEmail').value.trim().toLowerCase();
     const device = document.getElementById('techApptDevice').value;
     const issue = document.getElementById('techApptIssue').value.trim();
-    const date = document.getElementById('techApptDate').value;
-    const time = document.getElementById('techApptTime').value;
 
     if (!name || !issue) {
         alert('Please fill in the customer name and issue.');
@@ -292,8 +290,6 @@ async function submitTechTicket() {
             email,
             device,
             issue,
-            date,
-            time,
             status: 'assigned',
             flagged: false,
             flag_reason: null,
@@ -839,7 +835,6 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
             ${appt.tracking_code ? `<small style="color:#555;">🔑 Tracking code: <strong>${appt.tracking_code}</strong></small><br>` : ''}
             <em>${appt.issue}</em><br>
             <small>Submitted: ${new Date(appt.created_at).toLocaleDateString()} at ${new Date(appt.created_at).toLocaleTimeString()}</small><br>
-            <small>Preferred: ${appt.date} at ${appt.time}</small><br>
             ${assignedNames.length > 0
                 ? `<small>Assigned to: <strong>${assignedNames.join(', ')}</strong></small><br>`
                 : '<small style="color:#999;">Unassigned — in the pool</small><br>'}
@@ -909,7 +904,6 @@ async function viewMyTickets() {
                 <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid ${inProgress ? '#0d6efd' : '#ffc107'};">
                     <strong>${appt.name}</strong> - ${appt.device}<br>
                     <em>${appt.issue}</em><br>
-                    <small>Date: ${appt.date} at ${appt.time}</small><br>
                     ${teammates.length > 0 ? `<small>Working with: ${teammates.join(', ')}</small><br>` : ''}
                     <span style="display: inline-block; margin: 0.5rem 0; padding: 0.3rem 0.8rem; background: ${inProgress ? '#0d6efd' : '#ffc107'}; color: ${inProgress ? 'white' : '#333'}; border-radius: 3px; font-size: 0.85rem;">
                         ${inProgress ? 'In Progress' : 'Assigned'}
