@@ -349,6 +349,193 @@ body {
     font-size: 1.05rem;
 }
 
+.about-topic .about-link {
+    margin-top: .75rem;
+}
+
+.about-link a,
+.part-link {
+    color: var(--navy-700);
+    font-weight: 600;
+    text-underline-offset: 3px;
+}
+
+.about-link a:hover,
+.part-link:hover {
+    color: var(--navy-900);
+}
+
+/* =========================================================
+   PARTS & PRICING — how it works, prices by device, parts
+   dictionary (cards rendered by renderPricing() in main.js)
+   ========================================================= */
+
+.pricing-intro,
+.pricing-note {
+    text-align: center;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0 auto 1.75rem;
+}
+
+.pricing-intro {
+    font-size: 1.1rem;
+    margin-top: -1rem;
+    margin-bottom: 3rem;
+}
+
+.pricing-heading {
+    text-align: center;
+    color: var(--navy-900);
+    font-size: 1.5rem;
+    margin: 4rem 0 .75rem;
+    scroll-margin-top: 90px;
+}
+
+.pricing-intro + .pricing-heading {
+    margin-top: 0;
+}
+
+.pricing-steps {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.pricing-steps li,
+.device-card,
+.part-entry {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 1.75rem;
+}
+
+.step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    background: var(--navy-900);
+    color: var(--gold-500);
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: .9rem;
+}
+
+.pricing-steps h4,
+.device-card h4,
+.part-entry h4 {
+    color: var(--navy-900);
+    font-size: 1.15rem;
+    margin-bottom: .5rem;
+}
+
+.pricing-steps p {
+    color: var(--ink-soft);
+}
+
+.device-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.price-list {
+    list-style: none;
+}
+
+.price-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: .55rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.price-list li:last-child {
+    border-bottom: none;
+}
+
+.part-link {
+    text-decoration: underline dotted;
+}
+
+.part-link:hover {
+    text-decoration-style: solid;
+}
+
+.price {
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.parts-search {
+    max-width: 520px;
+    margin: 0 auto 1.5rem;
+}
+
+.parts-empty {
+    text-align: center;
+    color: var(--ink-soft);
+    margin-bottom: 1.5rem;
+}
+
+.parts-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+    gap: 1.25rem;
+    align-items: start;
+}
+
+.part-entry {
+    scroll-margin-top: 90px;
+}
+
+.part-entry:target {
+    animation: part-highlight 2.2s ease;
+}
+
+@keyframes part-highlight {
+    0%, 35% { border-color: var(--gold-500); box-shadow: var(--shadow-glow); }
+    100% { border-color: var(--border); box-shadow: var(--shadow-sm); }
+}
+
+.part-entry dt {
+    color: var(--navy-900);
+    font-weight: 700;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-top: .9rem;
+}
+
+.part-entry dd {
+    color: var(--ink-soft);
+    margin-top: .25rem;
+}
+
+.part-entry dd ul {
+    padding-left: 1.1rem;
+}
+
+.search-term {
+    background: var(--surface-sunken);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0 .35rem;
+    color: var(--ink);
+    font-weight: 600;
+}
+
 /* =========================================================
    STATS SECTION
    ========================================================= */
