@@ -415,17 +415,18 @@ async function startProgress(apptId) {
     appt.status = 'in_progress';
 
     populateAppointmentsModal();
-    if (document.getElementById('myTicketsModal').style.display === 'flex') viewMyTickets();
+    if (isWorkspaceOpen()) renderTicketWorkspace();
 }
 
-async function saveTicketParts(apptId) {
+async function saveTicketParts(apptId, btn) {
     const partsUsed = document.getElementById(`parts-${apptId}`).value.trim();
 
     const { error } = await db.from('repair_requests').update({ parts_used: partsUsed }).eq('id', apptId);
     if (error) { console.error('Error saving parts:', error); alert('Failed to save parts.'); return; }
 
     appointments.find(a => a.id === apptId).parts_used = partsUsed;
-    alert('Parts saved!');
+    btn.textContent = 'Saved ✓';
+    setTimeout(() => btn.textContent = 'Save Parts', 1500);
 }
 
 async function markCompleted(apptId) {
@@ -437,7 +438,7 @@ async function markCompleted(apptId) {
 
     await syncStats();
     populateAppointmentsModal();
-    if (document.getElementById('myTicketsModal').style.display === 'flex') viewMyTickets();
+    if (isWorkspaceOpen()) renderTicketWorkspace();
     alert('Repair marked as completed!');
 }
 
@@ -1068,7 +1069,7 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
                 ? `<small>Assigned to: <strong>${assignedNames.join(', ')}</strong></small><br>`
                 : '<small style="color:#999;">Unassigned — in the pool</small><br>'}
             ${appt.status === 'in_progress' && appt.parts_used ? `<small>🔩 Parts: ${appt.parts_used}</small><br>` : ''}
-            ${printButtons(appt.id)}
+            ${paperworkButtons(appt.id)}
             <div style="margin-top:0.5rem;">
                 ${appt.status === 'assigned' ? `
                     <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8;" onclick="startProgress(${appt.id})">Start Progress</button>
@@ -1104,71 +1105,145 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
 }
 
 // ============================================================
-// MY TICKETS (Tech) — tickets the current student is assigned to
+// MY TICKETS (Tech) — the student's tickets as folders. Opening one
+// shows the Ticket Workspace, with room to log work, add parts, and
+// preview the paperwork.
 // ============================================================
+function statusBadge(status) {
+    const meta = trackStatusMeta[status];
+    return `<span class="status-badge" style="background:${meta.color}; color:${meta.text};">${meta.label}</span>`;
+}
+
 async function viewMyTickets() {
     await loadMyTimeLogs();
 
-    const activeAppts = appointments.filter(a =>
-        (a.assigned_tech_ids || []).includes(currentTechId) && (a.status === 'assigned' || a.status === 'in_progress')
-    );
-    const completedAppts = appointments.filter(a =>
-        (a.assigned_tech_ids || []).includes(currentTechId) && a.status === 'completed'
-    );
+    const mine = appointments.filter(a => (a.assigned_tech_ids || []).includes(currentTechId));
+    const active = mine.filter(a => a.status !== 'completed');
+    const completed = mine.filter(a => a.status === 'completed');
+
+    const folder = appt => {
+        const hours = myTimeLogs
+            .filter(l => l.ticket_id === appt.id)
+            .reduce((sum, l) => sum + hoursBetween(l.start_time, l.end_time), 0);
+        return `
+        <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
+            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> ${statusBadge(appt.status)}</span>
+            <span class="folder-issue">${escapeHtml(appt.device)}: ${escapeHtml(appt.issue)}</span>
+            <span class="folder-meta">Your time: ${hours.toFixed(2)} hr <strong>Open →</strong></span>
+        </button>`;
+    };
 
     const container = document.getElementById('myTicketsContainer');
-    let html = '';
-
-    if (activeAppts.length === 0 && completedAppts.length === 0) {
-        html = '<p style="text-align: center; color: #999; padding: 2rem;">No tickets assigned to you yet.</p>';
+    if (mine.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:2rem;">No tickets assigned to you yet.</p>';
     } else {
-        if (activeAppts.length > 0) {
-            html += activeAppts.map(appt => {
-                const inProgress = appt.status === 'in_progress';
-                const teammates = (appt.assigned_tech_ids || [])
-                    .map(id => techs.find(t => t.id === id)?.name)
-                    .filter(n => n && n !== currentTechName);
-                return `
-                <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid ${inProgress ? '#0d6efd' : '#ffc107'};">
-                    <strong>${appt.name}</strong> - ${appt.device}<br>
-                    <small style="color:#555;">🎫 Ticket #${appt.id}</small><br>
-                    <em>${appt.issue}</em><br>
-                    ${teammates.length > 0 ? `<small>Working with: ${teammates.join(', ')}</small><br>` : ''}
-                    <span style="display: inline-block; margin: 0.5rem 0; padding: 0.3rem 0.8rem; background: ${inProgress ? '#0d6efd' : '#ffc107'}; color: ${inProgress ? 'white' : '#333'}; border-radius: 3px; font-size: 0.85rem;">
-                        ${inProgress ? 'In Progress' : 'Assigned'}
-                    </span>
-                    ${printButtons(appt.id)}
-                    <div style="margin-top:0.5rem;">
-                        <input type="text" id="parts-${appt.id}" class="ticket-note-field" placeholder="Parts used (optional)" value="${appt.parts_used || ''}">
-                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="saveTicketParts(${appt.id})">Save Parts</button>
-                            ${!inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8; color:white;" onclick="startProgress(${appt.id})">Start Progress</button>` : ''}
-                            ${inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="markCompleted(${appt.id})">Mark Completed</button>` : ''}
-                        </div>
-                    </div>
-                    ${renderLogTimeSection(appt.id)}
-                </div>`;
-            }).join('');
-        } else {
-            html += '<p style="text-align:center; color:#999; padding:1rem;">No active tickets right now.</p>';
-        }
-
-        if (completedAppts.length > 0) {
-            html += '<h3 style="color:#001f3f; margin:1.5rem 0 1rem;">Completed</h3>';
-            html += completedAppts.map(appt => `
-                <div style="background:#d4edda; padding:1rem; border-radius:8px; margin-bottom:1rem; border-left:4px solid #28a745;">
-                    <strong>${appt.name}</strong> - ${appt.device}<br>
-                    <small style="color:#555;">🎫 Ticket #${appt.id}</small><br>
-                    <em>${appt.issue}</em><br>
-                    ${printButtons(appt.id)}
-                    ${renderLogTimeSection(appt.id)}
-                </div>
-            `).join('');
-        }
+        container.innerHTML = `
+            <div class="folder-list">${active.length ? active.map(folder).join('') : '<p style="text-align:center; color:#999;">No active tickets right now.</p>'}</div>
+            ${completed.length ? `<h3 class="list-heading">Completed</h3><div class="folder-list">${completed.map(folder).join('')}</div>` : ''}`;
     }
 
-    container.innerHTML = html;
+    closeModal('ticketWorkspaceModal');
     openModal('myTicketsModal');
+}
+
+let workspaceTicketId = null;
+let workspaceLogs = [];
+
+// Every session on the ticket, from everyone on it, so the team sees
+// what the others did (the same entries the Service Log prints).
+async function openTicketWorkspace(apptId) {
+    const { data, error } = await db.from('time_logs')
+        .select('*')
+        .eq('ticket_id', apptId)
+        .order('work_date')
+        .order('start_time');
+    if (error) { console.error('Error loading time logs:', error); alert('Could not load this ticket.'); return; }
+
+    workspaceTicketId = apptId;
+    workspaceLogs = data;
+    renderTicketWorkspace();
+    closeModal('myTicketsModal');
+    openModal('ticketWorkspaceModal');
+}
+
+function isWorkspaceOpen() {
+    return document.getElementById('ticketWorkspaceModal').style.display === 'flex';
+}
+
+function renderTicketWorkspace() {
+    const appt = appointments.find(a => a.id === workspaceTicketId);
+    const techName = id => techs.find(t => t.id === id)?.name || 'Unknown';
+    const team = (appt.assigned_tech_ids || []).map(techName);
+
+    const nextStep = {
+        assigned: `<span>Ready to begin? Press Start Repair when you start working on it.</span>
+                   <button class="btn btn-primary" style="background:#0d6efd; color:white;" onclick="startProgress(${appt.id})">Start Repair</button>`,
+        in_progress: `<span>Finished and tested? Mark the repair complete.</span>
+                      <button class="btn btn-primary" style="background:#28a745; color:white;" onclick="markCompleted(${appt.id})">Mark Completed</button>`,
+        completed: '<span>✅ This repair is complete. You can still print its paperwork below.</span>'
+    }[appt.status] || '';
+
+    const sessions = workspaceLogs.length ? workspaceLogs.map(l => `
+        <div class="session">
+            <div class="session-top">
+                <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</strong>
+                ${l.tech_id === currentTechId ? `<button class="link-danger" onclick="deleteTimeLog(${l.id})">Delete</button>` : ''}
+            </div>
+            <p><strong>${escapeHtml(techName(l.tech_id))}:</strong> ${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
+        </div>`).join('')
+        : '<p class="ws-hint" style="margin:0;">No sessions yet. Your first one will show up here.</p>';
+
+    document.getElementById('ticketWorkspaceContainer').innerHTML = `
+        <button class="ws-back" onclick="viewMyTickets()">← My Tickets</button>
+        <div class="ws-header">
+            <div>
+                <p class="ws-eyebrow">Ticket #${appt.id} · ${escapeHtml(appt.device)}</p>
+                <h2>${escapeHtml(appt.name)}</h2>
+            </div>
+            ${statusBadge(appt.status)}
+        </div>
+        <dl class="ws-facts">
+            <div><dt>Problem</dt><dd>${escapeHtml(appt.issue)}</dd></div>
+            <div><dt>Team</dt><dd>${escapeHtml(team.join(', ') || 'Nobody yet')}</dd></div>
+            ${appt.tracking_code ? `<div><dt>Tracking code</dt><dd><strong>${appt.tracking_code}</strong>
+                <button class="btn btn-primary" style="padding:0.1rem 0.6rem; font-size:0.75rem;" onclick="copyText('${appt.tracking_code}', this)">Copy</button></dd></div>` : ''}
+        </dl>
+        ${nextStep ? `<div class="ws-next">${nextStep}</div>` : ''}
+
+        ${appt.status !== 'completed' ? `
+        <section class="ws-card">
+            <h3>Log a work session</h3>
+            <p class="ws-hint">Fill this in every time you work on the device. It goes on the Service Log and the Hours sheet.</p>
+            <div class="ws-fields">
+                <label>Date <input type="date" id="logDate-${appt.id}" value="${todayDateStr()}"></label>
+                <label>Start time <input type="time" id="logStart-${appt.id}"></label>
+                <label>End time <input type="time" id="logEnd-${appt.id}"></label>
+            </div>
+            <p class="ws-hint">Example: you worked from 1:15 to 2:00 in the afternoon, so enter 1:15 PM and 2:00 PM.</p>
+            <label>What did you do?
+                <textarea id="logNote-${appt.id}" rows="3" placeholder="Example: Took off the back panel and tested the battery. It only holds 40% charge. Next: the customer orders a new battery."></textarea>
+            </label>
+            <button class="btn btn-primary" onclick="logTime(${appt.id})">Save Session</button>
+        </section>` : ''}
+
+        <section class="ws-card">
+            <h3>Work so far</h3>
+            <p class="ws-hint">Everyone's sessions on this ticket, oldest first.</p>
+            ${sessions}
+        </section>
+
+        <section class="ws-card">
+            <h3>Parts</h3>
+            <p class="ws-hint">List any part the customer bought for this repair. Leave it blank if the repair didn't need one.</p>
+            <label>Parts used <input type="text" id="parts-${appt.id}" value="${escapeHtml(appt.parts_used || '')}" placeholder="Example: Battery for Dell Latitude 5420"></label>
+            <button class="btn btn-primary" onclick="saveTicketParts(${appt.id}, this)">Save Parts</button>
+        </section>
+
+        <section class="ws-card">
+            <h3>Paperwork</h3>
+            <p class="ws-hint">Open a form to check what's on it, then print or download it.</p>
+            ${paperworkButtons(appt.id)}
+        </section>`;
 }
 
 // ============================================================
@@ -1208,33 +1283,6 @@ function formatTime12h(timeStr) {
     return `${h12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-function renderLogTimeSection(apptId) {
-    const entries = myTimeLogs.filter(l => l.ticket_id === apptId);
-    const entriesHtml = entries.length > 0
-        ? entries.map(l => `
-            <div style="font-size:0.8rem; color:#555; display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
-                <span>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}: ${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</span>
-                <span style="cursor:pointer; color:#dc3545;" onclick="deleteTimeLog(${l.id})" title="Delete entry">✕</span>
-            </div>
-            ${l.note ? `<div style="font-size:0.8rem; color:#555; margin:0 0 4px 0.75rem;">📝 ${escapeHtml(l.note)}</div>` : ''}`).join('')
-        : '<span style="font-size:0.8rem; color:#999;">No time logged yet</span>';
-
-    return `
-        <div style="margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid rgba(0,0,0,0.08);">
-            <small style="display:block; margin-bottom:0.3rem; color:#555;">Log time worked:</small>
-            <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:0.5rem;">
-                <input type="date" id="logDate-${apptId}" value="${todayDateStr()}" style="padding:0.3rem; border-radius:5px; border:1px solid #ccc;">
-                <input type="time" id="logStart-${apptId}" style="padding:0.3rem; border-radius:5px; border:1px solid #ccc;">
-                <small style="color:#999;">to</small>
-                <input type="time" id="logEnd-${apptId}" style="padding:0.3rem; border-radius:5px; border:1px solid #ccc;">
-                <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="logTime(${apptId})">Log Time</button>
-            </div>
-            <textarea id="logNote-${apptId}" class="ticket-note-field" rows="2" placeholder="Notes for the Service Log: work done and what still needs to be done"></textarea>
-            ${entriesHtml}
-        </div>
-    `;
-}
-
 async function logTime(ticketId) {
     const dateField = document.getElementById(`logDate-${ticketId}`);
     const startField = document.getElementById(`logStart-${ticketId}`);
@@ -1258,7 +1306,7 @@ async function logTime(ticketId) {
 
     if (error) { console.error('Error logging time:', error); alert('Failed to log time.'); return; }
 
-    await viewMyTickets();
+    await openTicketWorkspace(ticketId);
 }
 
 async function deleteTimeLog(logId) {
@@ -1268,8 +1316,9 @@ async function deleteTimeLog(logId) {
     if (error) { console.error('Error deleting time log:', error); return; }
 
     myTimeLogs = myTimeLogs.filter(l => l.id !== logId);
+    workspaceLogs = workspaceLogs.filter(l => l.id !== logId);
 
-    if (document.getElementById('myTicketsModal').style.display === 'flex') viewMyTickets();
+    if (isWorkspaceOpen()) renderTicketWorkspace();
     if (document.getElementById('myHoursModal').style.display === 'flex') renderMyHours();
 }
 
@@ -1331,9 +1380,10 @@ function renderMyHours() {
 // PRINTABLE FORMS — the paper Service Log (printed from the page) and
 // the WBL Hours sheet (the school's own .docx, filled and downloaded).
 // Tickets and time logs are staff-only in the database (008), so these
-// only fill in for a logged-in admin or tech. The Service Log renders
-// into #printArea (the only thing shown when printing) and is cleared
-// once the print dialog closes.
+// only fill in for a logged-in admin or tech. Each form opens in the
+// Paper Preview first: the Service Log as HTML (printed by copying it
+// into #printArea, the only thing shown when printing) and the Hours
+// sheets as the real .docx, drawn by docx-preview.
 // ============================================================
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -1341,16 +1391,34 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function printButtons(apptId) {
+function paperworkButtons(apptId) {
     return `
-        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin:0.4rem 0;">
-            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="printServiceLog(${apptId})">🖨 Print Service Log</button>
-            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="downloadHoursSheets(${apptId}, 'creation')">⬇ Hours: Ticket Creation</button>
-            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="downloadHoursSheets(${apptId}, 'repair')">⬇ Hours: Repair Work</button>
+        <div class="ws-actions" style="margin:0.4rem 0;">
+            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewServiceLog(${apptId})">📄 Service Log</button>
+            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewHoursSheets(${apptId}, 'creation')">📄 Hours: Ticket Creation</button>
+            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewHoursSheets(${apptId}, 'repair')">📄 Hours: Repair Work</button>
         </div>`;
 }
 
-async function printServiceLog(apptId) {
+function openPaperPreview(title, note, actionsHtml) {
+    document.getElementById('paperPreviewTitle').textContent = title;
+    document.getElementById('paperPreviewNote').textContent = note;
+    document.getElementById('paperPreviewActions').innerHTML = actionsHtml;
+    openModal('paperPreviewModal');
+    return document.getElementById('paperPreviewSheets');
+}
+
+// The sheets are letter width; shrink them to fit the preview.
+function fitPaperPreview() {
+    const box = document.getElementById('paperPreviewSheets');
+    const room = box.clientWidth - 32;
+    box.querySelectorAll('.print-sheet, section.docx').forEach(page => {
+        page.style.zoom = '';
+        page.style.zoom = Math.min(1, room / page.offsetWidth);
+    });
+}
+
+async function previewServiceLog(apptId) {
     const appt = appointments.find(a => a.id === apptId);
     const { data: logs, error } = await db.from('time_logs')
         .select('*')
@@ -1361,10 +1429,52 @@ async function printServiceLog(apptId) {
 
     const techName = id => techs.find(t => t.id === id)?.name || '';
     const studentNames = (appt.assigned_tech_ids || []).map(techName).filter(Boolean);
+    const sheets = openPaperPreview(`Service Log · Ticket #${appt.id}`,
+        'Each work session with a note fills a dated row. Write the serial number, date completed, and accessories by hand.',
+        '<button class="btn btn-primary" onclick="printPaperPreview()">🖨 Print</button>');
+    sheets.innerHTML = serviceLogHtml(appt, logs, studentNames, techName);
+    fitPaperPreview();
+}
+
+function printPaperPreview() {
     const area = document.getElementById('printArea');
-    area.innerHTML = serviceLogHtml(appt, logs, studentNames, techName);
+    area.innerHTML = document.getElementById('paperPreviewSheets').innerHTML;
+    area.querySelectorAll('.print-sheet').forEach(page => page.style.zoom = '');
     window.addEventListener('afterprint', () => { area.innerHTML = ''; }, { once: true });
     window.print();
+}
+
+let previewFiles = [];
+
+async function previewHoursSheets(apptId, kind) {
+    const files = await buildHoursSheets(apptId, kind);
+    if (!files) return;
+
+    previewFiles = files;
+    const label = kind === 'creation' ? 'Ticket Creation' : 'Repair Work';
+    const note = kind === 'creation'
+        ? 'Credits 30 minutes to the students on the ticket when it was created.'
+        : 'Each logged session fills a date line. A new team or a sixth session starts another sheet.';
+    const sheets = openPaperPreview(`Hours: ${label} · Ticket #${apptId}`, note,
+        `<button class="btn btn-primary" onclick="downloadPreviewFiles()">⬇ Download ${files.length > 1 ? `all ${files.length} sheets` : 'sheet'} (.docx)</button>`);
+
+    sheets.innerHTML = '';
+    for (const file of files) {
+        const page = document.createElement('div');
+        sheets.append(page);
+        await docx.renderAsync(file.blob, page, null, { inWrapper: false, ignoreLastRenderedPageBreak: true });
+    }
+    fitPaperPreview();
+}
+
+function downloadPreviewFiles() {
+    for (const file of previewFiles) {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(file.blob);
+        link.download = file.name;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
 }
 
 function serviceLogHtml(appt, logs, studentNames, techName) {
@@ -1417,7 +1527,7 @@ function fillHoursTemplate(xml, values) {
 // credited to everyone on the ticket at creation. 'repair': every logged
 // session, grouped by who was on the ticket when it was logged, so a
 // handoff to other students starts new sheets (see 013_hours_teams.sql).
-async function downloadHoursSheets(apptId, kind) {
+async function buildHoursSheets(apptId, kind) {
     const appt = appointments.find(a => a.id === apptId);
     const teamNames = ids => (ids || []).map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
     let teams;
@@ -1459,9 +1569,10 @@ async function downloadHoursSheets(apptId, kind) {
 
     const response = await fetch(HOURS_TEMPLATE);
     if (!response.ok) { alert('Could not load the Hours sheet template.'); return; }
-    const docx = await JSZip.loadAsync(await response.arrayBuffer());
-    const xml = await docx.file('word/document.xml').async('string');
+    const zip = await JSZip.loadAsync(await response.arrayBuffer());
+    const xml = await zip.file('word/document.xml').async('string');
     const label = kind === 'creation' ? 'Ticket-Creation' : 'Repair';
+    const files = [];
 
     for (const [n, sheet] of sheets.entries()) {
         const values = { DEVICE: `Ticket #${appt.id}`, PM: '✔' };
@@ -1473,14 +1584,13 @@ async function downloadHoursSheets(apptId, kind) {
             values[`END${j + 1}`] = s.end;
         });
 
-        docx.file('word/document.xml', fillHoursTemplate(xml, values));
-        const blob = await docx.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `Ticket-${appt.id}-Hours-${label}${sheets.length > 1 ? `-${n + 1}` : ''}.docx`;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+        zip.file('word/document.xml', fillHoursTemplate(xml, values));
+        files.push({
+            name: `Ticket-${appt.id}-Hours-${label}${sheets.length > 1 ? `-${n + 1}` : ''}.docx`,
+            blob: await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+        });
     }
+    return files;
 }
 
 // ============================================================
