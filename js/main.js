@@ -817,7 +817,7 @@ function renderPricing() {
             <ul class="price-list">
                 ${repairs.map(r => `
                     <li>
-                        <a class="part-link" href="#part-${r.part}" onclick="document.getElementById('partsDetails').open = true; document.getElementById('partsSearch').value = ''; filterParts('')">${r.label}</a>
+                        <a class="part-link" href="#part-${r.part}" onclick="showPart('${r.part}')">${r.label}</a>
                         <span class="price">${r.price}</span>
                     </li>`).join('')}
             </ul>
@@ -835,6 +835,15 @@ function renderPricing() {
                 <dd>${p.search.replace(/"([^"]+)"/g, '<span class="search-term">$1</span>')}</dd>
             </dl>
         </article>`).join('');
+}
+
+// Price links open the closed dictionary, then scroll themselves: the
+// browser's own #hash jump runs before the dropdown has laid out.
+function showPart(id) {
+    document.getElementById('partsDetails').open = true;
+    document.getElementById('partsSearch').value = '';
+    filterParts('');
+    document.getElementById('part-' + id).scrollIntoView();
 }
 
 function filterParts(query) {
