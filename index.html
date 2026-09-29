@@ -1,7 +1,7 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=20">
+    <link rel="stylesheet" href="css/styles.css?v=21">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -11,6 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="js/effects.js?v=10" defer></script>
     <script src="js/main.js?v=24" defer></script>
+    <script src="js/guide.js?v=1" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -177,6 +178,7 @@
     <button class="btn btn-primary" style="background:#17a2b8; color:white;" onclick="openTechTicketModal()">New Ticket</button>
     <button class="btn btn-primary" onclick="viewMyTickets()">My Tickets</button>
     <button class="btn btn-primary" onclick="openMyHours()">My Hours</button>
+    <button class="btn btn-primary" onclick="openWorkflowGuide()">Workflow Guide</button>
     <button class="btn btn-primary" onclick="logout()">Logout</button>
 </div>
 
@@ -256,6 +258,33 @@
         <div class="paper-sheets" id="paperPreviewSheets"></div>
     </div>
 </div>
+
+<!-- Workflow Guide: pick self-paced or class presentation (js/guide.js) -->
+<div class="modal" id="guideChooserModal">
+    <div class="modal-content" style="max-width: 560px;">
+        <span class="close-btn" onclick="closeModal('guideChooserModal')">×</span>
+        <h2>Workflow Guide</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Walk through a repair on the real screens. Both modes use practice tickets, so nothing is saved, emailed, or added to your hours.</p>
+        <div class="folder-list">
+            <button type="button" class="folder-card" onclick="startGuide('self')">
+                <strong>Guide myself</strong>
+                <span class="folder-issue" style="white-space: normal;">Go at your own pace. Click each highlighted button to move on.</span>
+            </button>
+            <button type="button" class="folder-card" onclick="startGuide('present')">
+                <strong>Present to the class</strong>
+                <span class="folder-issue" style="white-space: normal;">Full screen with large text, talking points, and a discussion question on each step. Use the arrow keys.</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="guideLayer" hidden>
+    <div id="guideBlock"></div>
+    <div id="guideSpot"></div>
+    <svg id="guideLine" aria-hidden="true"><line/></svg>
+    <div id="guideBox" role="dialog" aria-live="polite" aria-label="Workflow Guide"></div>
+</div>
+<div id="sandboxBanner" hidden>Practice mode: sample tickets. Nothing here is saved or sent. <button type="button" onclick="exitGuide()">Exit guide</button></div>
 
 <!-- Review Modal -->
 <div class="modal" id="reviewModal">

@@ -1199,6 +1199,189 @@ body {
 }
 
 /* =========================================================
+   WORKFLOW GUIDE — spotlight tour (js/guide.js). The spotlight's
+   huge shadow dims everything else; #guideBlock swallows clicks
+   outside it.
+   ========================================================= */
+
+#guideLayer {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+#guideLayer[hidden],
+#sandboxBanner[hidden] {
+    display: none;
+}
+
+#guideBlock {
+    position: fixed;
+    inset: 0;
+    pointer-events: auto;
+}
+
+#guideSpot {
+    position: fixed;
+    border: 3px solid var(--gold-500);
+    border-radius: 12px;
+    box-shadow: 0 0 0 9999px rgba(0, 10, 25, .72);
+    transition: left .25s ease, top .25s ease, width .25s ease, height .25s ease;
+}
+
+#guideSpot.none {
+    left: 50% !important;
+    top: 50% !important;
+    width: 0 !important;
+    height: 0 !important;
+    border: 0;
+}
+
+#guideLine {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+#guideLine line {
+    stroke: var(--gold-500);
+    stroke-width: 3;
+    stroke-linecap: round;
+}
+
+#guideBox {
+    position: fixed;
+    pointer-events: auto;
+    width: min(360px, calc(100vw - 32px));
+    background: white;
+    color: var(--ink);
+    border: 3px solid var(--gold-500);
+    border-radius: var(--radius-md);
+    padding: 1.1rem 1.25rem;
+    box-shadow: var(--shadow-lg);
+}
+
+#guideBox h3 {
+    color: var(--navy-900);
+    font-size: 1.15rem;
+    margin-bottom: .35rem;
+}
+
+#guideBox p {
+    color: var(--ink-soft);
+    margin-bottom: .6rem;
+}
+
+#guideBox .guide-count,
+#guideBox .guide-keys {
+    font-size: .75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-faint);
+    margin-bottom: .3rem;
+}
+
+#guideBox .guide-keys {
+    margin: .6rem 0 0;
+    text-align: right;
+}
+
+#guideBox .guide-hint {
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--navy-700);
+}
+
+.guide-talk {
+    margin: 0 0 .6rem 1.2rem;
+    color: var(--ink);
+}
+
+#guideBox .guide-ask {
+    background: #fff8d6;
+    border-left: 4px solid var(--gold-500);
+    border-radius: 6px;
+    padding: .5rem .75rem;
+    color: var(--ink);
+}
+
+.guide-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .4rem;
+}
+
+.guide-nav span {
+    display: flex;
+    gap: .5rem;
+}
+
+.guide-nav .btn {
+    padding: .5rem 1.1rem;
+    background: var(--navy-900);
+    color: white;
+}
+
+.guide-nav .guide-exit,
+.guide-nav .guide-back {
+    background: var(--surface-alt);
+    color: var(--navy-900);
+    border: 1px solid var(--border);
+}
+
+/* Class presentation: big enough to read from the back of the room */
+.guide-present #guideBox {
+    width: min(720px, calc(100vw - 48px));
+    font-size: 1.35rem;
+    padding: 1.5rem 1.75rem;
+}
+
+.guide-present #guideBox h3 {
+    font-size: 2rem;
+}
+
+.guide-present #guideBox .guide-count,
+.guide-present #guideBox .guide-keys {
+    font-size: .95rem;
+}
+
+.guide-present .guide-nav .btn {
+    font-size: 1.1rem;
+    padding: .7rem 1.5rem;
+}
+
+#sandboxBanner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2100;
+    background: #fd7e14;
+    color: white;
+    font-weight: 700;
+    text-align: center;
+    padding: .5rem 1rem;
+}
+
+#sandboxBanner button {
+    margin-left: .75rem;
+    background: white;
+    color: #b45309;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: .2rem .8rem;
+    font: inherit;
+    font-size: .85rem;
+    cursor: pointer;
+}
+
+/* =========================================================
    RESPONSIVE
    ========================================================= */
 
