@@ -259,6 +259,12 @@ async function removeStudent(techId) {
 // ============================================================
 function openTechTicketModal() {
     if (!currentTechId) { openTechPicker(); return; }
+    const others = techs.filter(t => t.id !== currentTechId);
+    document.getElementById('techPartnerPicker').innerHTML = others.length ? others.map(t => `
+        <label style="display:inline-flex; align-items:center; gap:4px; background:white; padding:3px 8px; border-radius:10px; border:1px solid #ccc; font-size:0.85rem; font-weight:normal; cursor:pointer;">
+            <input type="checkbox" class="partner-pick" value="${t.id}" style="width:auto;">
+            ${escapeHtml(t.name)}
+        </label>`).join('') : '<span style="color:#999; font-size:0.85rem;">No other students added yet</span>';
     openModal('techTicketModal');
 }
 
@@ -293,7 +299,7 @@ async function submitTechTicket() {
             status: 'assigned',
             flagged: false,
             flag_reason: null,
-            assigned_tech_ids: [currentTechId],
+            assigned_tech_ids: [currentTechId, ...[...document.querySelectorAll('.partner-pick:checked')].map(cb => parseInt(cb.value))],
             created_by: currentTechName,
             tracking_code: trackingCode
         }).select().single());
@@ -400,19 +406,14 @@ async function startProgress(apptId) {
     if (document.getElementById('myTicketsModal').style.display === 'flex') viewMyTickets();
 }
 
-async function saveTicketNotes(apptId) {
-    const notesField = document.getElementById(`notes-${apptId}`);
-    const partsField = document.getElementById(`parts-${apptId}`);
-    const notes = notesField.value.trim();
-    const partsUsed = partsField.value.trim();
+async function saveTicketParts(apptId) {
+    const partsUsed = document.getElementById(`parts-${apptId}`).value.trim();
 
-    const { error } = await db.from('repair_requests').update({ notes, parts_used: partsUsed }).eq('id', apptId);
-    if (error) { console.error('Error saving notes:', error); alert('Failed to save notes.'); return; }
+    const { error } = await db.from('repair_requests').update({ parts_used: partsUsed }).eq('id', apptId);
+    if (error) { console.error('Error saving parts:', error); alert('Failed to save parts.'); return; }
 
-    const appt = appointments.find(a => a.id === apptId);
-    appt.notes = notes;
-    appt.parts_used = partsUsed;
-    alert('Notes saved!');
+    appointments.find(a => a.id === apptId).parts_used = partsUsed;
+    alert('Parts saved!');
 }
 
 async function markCompleted(apptId) {
@@ -1038,15 +1039,15 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
             - ${appt.device}<br>
             <small style="color:#555;">📧 ${appt.email || 'No email provided'}</small><br>
             ${appt.created_by ? `<small style="color:#555;">👤 Created by: ${appt.created_by}</small><br>` : ''}
+            <small style="color:#555;">🎫 Ticket #${appt.id}</small><br>
             ${appt.tracking_code ? `<small style="color:#555;">🔑 Tracking code: <strong>${appt.tracking_code}</strong></small><br>` : ''}
             <em>${appt.issue}</em><br>
             <small>Submitted: ${new Date(appt.created_at).toLocaleDateString()} at ${new Date(appt.created_at).toLocaleTimeString()}</small><br>
             ${assignedNames.length > 0
                 ? `<small>Assigned to: <strong>${assignedNames.join(', ')}</strong></small><br>`
                 : '<small style="color:#999;">Unassigned — in the pool</small><br>'}
-            ${appt.status === 'in_progress' && appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
             ${appt.status === 'in_progress' && appt.parts_used ? `<small>🔩 Parts: ${appt.parts_used}</small><br>` : ''}
-            ${appt.status === 'completed' && appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
+            ${printButtons(appt.id)}
             <div style="margin-top:0.5rem;">
                 ${appt.status === 'assigned' ? `
                     <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8;" onclick="startProgress(${appt.id})">Start Progress</button>
@@ -1109,16 +1110,17 @@ async function viewMyTickets() {
                 return `
                 <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid ${inProgress ? '#0d6efd' : '#ffc107'};">
                     <strong>${appt.name}</strong> - ${appt.device}<br>
+                    <small style="color:#555;">🎫 Ticket #${appt.id}</small><br>
                     <em>${appt.issue}</em><br>
                     ${teammates.length > 0 ? `<small>Working with: ${teammates.join(', ')}</small><br>` : ''}
                     <span style="display: inline-block; margin: 0.5rem 0; padding: 0.3rem 0.8rem; background: ${inProgress ? '#0d6efd' : '#ffc107'}; color: ${inProgress ? 'white' : '#333'}; border-radius: 3px; font-size: 0.85rem;">
                         ${inProgress ? 'In Progress' : 'Assigned'}
                     </span>
+                    ${printButtons(appt.id)}
                     <div style="margin-top:0.5rem;">
-                        <textarea id="notes-${appt.id}" class="ticket-note-field" placeholder="Diagnosis / progress notes..." rows="2">${appt.notes || ''}</textarea>
                         <input type="text" id="parts-${appt.id}" class="ticket-note-field" placeholder="Parts used (optional)" value="${appt.parts_used || ''}">
                         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="saveTicketNotes(${appt.id})">Save Notes</button>
+                            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="saveTicketParts(${appt.id})">Save Parts</button>
                             ${!inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8; color:white;" onclick="startProgress(${appt.id})">Start Progress</button>` : ''}
                             ${inProgress ? `<button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="markCompleted(${appt.id})">Mark Completed</button>` : ''}
                         </div>
@@ -1135,8 +1137,9 @@ async function viewMyTickets() {
             html += completedAppts.map(appt => `
                 <div style="background:#d4edda; padding:1rem; border-radius:8px; margin-bottom:1rem; border-left:4px solid #28a745;">
                     <strong>${appt.name}</strong> - ${appt.device}<br>
+                    <small style="color:#555;">🎫 Ticket #${appt.id}</small><br>
                     <em>${appt.issue}</em><br>
-                    ${appt.notes ? `<small>📝 ${appt.notes}</small><br>` : ''}
+                    ${printButtons(appt.id)}
                     ${renderLogTimeSection(appt.id)}
                 </div>
             `).join('');
@@ -1191,7 +1194,8 @@ function renderLogTimeSection(apptId) {
             <div style="font-size:0.8rem; color:#555; display:flex; justify-content:space-between; align-items:center; padding:2px 0;">
                 <span>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}: ${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</span>
                 <span style="cursor:pointer; color:#dc3545;" onclick="deleteTimeLog(${l.id})" title="Delete entry">✕</span>
-            </div>`).join('')
+            </div>
+            ${l.note ? `<div style="font-size:0.8rem; color:#555; margin:0 0 4px 0.75rem;">📝 ${escapeHtml(l.note)}</div>` : ''}`).join('')
         : '<span style="font-size:0.8rem; color:#999;">No time logged yet</span>';
 
     return `
@@ -1204,6 +1208,7 @@ function renderLogTimeSection(apptId) {
                 <input type="time" id="logEnd-${apptId}" style="padding:0.3rem; border-radius:5px; border:1px solid #ccc;">
                 <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="logTime(${apptId})">Log Time</button>
             </div>
+            <textarea id="logNote-${apptId}" class="ticket-note-field" rows="2" placeholder="Notes for the Service Log: work done and what still needs to be done"></textarea>
             ${entriesHtml}
         </div>
     `;
@@ -1226,7 +1231,8 @@ async function logTime(ticketId) {
         tech_id: currentTechId,
         work_date: workDate,
         start_time: startTime,
-        end_time: endTime
+        end_time: endTime,
+        note: document.getElementById(`logNote-${ticketId}`).value.trim() || null
     });
 
     if (error) { console.error('Error logging time:', error); alert('Failed to log time.'); return; }
@@ -1298,6 +1304,162 @@ function renderMyHours() {
             </tfoot>
         </table>
     `;
+}
+
+// ============================================================
+// PRINTABLE FORMS — the paper Service Log (printed from the page) and
+// the WBL Hours sheet (the school's own .docx, filled and downloaded).
+// Tickets and time logs are staff-only in the database (008), so these
+// only fill in for a logged-in admin or tech. The Service Log renders
+// into #printArea (the only thing shown when printing) and is cleared
+// once the print dialog closes.
+// ============================================================
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
+
+function printButtons(apptId) {
+    return `
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin:0.4rem 0;">
+            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="printServiceLog(${apptId})">🖨 Print Service Log</button>
+            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="downloadHoursSheets(${apptId}, 'creation')">⬇ Hours: Ticket Creation</button>
+            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="downloadHoursSheets(${apptId}, 'repair')">⬇ Hours: Repair Work</button>
+        </div>`;
+}
+
+async function printServiceLog(apptId) {
+    const appt = appointments.find(a => a.id === apptId);
+    const { data: logs, error } = await db.from('time_logs')
+        .select('*')
+        .eq('ticket_id', apptId)
+        .order('work_date')
+        .order('start_time');
+    if (error) { console.error('Error loading time logs:', error); alert('Could not load the time logged on this ticket.'); return; }
+
+    const techName = id => techs.find(t => t.id === id)?.name || '';
+    const studentNames = (appt.assigned_tech_ids || []).map(techName).filter(Boolean);
+    const area = document.getElementById('printArea');
+    area.innerHTML = serviceLogHtml(appt, logs, studentNames, techName);
+    window.addEventListener('afterprint', () => { area.innerHTML = ''; }, { once: true });
+    window.print();
+}
+
+function serviceLogHtml(appt, logs, studentNames, techName) {
+    const rows = logs.filter(l => l.note).map(l => `
+        <tr>
+            <th>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}<br>AM or <span class="circled">PM</span></th>
+            <td><strong>${escapeHtml(techName(l.tech_id))}:</strong> ${escapeHtml(l.note)}</td>
+        </tr>`);
+    while (rows.length < 7) rows.push('<tr class="blank-row"><th>Date<br>AM or PM</th><td></td></tr>');
+
+    return `
+    <div class="print-sheet service-log">
+        <h1>SERVICE-LOG</h1>
+        <table>
+            <tr><th>Start date</th><td>${new Date(appt.created_at).toLocaleDateString()}</td></tr>
+            <tr><th>Intake #</th><td>Ticket #${appt.id}</td></tr>
+            <tr><th>Model of computer</th><td>${escapeHtml(appt.device)}</td></tr>
+            <tr><th>Serial Number</th><td></td></tr>
+            <tr><th>Description of problem</th><td>${escapeHtml(appt.issue)}</td></tr>
+            <tr><th>Date completed</th><td></td></tr>
+            <tr><th>Tech Names</th><td>${escapeHtml(studentNames.join(', '))}</td></tr>
+            <tr><th>Customer accessories</th><td></td></tr>
+            <tr>
+                <th>NOTES</th>
+                <td class="instructions">To receive additional credit:<br>Please circle whether the notes are coming from AM or PM.<br>Enter Date of note.<br>Enter your name of who worked on device<br>Your notes should include work done and what needs to be done.</td>
+            </tr>
+            ${rows.join('')}
+        </table>
+    </div>`;
+}
+
+// The school's own WBL Hours .docx with each blank's underscores swapped
+// for {{KEY.i:n}} (see scripts/make-hours-template.py). Filling puts the
+// value where the underscores were and pads with non-breaking spaces so the
+// rest of the line stays put; an unfilled blank gets its underscores back.
+const HOURS_TEMPLATE = 'forms/wbl-hours-template.docx';
+
+function fillHoursTemplate(xml, values) {
+    const used = {};
+    return xml.replace(/\{\{(\w+)\.(\d+):(\d+)\}\}/g, (_, key, i, n) => {
+        const value = values[key];
+        if (!value) return '_'.repeat(n);
+        const room = Math.min(n, Math.max(0, value.length - (used[key] || 0)));
+        used[key] = (used[key] || 0) + room;
+        return (i === '0' ? escapeHtml(value) : '') + ' '.repeat((n - room) * 2);
+    });
+}
+
+// 'creation': one 30-minute session starting when the ticket was created,
+// credited to everyone on the ticket at creation. 'repair': every logged
+// session, grouped by who was on the ticket when it was logged, so a
+// handoff to other students starts new sheets (see 013_hours_teams.sql).
+async function downloadHoursSheets(apptId, kind) {
+    const appt = appointments.find(a => a.id === apptId);
+    const teamNames = ids => (ids || []).map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
+    let teams;
+
+    if (kind === 'creation') {
+        const start = new Date(appt.created_at);
+        const end = new Date(start.getTime() + 30 * 60 * 1000);
+        const hhmm = d => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+        teams = [{
+            names: teamNames(appt.creation_tech_ids),
+            sessions: [{ date: start.toLocaleDateString(), start: formatTime12h(hhmm(start)), end: formatTime12h(hhmm(end)) }]
+        }];
+    } else {
+        const { data: logs, error } = await db.from('time_logs')
+            .select('work_date, start_time, end_time, team_tech_ids')
+            .eq('ticket_id', apptId)
+            .order('work_date')
+            .order('start_time');
+        if (error) { console.error('Error loading time logs:', error); alert('Could not load the time logged on this ticket.'); return; }
+        if (!logs.length) { alert('No time has been logged on this ticket yet.'); return; }
+
+        const byTeam = new Map();
+        for (const l of logs) {
+            const key = [...(l.team_tech_ids || [])].sort((a, b) => a - b).join(',');
+            if (!byTeam.has(key)) byTeam.set(key, { names: teamNames(l.team_tech_ids), sessions: new Map() });
+            // Students who worked a session together each log it; list it once.
+            byTeam.get(key).sessions.set(`${l.work_date} ${l.start_time} ${l.end_time}`, {
+                date: new Date(l.work_date + 'T00:00:00').toLocaleDateString(),
+                start: formatTime12h(l.start_time),
+                end: formatTime12h(l.end_time)
+            });
+        }
+        teams = [...byTeam.values()].map(t => ({ names: t.names, sessions: [...t.sessions.values()] }));
+    }
+
+    // The form has five date lines, so more sessions go on another sheet.
+    const sheets = teams.flatMap(t => Array.from({ length: Math.ceil(t.sessions.length / 5) },
+        (_, i) => ({ names: t.names, sessions: t.sessions.slice(i * 5, i * 5 + 5) })));
+
+    const response = await fetch(HOURS_TEMPLATE);
+    if (!response.ok) { alert('Could not load the Hours sheet template.'); return; }
+    const docx = await JSZip.loadAsync(await response.arrayBuffer());
+    const xml = await docx.file('word/document.xml').async('string');
+    const label = kind === 'creation' ? 'Ticket-Creation' : 'Repair';
+
+    for (const [n, sheet] of sheets.entries()) {
+        const values = { DEVICE: `Ticket #${appt.id}`, PM: '✔' };
+        // ponytail: the form has 6 name lines; a 7th student on one team is left off
+        sheet.names.slice(0, 6).forEach((name, j) => { values[`NAME${j + 1}`] = name; });
+        sheet.sessions.forEach((s, j) => {
+            values[`DATE${j + 1}`] = s.date;
+            values[`START${j + 1}`] = s.start;
+            values[`END${j + 1}`] = s.end;
+        });
+
+        docx.file('word/document.xml', fillHoursTemplate(xml, values));
+        const blob = await docx.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `Ticket-${appt.id}-Hours-${label}${sheets.length > 1 ? `-${n + 1}` : ''}.docx`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
 }
 
 // ============================================================
