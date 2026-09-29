@@ -317,7 +317,19 @@ async function submitTechTicket() {
     document.getElementById('techApptEmail').value = '';
     document.getElementById('techApptIssue').value = '';
 
-    alert(`Ticket created!\n\nTracking code: ${data.tracking_code}\n\nGive this to the customer — they can enter it on the site under "Track Repair" to check their status.`);
+    document.getElementById('createdTrackingCode').textContent = data.tracking_code;
+    openModal('ticketCreatedModal');
+}
+
+async function copyText(text, btn) {
+    btn.dataset.label ??= btn.textContent;
+    try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = 'Copied!';
+    } catch {
+        btn.textContent = 'Select and copy it';
+    }
+    setTimeout(() => btn.textContent = btn.dataset.label, 1500);
 }
 
 // ============================================================
@@ -1049,7 +1061,7 @@ function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOr
             <small style="color:#555;">📧 ${appt.email || 'No email provided'}</small><br>
             ${appt.created_by ? `<small style="color:#555;">👤 Created by: ${appt.created_by}</small><br>` : ''}
             <small style="color:#555;">🎫 Ticket #${appt.id}</small><br>
-            ${appt.tracking_code ? `<small style="color:#555;">🔑 Tracking code: <strong>${appt.tracking_code}</strong></small><br>` : ''}
+            ${appt.tracking_code ? `<small style="color:#555;">🔑 Tracking code: <strong>${appt.tracking_code}</strong></small> <button class="btn btn-primary" style="padding:0.1rem 0.6rem; font-size:0.75rem;" onclick="copyText('${appt.tracking_code}', this)">Copy</button><br>` : ''}
             <em>${appt.issue}</em><br>
             <small>Submitted: ${new Date(appt.created_at).toLocaleDateString()} at ${new Date(appt.created_at).toLocaleTimeString()}</small><br>
             ${assignedNames.length > 0
@@ -1368,7 +1380,7 @@ function serviceLogHtml(appt, logs, studentNames, techName) {
         <h1>SERVICE-LOG</h1>
         <table>
             <tr><th>Start date</th><td>${new Date(appt.created_at).toLocaleDateString()}</td></tr>
-            <tr><th>Intake #</th><td>Ticket #${appt.id}</td></tr>
+            <tr><th>Intake #</th><td>Ticket #${appt.id}${appt.tracking_code ? ` &nbsp;·&nbsp; Tracking code: ${escapeHtml(appt.tracking_code)}` : ''}</td></tr>
             <tr><th>Model of computer</th><td>${escapeHtml(appt.device)}</td></tr>
             <tr><th>Serial Number</th><td></td></tr>
             <tr><th>Description of problem</th><td>${escapeHtml(appt.issue)}</td></tr>
