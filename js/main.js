@@ -174,37 +174,120 @@ function selectTech(techId, showAlert = true) {
 // STUDENTS (Admin) — just a name. No project/group of any kind;
 // who's working what is decided per-ticket in the Ticket Pool.
 // ============================================================
-function openManageStudents() {
+// Manage Students (Admin): every student with their workload, and a
+// page per student with their tickets and logged sessions.
+let allTimeLogs = [];
+let openStudentId = null;
+
+async function openManageStudents() {
+    const { data, error } = await db.from('time_logs')
+        .select('*')
+        .order('work_date', { ascending: false })
+        .order('start_time', { ascending: false });
+    if (error) { console.error('Error loading time logs:', error); }
+    allTimeLogs = data || [];
     populateManageStudentsModal();
     openModal('manageStudentsModal');
+}
+
+function showStudent(techId) {
+    openStudentId = techId;
+    populateManageStudentsModal();
+}
+
+// Tickets they're on now, plus any they logged time on before a handoff.
+function studentTickets(techId) {
+    const loggedOn = new Set(allTimeLogs.filter(l => l.tech_id === techId).map(l => l.ticket_id));
+    return appointments.filter(a => (a.assigned_tech_ids || []).includes(techId) || loggedOn.has(a.id));
+}
+
+function studentHours(techId) {
+    return allTimeLogs
+        .filter(l => l.tech_id === techId)
+        .reduce((sum, l) => sum + hoursBetween(l.start_time, l.end_time), 0);
 }
 
 function populateManageStudentsModal() {
     const container = document.getElementById('manageStudentsContainer');
     if (!container) return;
 
-    let html = `
+    const student = techs.find(t => t.id === openStudentId);
+    if (student) {
+        container.innerHTML = studentPageHtml(student);
+        return;
+    }
+    openStudentId = null;
+
+    const row = t => {
+        const tickets = studentTickets(t.id).filter(a => (a.assigned_tech_ids || []).includes(t.id));
+        const active = tickets.filter(a => a.status === 'assigned' || a.status === 'in_progress').length;
+        const waiting = tickets.filter(a => a.status === 'review').length;
+        return `
+        <div class="folder-card" style="cursor:default;">
+            <span class="folder-top"><strong>${escapeHtml(t.name)}</strong> <span class="folder-meta">${studentHours(t.id).toFixed(2)} hr logged</span></span>
+            <span class="ws-hint" style="margin:0;">${active} active ticket${active === 1 ? '' : 's'}${waiting ? ` · <strong style="color:#6f42c1;">${waiting} waiting for your check-off</strong>` : ''}</span>
+            <div class="ws-actions" style="margin-top:0.4rem;">
+                <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="showStudent(${t.id})">Open</button>
+                <button class="btn btn-primary" style="padding:0.3rem 1rem; background:white; color:var(--navy-900); border:1px solid var(--border);" onclick="renameStudent(${t.id})">Rename</button>
+                <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#dc3545; color:white;" onclick="removeStudent(${t.id})">Remove</button>
+            </div>
+        </div>`;
+    };
+
+    container.innerHTML = `
         <div class="form-group" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
             <label for="newStudentName">Add Student</label>
             <div style="display:flex; gap:8px;">
-                <input type="text" id="newStudentName" placeholder="Student name" style="flex:1;" onkeydown="if(event.key==='Enter'){addStudent();}">
-                <button class="btn btn-primary" style="background:#003d7a; color:white;" onclick="addStudent()">Add</button>
+                <input type="text" id="newStudentName" placeholder="Example: Alex Kim" style="flex:1;" onkeydown="if(event.key==='Enter'){addStudent();}">
+                <button class="btn btn-primary" onclick="addStudent()">Add</button>
             </div>
         </div>
-    `;
+        ${techs.length === 0 ? '<p style="text-align:center; color:#999;">No students yet.</p>' : `<div class="folder-list">${techs.map(row).join('')}</div>`}`;
+}
 
-    if (techs.length === 0) {
-        html += '<p style="text-align:center; color:#999;">No students yet.</p>';
-    } else {
-        html += techs.map(t => `
-            <div class="tech-row">
-                <strong>${t.name}</strong>
-                <button class="btn btn-secondary" style="padding:0.3rem 0.8rem; background:#dc3545; color:white; border:none;" onclick="removeStudent(${t.id})">Remove</button>
-            </div>
-        `).join('');
-    }
+function studentPageHtml(student) {
+    const tickets = studentTickets(student.id);
+    const sessions = allTimeLogs.filter(l => l.tech_id === student.id);
+    const ticketFolder = appt => `
+        <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
+            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> ${statusBadge(appt.status)}</span>
+            <span class="folder-issue">${escapeHtml(appt.device)}: ${escapeHtml(appt.issue)}</span>
+            <span class="folder-meta">${(appt.assigned_tech_ids || []).includes(student.id) ? 'On this ticket now' : 'Handed off'} <strong>Open →</strong></span>
+        </button>`;
 
-    container.innerHTML = html;
+    return `
+        <button class="ws-back" onclick="showStudent(null)">← All students</button>
+        <div class="ws-header">
+            <h2>${escapeHtml(student.name)}</h2>
+            <span class="folder-meta">${studentHours(student.id).toFixed(2)} hr logged</span>
+        </div>
+
+        <h3 class="list-heading">Tickets (${tickets.length})</h3>
+        ${tickets.length ? `<div class="folder-list">${tickets.map(ticketFolder).join('')}</div>` : '<p class="ws-hint">No tickets yet.</p>'}
+
+        <h3 class="list-heading">Work sessions (${sessions.length})</h3>
+        ${sessions.length ? sessions.map(l => `
+            <div class="session">
+                <div class="session-top">
+                    <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</strong>
+                    <span class="folder-meta">Ticket #${l.ticket_id}</span>
+                </div>
+                <p>${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
+            </div>`).join('') : '<p class="ws-hint">No sessions logged yet.</p>'}`;
+}
+
+async function renameStudent(techId) {
+    const tech = techs.find(t => t.id === techId);
+    const name = prompt('New name for this student:', tech.name)?.trim();
+    if (!name || name === tech.name) return;
+
+    const { error } = await db.from('techs').update({ name }).eq('id', techId);
+    if (error) { console.error('Error renaming student:', error); alert('Failed to rename student.'); return; }
+
+    tech.name = name;
+    techs.sort((a, b) => a.name.localeCompare(b.name));
+    if (currentTechId === techId) { currentTechName = name; updateRoleDisplay(); }
+    populateManageStudentsModal();
 }
 
 async function addStudent() {
@@ -339,6 +422,7 @@ const trackStatusMeta = {
     pending: { label: 'In the Pool', color: '#ffc107', text: '#333' },
     assigned: { label: 'Assigned', color: '#17a2b8', text: 'white' },
     in_progress: { label: 'In Progress', color: '#0d6efd', text: 'white' },
+    review: { label: 'Final Check', staffLabel: 'Needs Check-Off', color: '#6f42c1', text: 'white' },
     completed: { label: 'Completed', color: '#28a745', text: 'white' }
 };
 
@@ -434,12 +518,36 @@ async function saveTicketParts(apptId, btn) {
     setTimeout(() => btn.textContent = 'Save Parts', 1500);
 }
 
+// Students send a finished repair to the admin; only the admin completes
+// it (enforced in the database, 014_admin_checkoff.sql).
+async function requestCheckoff(apptId) {
+    const { error } = await db.from('repair_requests').update({ status: 'review', review_note: null }).eq('id', apptId);
+    if (error) { console.error('Error requesting check-off:', error); alert('Could not send it for check-off.'); return; }
+
+    Object.assign(appointments.find(a => a.id === apptId), { status: 'review', review_note: null });
+    populateAppointmentsModal();
+    renderTicketWorkspace();
+}
+
+async function sendBack(apptId) {
+    const note = prompt('What still needs to be done? The students on this ticket will see this.\n\nExample: The screen still flickers when the lid is half open.');
+    if (note === null) return;
+
+    const update = { status: 'in_progress', review_note: note.trim() || null };
+    const { error } = await db.from('repair_requests').update(update).eq('id', apptId);
+    if (error) { console.error('Error sending back:', error); alert('Could not send it back.'); return; }
+
+    Object.assign(appointments.find(a => a.id === apptId), update);
+    populateAppointmentsModal();
+    renderTicketWorkspace();
+}
+
 async function markCompleted(apptId) {
-    const { error } = await db.from('repair_requests').update({ status: 'completed' }).eq('id', apptId);
-    if (error) { console.error('Error marking complete:', error); return; }
+    const { error } = await db.from('repair_requests').update({ status: 'completed', review_note: null }).eq('id', apptId);
+    if (error) { console.error('Error marking complete:', error); alert('Could not mark it completed. Only an admin can check off a repair.'); return; }
 
     const appt = appointments.find(a => a.id === apptId);
-    appt.status = 'completed';
+    Object.assign(appt, { status: 'completed', review_note: null });
 
     await syncStats();
     populateAppointmentsModal();
@@ -459,7 +567,7 @@ async function deleteAppointment(apptId) {
 
     appointments = appointments.filter(a => a.id !== apptId);
     await syncStats();
-    if (isWorkspaceOpen()) backToPool();
+    if (isWorkspaceOpen()) leaveWorkspace();
     else populateAppointmentsModal();
 }
 
@@ -963,6 +1071,9 @@ function populateAppointmentsModal() {
         return;
     }
 
+    const waiting = appointments.filter(a => a.status === 'review').length;
+    document.getElementById('checkoffCount').textContent = waiting ? ` (${waiting} to check)` : '';
+
     const counts = emailCounts();
     const duplicateEmails = Object.keys(counts).filter(email => counts[email] > 1);
     const filtered = appointments
@@ -999,18 +1110,12 @@ function populateAppointmentsModal() {
         </button>`;
     };
 
-    const groups = [['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['completed', 'Completed']];
+    const groups = [['review', 'Needs your check-off'], ['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['completed', 'Completed']];
     for (const [status, label] of groups) {
         const tickets = filtered.filter(a => a.status === status);
         if (tickets.length) html += `<h3 class="list-heading">${label} (${tickets.length})</h3><div class="folder-list">${tickets.map(folder).join('')}</div>`;
     }
     container.innerHTML = html;
-}
-
-function backToPool() {
-    closeModal('ticketWorkspaceModal');
-    populateAppointmentsModal();
-    openModal('ticketPoolModal');
 }
 
 // ============================================================
@@ -1020,7 +1125,7 @@ function backToPool() {
 // ============================================================
 function statusBadge(status) {
     const meta = trackStatusMeta[status];
-    return `<span class="status-badge" style="background:${meta.color}; color:${meta.text};">${meta.label}</span>`;
+    return `<span class="status-badge" style="background:${meta.color}; color:${meta.text};">${meta.staffLabel || meta.label}</span>`;
 }
 
 async function viewMyTickets() {
@@ -1058,6 +1163,19 @@ async function viewMyTickets() {
 let workspaceTicketId = null;
 let workspaceLogs = [];
 
+// The lists a ticket can be opened from; "←" goes back to the one used.
+const WORKSPACE_LISTS = [
+    { modal: 'myTicketsModal', label: 'My Tickets', back: () => viewMyTickets() },
+    { modal: 'ticketPoolModal', label: 'Ticket Pool', back: () => { populateAppointmentsModal(); openModal('ticketPoolModal'); } },
+    { modal: 'manageStudentsModal', label: 'Students', back: () => openManageStudents() }
+];
+let workspaceFrom = WORKSPACE_LISTS[0];
+
+function leaveWorkspace() {
+    closeModal('ticketWorkspaceModal');
+    workspaceFrom.back();
+}
+
 // Every session on the ticket, from everyone on it, so the team sees
 // what the others did (the same entries the Service Log prints).
 async function openTicketWorkspace(apptId) {
@@ -1070,8 +1188,8 @@ async function openTicketWorkspace(apptId) {
 
     workspaceTicketId = apptId;
     workspaceLogs = data;
-    closeModal('myTicketsModal');
-    closeModal('ticketPoolModal');
+    workspaceFrom = WORKSPACE_LISTS.find(l => document.getElementById(l.modal).style.display === 'flex') || workspaceFrom;
+    WORKSPACE_LISTS.forEach(l => closeModal(l.modal));
     openModal('ticketWorkspaceModal');
     renderTicketWorkspace();
 }
@@ -1090,12 +1208,20 @@ function renderTicketWorkspace() {
     const team = (appt.assigned_tech_ids || []).map(techName);
     const duplicate = appt.email && emailCounts()[appt.email.toLowerCase()] > 1;
 
+    const complete = `<button class="btn btn-primary" style="background:#28a745; color:white;" onclick="markCompleted(${appt.id})">✓ Approve &amp; Complete</button>`;
+    const sentBack = appt.review_note ? `<span style="flex-basis:100%;"><strong>↩ Sent back by the admin:</strong> ${escapeHtml(appt.review_note)}</span>` : '';
     const nextStep = {
         pending: '<span>Nobody is on this ticket yet. Pick students below to get it started.</span>',
         assigned: `<span>Ready to begin? Press Start Repair when you start working on it.</span>
                    <button class="btn btn-primary" style="background:#0d6efd; color:white;" onclick="startProgress(${appt.id})">Start Repair</button>`,
-        in_progress: `<span>Finished and tested? Mark the repair complete.</span>
-                      <button class="btn btn-primary" style="background:#28a745; color:white;" onclick="markCompleted(${appt.id})">Mark Completed</button>`,
+        in_progress: sentBack + (isAdmin
+            ? `<span>The students are still working on it. You can check it off yourself once it's done.</span>${complete}`
+            : `<span>Finished and tested? Send it to the admin to check off.</span>
+               <button class="btn btn-primary" style="background:#6f42c1; color:white;" onclick="requestCheckoff(${appt.id})">Ready for Check-Off</button>`),
+        review: isAdmin
+            ? `<span>The students say this repair is done. Check the device, then approve it or send it back with what's left to do.</span>
+               <span class="ws-actions">${complete}<button class="btn btn-primary" onclick="sendBack(${appt.id})">↩ Send Back</button></span>`
+            : '<span>⏳ Waiting for the admin to check it off. If they send it back, their note will show here.</span>',
         completed: '<span>✅ This repair is complete. You can still print its paperwork below.</span>'
     }[appt.status] || '';
 
@@ -1110,7 +1236,7 @@ function renderTicketWorkspace() {
         : '<p class="ws-hint" style="margin:0;">No sessions yet. Your first one will show up here.</p>';
 
     document.getElementById('ticketWorkspaceContainer').innerHTML = `
-        <button class="ws-back" onclick="${isAdmin ? 'backToPool()' : 'viewMyTickets()'}">← ${isAdmin ? 'Ticket Pool' : 'My Tickets'}</button>
+        <button class="ws-back" onclick="leaveWorkspace()">← ${workspaceFrom.label}</button>
         <div class="ws-header">
             <div>
                 <p class="ws-eyebrow">Ticket #${appt.id} · ${escapeHtml(appt.device)}</p>
