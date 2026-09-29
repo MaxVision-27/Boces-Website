@@ -817,7 +817,7 @@ function renderPricing() {
             <ul class="price-list">
                 ${repairs.map(r => `
                     <li>
-                        <a class="part-link" href="#part-${r.part}" onclick="document.getElementById('partsSearch').value = ''; filterParts('')">${r.label}</a>
+                        <a class="part-link" href="#part-${r.part}" onclick="document.getElementById('partsDetails').open = true; document.getElementById('partsSearch').value = ''; filterParts('')">${r.label}</a>
                         <span class="price">${r.price}</span>
                     </li>`).join('')}
             </ul>
