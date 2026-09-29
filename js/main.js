@@ -404,7 +404,12 @@ async function updateTicketAssignment(apptId) {
     appt.status = newStatus;
 
     populateAppointmentsModal();
-    alert('Assignment updated!');
+    renderTicketWorkspace();
+    const saved = document.getElementById(`saveStudents-${apptId}`);
+    if (saved) {
+        saved.textContent = 'Saved ✓';
+        setTimeout(() => saved.textContent = 'Save Students', 1500);
+    }
 }
 
 async function startProgress(apptId) {
@@ -415,7 +420,7 @@ async function startProgress(apptId) {
     appt.status = 'in_progress';
 
     populateAppointmentsModal();
-    if (isWorkspaceOpen()) renderTicketWorkspace();
+    renderTicketWorkspace();
 }
 
 async function saveTicketParts(apptId, btn) {
@@ -438,7 +443,7 @@ async function markCompleted(apptId) {
 
     await syncStats();
     populateAppointmentsModal();
-    if (isWorkspaceOpen()) renderTicketWorkspace();
+    renderTicketWorkspace();
     alert('Repair marked as completed!');
 }
 
@@ -454,7 +459,8 @@ async function deleteAppointment(apptId) {
 
     appointments = appointments.filter(a => a.id !== apptId);
     await syncStats();
-    populateAppointmentsModal();
+    if (isWorkspaceOpen()) backToPool();
+    else populateAppointmentsModal();
 }
 
 async function restoreAppointment(apptId) {
@@ -464,7 +470,7 @@ async function restoreAppointment(apptId) {
     deletedAppointments = deletedAppointments.filter(a => a.id !== apptId);
     appointments.push(data);
     await syncStats();
-    populateAppointmentsModal(document.getElementById('nameSearch')?.value || '', 'deleted', document.getElementById('sortFilter')?.value || 'newest');
+    populateAppointmentsModal();
 }
 
 async function permanentlyDeleteAppointment(apptId) {
@@ -474,7 +480,7 @@ async function permanentlyDeleteAppointment(apptId) {
     if (error) { console.error('Error permanently deleting:', error); return; }
 
     deletedAppointments = deletedAppointments.filter(a => a.id !== apptId);
-    populateAppointmentsModal(document.getElementById('nameSearch')?.value || '', 'deleted', document.getElementById('sortFilter')?.value || 'newest');
+    populateAppointmentsModal();
 }
 
 // ============================================================
@@ -906,202 +912,105 @@ function updateRoleDisplay() {
 }
 
 // ============================================================
-// TICKET POOL (Admin) — every ticket, with checkboxes to assign
-// one or more students directly. Replaces the old per-project queue.
+// TICKET POOL (Admin) — every ticket as a folder, grouped by status.
+// Opening one shows the same Ticket Workspace techs use, plus the
+// admin's controls (assign students, delete). The search and filter
+// controls live in index.html so typing doesn't rebuild them.
 // ============================================================
-async function onStatusFilterChange(value) {
-    if (value === 'deleted') await loadDeletedAppointments();
-    populateAppointmentsModal(document.getElementById('nameSearch').value, value, document.getElementById('sortFilter').value);
+async function onStatusFilterChange() {
+    if (document.getElementById('statusFilter').value === 'deleted') await loadDeletedAppointments();
+    populateAppointmentsModal();
 }
 
-function populateAppointmentsModal(filterName = '', filterStatus = 'all', sortOrder = 'newest') {
+function filterByEmail(email) {
+    document.getElementById('nameSearch').value = email;
+    document.getElementById('statusFilter').value = 'all';
+    populateAppointmentsModal();
+}
+
+function emailCounts() {
+    const counts = {};
+    appointments.forEach(a => {
+        if (a.email) counts[a.email.toLowerCase()] = (counts[a.email.toLowerCase()] || 0) + 1;
+    });
+    return counts;
+}
+
+function populateAppointmentsModal() {
     const container = document.getElementById('appointmentsContainer');
     if (!container) return;
 
-    // Find duplicate emails
-    const emailCounts = {};
-    appointments.forEach(a => {
-        if (a.email) emailCounts[a.email.toLowerCase()] = (emailCounts[a.email.toLowerCase()] || 0) + 1;
-    });
-
-    // Apply filters
-    let filtered = [...appointments];
-    if (filterName.trim()) {
-        filtered = filtered.filter(a =>
-            a.name.toLowerCase().includes(filterName.toLowerCase()) ||
-            (a.email && a.email.toLowerCase().includes(filterName.toLowerCase()))
-        );
-    }
-    if (filterStatus !== 'all') {
-        filtered = filtered.filter(a => a.status === filterStatus);
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-        const dateA = new Date(a.created_at);
-        const dateB = new Date(b.created_at);
-        return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-    });
-
-    const pending = filtered.filter(a => a.status === 'pending');
-    const assigned = filtered.filter(a => a.status === 'assigned');
-    const inProgress = filtered.filter(a => a.status === 'in_progress');
-    const completed = filtered.filter(a => a.status === 'completed');
-
-    // Duplicate warning — emails with more than 1 ticket
-    const duplicateEmails = Object.entries(emailCounts)
-        .filter(([_, count]) => count > 1)
-        .map(([email]) => email);
-
-    let html = `
-        <div style="display:flex; gap:8px; margin-bottom:1rem; flex-wrap:wrap;">
-            <input
-                type="text"
-                id="nameSearch"
-                placeholder="Search by name or email..."
-                value="${filterName}"
-                oninput="populateAppointmentsModal(this.value, document.getElementById('statusFilter').value, document.getElementById('sortFilter').value)"
-                style="padding:0.4rem 0.8rem; border-radius:5px; border:1px solid #ccc; flex:1; min-width:150px;">
-            <select id="statusFilter"
-                onchange="onStatusFilterChange(this.value)"
-                style="padding:0.4rem; border-radius:5px; border:1px solid #ccc;">
-                <option value="all" ${filterStatus === 'all' ? 'selected' : ''}>All Status</option>
-                <option value="pending" ${filterStatus === 'pending' ? 'selected' : ''}>In the Pool</option>
-                <option value="assigned" ${filterStatus === 'assigned' ? 'selected' : ''}>Assigned</option>
-                <option value="in_progress" ${filterStatus === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                <option value="completed" ${filterStatus === 'completed' ? 'selected' : ''}>Completed</option>
-                <option value="deleted" ${filterStatus === 'deleted' ? 'selected' : ''}>Deleted</option>
-            </select>
-            <select id="sortFilter"
-                onchange="populateAppointmentsModal(document.getElementById('nameSearch').value, document.getElementById('statusFilter').value, this.value)"
-                style="padding:0.4rem; border-radius:5px; border:1px solid #ccc;">
-                <option value="newest" ${sortOrder === 'newest' ? 'selected' : ''}>Newest First</option>
-                <option value="oldest" ${sortOrder === 'oldest' ? 'selected' : ''}>Oldest First</option>
-            </select>
-        </div>`;
+    const query = document.getElementById('nameSearch').value.trim().toLowerCase();
+    const filterStatus = document.getElementById('statusFilter').value;
+    const sortOrder = document.getElementById('sortFilter').value;
+    const matches = a => !query || a.name.toLowerCase().includes(query) || (a.email || '').toLowerCase().includes(query);
+    const byDate = field => (a, b) => (sortOrder === 'newest' ? -1 : 1) * (new Date(a[field]) - new Date(b[field]));
 
     if (filterStatus === 'deleted') {
-        let deletedFiltered = [...deletedAppointments];
-        if (filterName.trim()) {
-            deletedFiltered = deletedFiltered.filter(a =>
-                a.name.toLowerCase().includes(filterName.toLowerCase()) ||
-                (a.email && a.email.toLowerCase().includes(filterName.toLowerCase()))
-            );
-        }
-        deletedFiltered.sort((a, b) => {
-            const dateA = new Date(a.deleted_at);
-            const dateB = new Date(b.deleted_at);
-            return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
-        });
-
-        html += deletedFiltered.length === 0
+        const deleted = deletedAppointments.filter(matches).sort(byDate('deleted_at'));
+        container.innerHTML = deleted.length === 0
             ? '<p style="text-align:center; color:#999;">No deleted tickets.</p>'
-            : deletedFiltered.map(appt => `
-                <div style="background:#f8d7da; padding:1rem; border-radius:5px; margin-bottom:1rem; border-left:4px solid #dc3545;">
-                    <strong>${appt.name}</strong> - ${appt.device}<br>
-                    <small style="color:#555;">📧 ${appt.email || 'No email provided'}</small><br>
-                    <em>${appt.issue}</em><br>
-                    <small>Deleted: ${new Date(appt.deleted_at).toLocaleDateString()} at ${new Date(appt.deleted_at).toLocaleTimeString()}</small><br>
-                    <div style="margin-top:0.5rem;">
-                        <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745;" onclick="restoreAppointment(${appt.id})">Restore</button>
-                        <button class="btn btn-secondary" style="padding:0.3rem 1rem; background:#dc3545;" onclick="permanentlyDeleteAppointment(${appt.id})">Delete Forever</button>
+            : `<div class="folder-list">${deleted.map(appt => `
+                <div class="folder-card" style="cursor:default;">
+                    <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> <span class="status-badge" style="background:#dc3545; color:white;">Deleted</span></span>
+                    <span class="folder-issue">${escapeHtml(appt.device)}: ${escapeHtml(appt.issue)}</span>
+                    <span class="folder-meta">Deleted ${new Date(appt.deleted_at).toLocaleDateString()}</span>
+                    <div class="ws-actions" style="margin-top:0.4rem;">
+                        <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="restoreAppointment(${appt.id})">Restore</button>
+                        <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#dc3545; color:white;" onclick="permanentlyDeleteAppointment(${appt.id})">Delete Forever</button>
                     </div>
-                </div>`).join('');
-
-        container.innerHTML = html;
+                </div>`).join('')}</div>`;
         return;
     }
 
-    // Duplicate warning banner
+    const counts = emailCounts();
+    const duplicateEmails = Object.keys(counts).filter(email => counts[email] > 1);
+    const filtered = appointments
+        .filter(matches)
+        .filter(a => filterStatus === 'all' || a.status === filterStatus)
+        .sort(byDate('created_at'));
+
+    let html = '';
     if (duplicateEmails.length > 0) {
         html += `
-        <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:5px; padding:0.8rem; margin-bottom:1rem;">
-            ⚠️ <strong>Possible duplicate submissions detected:</strong><br>
+        <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:0.8rem; margin-bottom:1rem; font-size:0.9rem;">
+            ⚠️ <strong>Possible duplicate tickets.</strong> Select an email to see its tickets:<br>
             ${duplicateEmails.map(email => `
-                <span style="display:inline-block; background:#ffc107; color:#333; padding:2px 8px; border-radius:10px; margin:3px; font-size:0.85rem; cursor:pointer;"
-                    onclick="populateAppointmentsModal('${email}', 'all', 'newest')">
-                    ${email} (${emailCounts[email]} tickets)
-                </span>
-            `).join('')}
-            <br><small style="color:#666;">Click an email to filter their tickets</small>
+                <button type="button" data-email="${escapeHtml(email)}" onclick="filterByEmail(this.dataset.email)"
+                    style="background:#ffc107; color:#333; border:none; padding:2px 10px; border-radius:10px; margin:4px 4px 0 0; font-size:0.85rem; cursor:pointer;">
+                    ${escapeHtml(email)} (${counts[email]})
+                </button>`).join('')}
         </div>`;
     }
 
     if (filtered.length === 0) {
-        html += '<p style="text-align:center; color:#999;">No tickets match your search.</p>';
-        container.innerHTML = html;
+        container.innerHTML = html + '<p style="text-align:center; color:#999;">No tickets match your search.</p>';
         return;
     }
 
-    // Render a single ticket card
-    const renderTicket = (appt, bgColor, borderColor) => {
-        const isDuplicateEmail = appt.email && emailCounts[appt.email.toLowerCase()] > 1;
-        const assignedIds = appt.assigned_tech_ids || [];
-        const assignedNames = assignedIds.map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
-
-        const assignmentEditor = `
-            <div style="margin-top:0.6rem; padding-top:0.6rem; border-top:1px solid rgba(0,0,0,0.08);">
-                <small style="display:block; margin-bottom:0.3rem; color:#555;">Assign students:</small>
-                <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:0.5rem;">
-                    ${techs.length === 0 ? '<span style="color:#999; font-size:0.85rem;">No students added yet</span>' : techs.map(t => `
-                        <label style="display:inline-flex; align-items:center; gap:4px; background:white; padding:3px 8px; border-radius:10px; border:1px solid #ccc; font-size:0.85rem; cursor:pointer;">
-                            <input type="checkbox" class="assign-tech-${appt.id}" value="${t.id}" ${assignedIds.includes(t.id) ? 'checked' : ''}>
-                            ${t.name}
-                        </label>
-                    `).join('')}
-                </div>
-                <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="updateTicketAssignment(${appt.id})">Save Assignment</button>
-            </div>
-        `;
-
+    const folder = appt => {
+        const names = (appt.assigned_tech_ids || []).map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
+        const duplicate = appt.email && counts[appt.email.toLowerCase()] > 1;
         return `
-        <div style="background:${bgColor}; padding:1rem; border-radius:5px; margin-bottom:1rem; border-left:4px solid ${borderColor};">
-            <strong>${appt.name}</strong>
-            ${isDuplicateEmail ? '<span style="background:#dc3545; color:white; font-size:0.75rem; padding:2px 6px; border-radius:10px; margin-left:6px;">⚠️ Duplicate Email</span>' : ''}
-            - ${appt.device}<br>
-            <small style="color:#555;">📧 ${appt.email || 'No email provided'}</small><br>
-            ${appt.created_by ? `<small style="color:#555;">👤 Created by: ${appt.created_by}</small><br>` : ''}
-            <small style="color:#555;">🎫 Ticket #${appt.id}</small><br>
-            ${appt.tracking_code ? `<small style="color:#555;">🔑 Tracking code: <strong>${appt.tracking_code}</strong></small> <button class="btn btn-primary" style="padding:0.1rem 0.6rem; font-size:0.75rem;" onclick="copyText('${appt.tracking_code}', this)">Copy</button><br>` : ''}
-            <em>${appt.issue}</em><br>
-            <small>Submitted: ${new Date(appt.created_at).toLocaleDateString()} at ${new Date(appt.created_at).toLocaleTimeString()}</small><br>
-            ${assignedNames.length > 0
-                ? `<small>Assigned to: <strong>${assignedNames.join(', ')}</strong></small><br>`
-                : '<small style="color:#999;">Unassigned — in the pool</small><br>'}
-            ${appt.status === 'in_progress' && appt.parts_used ? `<small>🔩 Parts: ${appt.parts_used}</small><br>` : ''}
-            ${paperworkButtons(appt.id)}
-            <div style="margin-top:0.5rem;">
-                ${appt.status === 'assigned' ? `
-                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#17a2b8;" onclick="startProgress(${appt.id})">Start Progress</button>
-                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745;" onclick="markCompleted(${appt.id})">Mark Completed</button>
-                ` : ''}
-                ${appt.status === 'in_progress' ? `
-                    <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745;" onclick="markCompleted(${appt.id})">Mark Completed</button>
-                ` : ''}
-                <button class="btn btn-secondary" style="padding:0.3rem 1rem; background:#dc3545;" onclick="deleteAppointment(${appt.id})">Delete</button>
-            </div>
-            ${appt.status !== 'completed' ? assignmentEditor : ''}
-        </div>`;
+        <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
+            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}${duplicate ? ' ⚠️' : ''}</strong> ${statusBadge(appt.status)}</span>
+            <span class="folder-issue">${escapeHtml(appt.device)}: ${escapeHtml(appt.issue)}</span>
+            <span class="folder-meta">${names.length ? escapeHtml(names.join(', ')) : 'No students yet'} <strong>Open →</strong></span>
+        </button>`;
     };
 
-    if (pending.length > 0) {
-        html += '<h3 style="color:#001f3f; margin-bottom:1rem;">In the Pool</h3>';
-        pending.forEach(a => html += renderTicket(a, '#fff3cd', '#ffc107'));
+    const groups = [['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['completed', 'Completed']];
+    for (const [status, label] of groups) {
+        const tickets = filtered.filter(a => a.status === status);
+        if (tickets.length) html += `<h3 class="list-heading">${label} (${tickets.length})</h3><div class="folder-list">${tickets.map(folder).join('')}</div>`;
     }
-    if (assigned.length > 0) {
-        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Assigned</h3>';
-        assigned.forEach(a => html += renderTicket(a, '#d1ecf1', '#17a2b8'));
-    }
-    if (inProgress.length > 0) {
-        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">In Progress</h3>';
-        inProgress.forEach(a => html += renderTicket(a, '#cfe2ff', '#0d6efd'));
-    }
-    if (completed.length > 0) {
-        html += '<h3 style="color:#001f3f; margin:2rem 0 1rem;">Completed Repairs</h3>';
-        completed.forEach(a => html += renderTicket(a, '#d4edda', '#28a745'));
-    }
-
     container.innerHTML = html;
+}
+
+function backToPool() {
+    closeModal('ticketWorkspaceModal');
+    populateAppointmentsModal();
+    openModal('ticketPoolModal');
 }
 
 // ============================================================
@@ -1161,21 +1070,28 @@ async function openTicketWorkspace(apptId) {
 
     workspaceTicketId = apptId;
     workspaceLogs = data;
-    renderTicketWorkspace();
     closeModal('myTicketsModal');
+    closeModal('ticketPoolModal');
     openModal('ticketWorkspaceModal');
+    renderTicketWorkspace();
 }
 
 function isWorkspaceOpen() {
     return document.getElementById('ticketWorkspaceModal').style.display === 'flex';
 }
 
+// Admins get the same workspace with their controls added: customer
+// details, choosing the students, and deleting. They log no sessions.
 function renderTicketWorkspace() {
     const appt = appointments.find(a => a.id === workspaceTicketId);
+    if (!appt || !isWorkspaceOpen()) return;
+    const isAdmin = currentRole === 'admin';
     const techName = id => techs.find(t => t.id === id)?.name || 'Unknown';
     const team = (appt.assigned_tech_ids || []).map(techName);
+    const duplicate = appt.email && emailCounts()[appt.email.toLowerCase()] > 1;
 
     const nextStep = {
+        pending: '<span>Nobody is on this ticket yet. Pick students below to get it started.</span>',
         assigned: `<span>Ready to begin? Press Start Repair when you start working on it.</span>
                    <button class="btn btn-primary" style="background:#0d6efd; color:white;" onclick="startProgress(${appt.id})">Start Repair</button>`,
         in_progress: `<span>Finished and tested? Mark the repair complete.</span>
@@ -1187,14 +1103,14 @@ function renderTicketWorkspace() {
         <div class="session">
             <div class="session-top">
                 <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</strong>
-                ${l.tech_id === currentTechId ? `<button class="link-danger" onclick="deleteTimeLog(${l.id})">Delete</button>` : ''}
+                ${isAdmin || l.tech_id === currentTechId ? `<button class="link-danger" onclick="deleteTimeLog(${l.id})">Delete</button>` : ''}
             </div>
             <p><strong>${escapeHtml(techName(l.tech_id))}:</strong> ${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
         </div>`).join('')
         : '<p class="ws-hint" style="margin:0;">No sessions yet. Your first one will show up here.</p>';
 
     document.getElementById('ticketWorkspaceContainer').innerHTML = `
-        <button class="ws-back" onclick="viewMyTickets()">← My Tickets</button>
+        <button class="ws-back" onclick="${isAdmin ? 'backToPool()' : 'viewMyTickets()'}">← ${isAdmin ? 'Ticket Pool' : 'My Tickets'}</button>
         <div class="ws-header">
             <div>
                 <p class="ws-eyebrow">Ticket #${appt.id} · ${escapeHtml(appt.device)}</p>
@@ -1205,12 +1121,27 @@ function renderTicketWorkspace() {
         <dl class="ws-facts">
             <div><dt>Problem</dt><dd>${escapeHtml(appt.issue)}</dd></div>
             <div><dt>Team</dt><dd>${escapeHtml(team.join(', ') || 'Nobody yet')}</dd></div>
+            ${isAdmin ? `
+            <div><dt>Customer email</dt><dd>${escapeHtml(appt.email || 'None given')}${duplicate ? ' <span style="color:#b45309;">⚠️ has other tickets</span>' : ''}</dd></div>
+            <div><dt>Created</dt><dd>${new Date(appt.created_at).toLocaleDateString()}${appt.created_by ? ` by ${escapeHtml(appt.created_by)}` : ''}</dd></div>` : ''}
             ${appt.tracking_code ? `<div><dt>Tracking code</dt><dd><strong>${appt.tracking_code}</strong>
                 <button class="btn btn-primary" style="padding:0.1rem 0.6rem; font-size:0.75rem;" onclick="copyText('${appt.tracking_code}', this)">Copy</button></dd></div>` : ''}
         </dl>
         ${nextStep ? `<div class="ws-next">${nextStep}</div>` : ''}
 
-        ${appt.status !== 'completed' ? `
+        ${isAdmin && appt.status !== 'completed' ? `
+        <section class="ws-card">
+            <h3>Students on this ticket</h3>
+            <p class="ws-hint">Tick everyone working on it. If you hand it to new students, change it here. Their time starts a new Hours sheet.</p>
+            <div class="ws-actions" style="margin-bottom:1rem;">
+                ${techs.length ? techs.map(t => `
+                    <label class="pick-chip"><input type="checkbox" class="assign-tech-${appt.id}" value="${t.id}" ${(appt.assigned_tech_ids || []).includes(t.id) ? 'checked' : ''}> ${escapeHtml(t.name)}</label>`).join('')
+                    : '<span class="ws-hint">No students added yet. Add them under Manage Students.</span>'}
+            </div>
+            <button class="btn btn-primary" id="saveStudents-${appt.id}" onclick="updateTicketAssignment(${appt.id})">Save Students</button>
+        </section>` : ''}
+
+        ${!isAdmin && appt.status !== 'completed' ? `
         <section class="ws-card">
             <h3>Log a work session</h3>
             <p class="ws-hint">Fill this in every time you work on the device. It goes on the Service Log and the Hours sheet.</p>
@@ -1243,7 +1174,14 @@ function renderTicketWorkspace() {
             <h3>Paperwork</h3>
             <p class="ws-hint">Open a form to check what's on it, then print or download it.</p>
             ${paperworkButtons(appt.id)}
-        </section>`;
+        </section>
+
+        ${isAdmin ? `
+        <section class="ws-card">
+            <h3>Delete ticket</h3>
+            <p class="ws-hint">Takes it out of the pool. You can bring it back from the Deleted filter.</p>
+            <button class="btn btn-primary" style="background:#dc3545; color:white;" onclick="deleteAppointment(${appt.id})">Delete Ticket</button>
+        </section>` : ''}`;
 }
 
 // ============================================================
@@ -1318,7 +1256,7 @@ async function deleteTimeLog(logId) {
     myTimeLogs = myTimeLogs.filter(l => l.id !== logId);
     workspaceLogs = workspaceLogs.filter(l => l.id !== logId);
 
-    if (isWorkspaceOpen()) renderTicketWorkspace();
+    renderTicketWorkspace();
     if (document.getElementById('myHoursModal').style.display === 'flex') renderMyHours();
 }
 
