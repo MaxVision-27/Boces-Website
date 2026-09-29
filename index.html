@@ -1,14 +1,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=10">
+    <link rel="stylesheet" href="css/styles.css?v=11">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
     <script src="js/effects.js?v=10" defer></script>
-    <script src="js/main.js?v=15" defer></script>
+    <script src="js/main.js?v=16" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -22,6 +22,7 @@
         <span class="site-nav-brand">BarryTech Repair Lab</span>
         <div class="site-nav-links">
             <a href="#about">About</a>
+            <a href="#pricing">Pricing</a>
             <a href="#reviews">Reviews</a>
             <a href="#" onclick="openModal('trackModal'); return false;">Track Repair</a>
         </div>
@@ -64,7 +65,8 @@
         </div>
         <div class="about-topic" id="topic-pricing">
             <h3>How Pricing Works</h3>
-            <p>Labor is always free. If a part needs replacing, you just cover the part: screens $40–$200, batteries $20–$60, RAM $20–$80.</p>
+            <p>Labor is always free. If a part needs replacing, we tell you which one, you order it, and we install it: screens $40–$200, batteries $20–$60, RAM $20–$80.</p>
+            <p class="about-link"><a href="#pricing">See prices by device and the parts dictionary →</a></p>
         </div>
         <div class="about-topic" id="topic-time">
             <h3>Repair Time</h3>
@@ -91,6 +93,43 @@
             <p>Not sure if a repair affects your warranty? We'll help you understand your coverage and pick the best option.</p>
         </div>
     </div>
+</div>
+
+<div class="section" id="pricing">
+    <h2>Parts &amp; Pricing</h2>
+    <p class="pricing-intro">Labor is always free. You only pay for the part, and you buy it yourself, so you always know exactly what you're paying.</p>
+
+    <h3 class="pricing-heading">How it works</h3>
+    <ol class="pricing-steps">
+        <li>
+            <span class="step-num" aria-hidden="true">1</span>
+            <h4>We tell you which part you need</h4>
+            <p>Bring your device to C220. A tech checks it and tells you the exact part to buy.</p>
+        </li>
+        <li>
+            <span class="step-num" aria-hidden="true">2</span>
+            <h4>You order the part yourself</h4>
+            <p>Buy it from any store or website. The parts dictionary below shows what to search for.</p>
+        </li>
+        <li>
+            <span class="step-num" aria-hidden="true">3</span>
+            <h4>Bring it to C220 and we install it</h4>
+            <p>Labor is free. Most repairs take 2–7 school days, and you get a tracking code.</p>
+        </li>
+    </ol>
+
+    <h3 class="pricing-heading">Typical part prices by device</h3>
+    <p class="pricing-note">Prices are for the part only. The exact cost depends on your model and where you buy it. Tap a part to see its dictionary entry.</p>
+    <div class="device-grid" id="deviceGrid"></div>
+
+    <h3 class="pricing-heading" id="parts-dictionary">Parts dictionary</h3>
+    <p class="pricing-note">What each part does, how to tell it has failed, and what to search for when you buy it.</p>
+    <div class="form-group parts-search">
+        <label for="partsSearch">Search parts</label>
+        <input type="search" id="partsSearch" placeholder="Try &quot;battery&quot;, &quot;slow&quot;, or &quot;won't charge&quot;" oninput="filterParts(this.value)" autocomplete="off">
+    </div>
+    <p class="parts-empty hidden" id="partsEmpty">No parts match your search. Try a single word, like "screen" or "hot".</p>
+    <div class="parts-list" id="partsList"></div>
 </div>
 
 <div class="section stats">

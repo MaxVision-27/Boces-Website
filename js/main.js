@@ -641,6 +641,212 @@ async function deleteReview(reviewId) {
 }
 
 // ============================================================
+// PRICING & PARTS DICTIONARY — public, static content. Every price
+// is for the part only (labor is always free). Each device listing
+// links to its dictionary entry with a plain #part-<id> anchor.
+// ============================================================
+const partsDictionary = {
+    screen: {
+        name: 'Screen (display)',
+        does: 'Shows the picture and, on phones and tablets, senses your touch.',
+        signs: [
+            'Cracked or shattered glass',
+            'Black, flickering, or striped display',
+            'Touch doesn’t respond in some spots',
+            'Dark blotches, lines, or dead pixels'
+        ],
+        search: 'Search "[your exact model] screen replacement". For phones and tablets, get the full display assembly (screen and touch layer together) unless we tell you only the glass is broken. For laptops, search "[your exact model] LCD panel", or the panel part number we give you.'
+    },
+    battery: {
+        name: 'Battery',
+        does: 'Stores power so the device runs when it’s unplugged.',
+        signs: [
+            'Dies quickly or shuts off with charge left',
+            'Won’t charge past a certain percent',
+            'Only works while plugged in',
+            'Swollen: the screen or case is lifting or the back bulges. Stop using it and bring it in.'
+        ],
+        search: 'Search "[your exact model] replacement battery". Match the voltage and capacity (mAh or Wh) printed on the old battery, and buy from a seller with good reviews rather than the cheapest no-name listing.'
+    },
+    'charging-port': {
+        name: 'Charging port',
+        does: 'Where the charging cable plugs in. It carries power, and on phones and tablets, data too.',
+        signs: [
+            'Won’t charge, or charges only when the cable is held at an angle',
+            'The cable feels loose or falls out',
+            'Not recognized when plugged into a computer',
+            'Lint in the port causes the same symptoms, so we’ll check and clean it before you buy anything'
+        ],
+        search: 'Phones and tablets: search "[your exact model] charging port flex cable". Laptops with a round charger plug: search "[your exact model] DC jack".'
+    },
+    'back-glass': {
+        name: 'Back glass',
+        does: 'The glass panel on the back of many phones. It protects the inside and lets wireless charging through.',
+        signs: [
+            'Cracked or shattered back',
+            'Sharp edges or glass flaking off'
+        ],
+        search: 'Search "[your exact model] back glass replacement". Check whether it includes the camera lens cover and adhesive.'
+    },
+    camera: {
+        name: 'Camera',
+        does: 'Takes photos and video. Phones have separate front and rear cameras.',
+        signs: [
+            'Photos stay blurry and won’t focus',
+            'Black screen in the camera app',
+            'The lens shakes or clicks',
+            'Cracked lens cover (sometimes only the cover needs replacing)'
+        ],
+        search: 'Search "[your exact model] rear camera" or "[your exact model] front camera". If only the lens cover is cracked, search "[your exact model] camera lens glass" instead. It costs much less.'
+    },
+    keyboard: {
+        name: 'Laptop keyboard',
+        does: 'The laptop’s built-in keys.',
+        signs: [
+            'Keys don’t work, stick, or type the wrong letter',
+            'Keys are missing or broken off',
+            'Damage after a spill'
+        ],
+        search: 'Search "[your exact model] replacement keyboard" and match the layout (US English) and whether it’s backlit. On some laptops the keyboard is built into the top case, so we’ll give you the exact part number.'
+    },
+    ram: {
+        name: 'RAM (memory)',
+        does: 'Short-term working memory. More RAM lets you run more apps and browser tabs at once.',
+        signs: [
+            'Very slow with several apps or tabs open',
+            'Random freezes or blue screens',
+            'Beeps or a blank screen when starting up',
+            'Shows less memory than it should'
+        ],
+        search: 'Match what we tell you: type (DDR4 or DDR5), size, speed, and shape ("SO-DIMM" for laptops, "DIMM" for desktops). Example: "16GB DDR4 3200 SO-DIMM".'
+    },
+    ssd: {
+        name: 'Storage (SSD)',
+        does: 'Keeps your files, apps, and operating system, even with the power off.',
+        signs: [
+            'Takes minutes to start up, or is slow at everything',
+            '"No boot device" or "operating system not found" message',
+            'Files disappear or won’t open',
+            'Clicking noises (older hard drives)'
+        ],
+        search: 'Match the connection we tell you: "M.2 NVMe", "M.2 SATA", or "2.5-inch SATA". Example: "1TB M.2 NVMe SSD". Stick to well-known brands, and ask us about moving your files over.'
+    },
+    charger: {
+        name: 'Laptop charger',
+        does: 'The power adapter that charges a laptop.',
+        signs: [
+            'The laptop won’t charge but the battery is fine',
+            'Frayed or bent cable, or a loose tip',
+            'The charger’s light doesn’t turn on',
+            'Gets very hot'
+        ],
+        search: 'Match the wattage (W) and plug on your old charger or the bottom of the laptop. For USB-C laptops, get a USB-C PD charger with the same or higher wattage. Example: "65W USB-C laptop charger".'
+    },
+    'cooling-fan': {
+        name: 'Cooling fan',
+        does: 'Moves air through the computer so the processor doesn’t overheat.',
+        signs: [
+            'Loud grinding or rattling',
+            'Gets very hot, then slows down or shuts off',
+            'The fan never spins'
+        ],
+        search: 'Laptops: search "[your exact model] CPU cooling fan". Desktops: we’ll tell you the size (for example "120mm case fan") or which processor cooler fits.'
+    },
+    'power-supply': {
+        name: 'Power supply (PSU)',
+        does: 'Turns wall power into the power a desktop computer’s parts use.',
+        signs: [
+            'The computer won’t turn on at all',
+            'Shuts off or restarts by itself under load',
+            'Burning smell or buzzing. Unplug it and bring it in.'
+        ],
+        search: 'Match the wattage we recommend and the size (usually ATX), from a well-known brand with an 80 Plus rating. Example: "650W 80 Plus Bronze ATX power supply".'
+    },
+    'cmos-battery': {
+        name: 'CMOS battery',
+        does: 'A coin-sized battery that keeps a desktop’s clock and startup settings while it’s unplugged.',
+        signs: [
+            'The date and time reset whenever it’s unplugged',
+            'Startup settings reset, or a "CMOS checksum" error'
+        ],
+        search: 'Almost always a "CR2032" coin battery, sold wherever batteries are.'
+    }
+};
+
+const devicePriceList = [
+    { device: 'Phone', repairs: [
+        { part: 'screen', label: 'Screen', price: '$40–$150' },
+        { part: 'battery', label: 'Battery', price: '$20–$50' },
+        { part: 'charging-port', label: 'Charging port', price: '$10–$30' },
+        { part: 'back-glass', label: 'Back glass', price: '$10–$40' },
+        { part: 'camera', label: 'Camera', price: '$15–$60' }
+    ] },
+    { device: 'Tablet', repairs: [
+        { part: 'screen', label: 'Screen', price: '$50–$200' },
+        { part: 'battery', label: 'Battery', price: '$25–$60' },
+        { part: 'charging-port', label: 'Charging port', price: '$10–$30' }
+    ] },
+    { device: 'Laptop', repairs: [
+        { part: 'screen', label: 'Screen', price: '$60–$200' },
+        { part: 'battery', label: 'Battery', price: '$30–$60' },
+        { part: 'keyboard', label: 'Keyboard', price: '$20–$60' },
+        { part: 'ram', label: 'RAM upgrade', price: '$20–$80' },
+        { part: 'ssd', label: 'Storage (SSD)', price: '$30–$100' },
+        { part: 'charger', label: 'Charger', price: '$20–$60' },
+        { part: 'cooling-fan', label: 'Cooling fan', price: '$10–$30' }
+    ] },
+    { device: 'Computer (desktop)', repairs: [
+        { part: 'ram', label: 'RAM upgrade', price: '$20–$80' },
+        { part: 'ssd', label: 'Storage (SSD)', price: '$30–$100' },
+        { part: 'power-supply', label: 'Power supply', price: '$40–$100' },
+        { part: 'cooling-fan', label: 'Cooling fan', price: '$10–$30' },
+        { part: 'cmos-battery', label: 'CMOS battery', price: '$3–$10' }
+    ] }
+];
+
+// iPhones type curly apostrophes; the content uses them too.
+function normalizeSearch(text) {
+    return text.toLowerCase().replace(/[‘’]/g, "'");
+}
+
+function renderPricing() {
+    document.getElementById('deviceGrid').innerHTML = devicePriceList.map(({ device, repairs }) => `
+        <article class="device-card">
+            <h4>${device}</h4>
+            <ul class="price-list">
+                ${repairs.map(r => `
+                    <li>
+                        <a class="part-link" href="#part-${r.part}" onclick="document.getElementById('partsSearch').value = ''; filterParts('')">${r.label}</a>
+                        <span class="price">${r.price}</span>
+                    </li>`).join('')}
+            </ul>
+        </article>`).join('');
+
+    document.getElementById('partsList').innerHTML = Object.entries(partsDictionary).map(([id, p]) => `
+        <article class="part-entry" id="part-${id}">
+            <h4>${p.name}</h4>
+            <dl>
+                <dt>What it does</dt>
+                <dd>${p.does}</dd>
+                <dt>Signs it has failed</dt>
+                <dd><ul>${p.signs.map(s => `<li>${s}</li>`).join('')}</ul></dd>
+                <dt>What to search for</dt>
+                <dd>${p.search.replace(/"([^"]+)"/g, '<span class="search-term">$1</span>')}</dd>
+            </dl>
+        </article>`).join('');
+}
+
+function filterParts(query) {
+    const words = normalizeSearch(query).split(/\s+/).filter(Boolean);
+    const entries = [...document.querySelectorAll('.part-entry')];
+    entries.forEach(el => {
+        const text = normalizeSearch(el.textContent);
+        el.classList.toggle('hidden', !words.every(w => text.includes(w)));
+    });
+    document.getElementById('partsEmpty').classList.toggle('hidden', entries.some(el => !el.classList.contains('hidden')));
+}
+
+// ============================================================
 // DISPLAY / UI
 // ============================================================
 function updateRoleDisplay() {
@@ -1140,6 +1346,8 @@ function showTopic(id, btn) {
 // START — waits for DOM so window.supabase is guaranteed loaded
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    renderPricing();
+
     db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         global: {
             fetch: (url, options = {}) => {
