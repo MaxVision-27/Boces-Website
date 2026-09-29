@@ -221,6 +221,12 @@ body {
     transform: translateY(0);
 }
 
+/* White buttons vanish on white modals; go navy there */
+.modal-content .btn-primary {
+    background: var(--navy-900);
+    color: white;
+}
+
 .btn-secondary {
     background: transparent;
     color: white;
@@ -661,6 +667,20 @@ body {
 @keyframes modal-in {
     from { opacity: 0; transform: translateY(8px) scale(.98); }
     to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tracking-code-big {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: .2em;
+    color: var(--navy-900);
+    background: var(--surface-alt);
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: .75rem 1rem;
+    margin: 1.25rem 0;
+    user-select: all;
 }
 
 .modal-content h2 {
