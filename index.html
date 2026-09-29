@@ -1,7 +1,7 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=18">
+    <link rel="stylesheet" href="css/styles.css?v=19">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -10,7 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="js/effects.js?v=10" defer></script>
-    <script src="js/main.js?v=22" defer></script>
+    <script src="js/main.js?v=23" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -198,8 +198,23 @@
     <div class="modal-content" style="max-width: 800px;">
         <span class="close-btn" onclick="closeModal('ticketPoolModal')">×</span>
         <h2>Ticket Pool</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Every repair ticket lands here. Assign one or more students to work it.</p>
-        <div id="appointmentsContainer" style="max-height: 500px; overflow-y: auto;"></div>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Every repair ticket lands here. Open one to pick its students, check progress, or print its paperwork.</p>
+        <div class="pool-filters">
+            <input type="search" id="nameSearch" placeholder="Search by name or email" oninput="populateAppointmentsModal()" autocomplete="off">
+            <select id="statusFilter" onchange="onStatusFilterChange()">
+                <option value="all">All tickets</option>
+                <option value="pending">In the Pool</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="deleted">Deleted</option>
+            </select>
+            <select id="sortFilter" onchange="populateAppointmentsModal()">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+            </select>
+        </div>
+        <div id="appointmentsContainer"></div>
     </div>
 </div>
 

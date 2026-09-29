@@ -1122,6 +1122,49 @@ body {
     padding: .55rem 1.2rem;
 }
 
+.ws-card .pick-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0;
+    padding: .35rem .85rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.ws-card .pick-chip input {
+    width: auto;
+    margin: 0;
+}
+
+.pick-chip:has(input:checked) {
+    background: var(--surface-alt);
+    border-color: var(--navy-700);
+}
+
+.pool-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: .5rem;
+}
+
+.pool-filters input,
+.pool-filters select {
+    padding: .5rem .7rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: .9rem;
+}
+
+.pool-filters input {
+    flex: 1;
+    min-width: 160px;
+}
+
 .session {
     border-top: 1px solid var(--border);
     padding: .75rem 0;
