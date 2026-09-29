@@ -1,7 +1,7 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=13">
+    <link rel="stylesheet" href="css/styles.css?v=15">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -9,7 +9,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="js/effects.js?v=10" defer></script>
-    <script src="js/main.js?v=18" defer></script>
+    <script src="js/main.js?v=19" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -23,7 +23,7 @@
         <span class="site-nav-brand">BarryTech Repair Lab</span>
         <div class="site-nav-links">
             <a href="#about">About</a>
-            <a href="#pricing">Pricing</a>
+            <a href="#about" onclick="showTopic('topic-pricing', document.getElementById('costPill'))">Cost</a>
             <a href="#reviews">Reviews</a>
             <a href="#" onclick="openModal('trackModal'); return false;">Track Repair</a>
         </div>
@@ -43,7 +43,7 @@
         <button class="btn btn-primary" onclick="scrollToAbout()">Get to Know Us</button>
         <button class="btn btn-secondary" onclick="openModal('trackModal')">Track Your Repair</button>
     </div>
-    <p class="hero-note">Bring your device to our classroom (C220) and one of our techs will get you set up — no online form needed.</p>
+    <p class="hero-note">Bring your device to Room C220 and a student technician will look it over. You don't need an appointment or an online form.</p>
 </div>
 
 <div class="section" id="about">
@@ -51,7 +51,7 @@
     <p class="about-intro">Tap a topic to explore.</p>
     <div class="about-pills">
         <button type="button" class="about-pill active" onclick="showTopic('topic-repairs', this)">Expert Repairs</button>
-        <button type="button" class="about-pill" onclick="showTopic('topic-pricing', this)">Pricing</button>
+        <button type="button" class="about-pill" id="costPill" onclick="showTopic('topic-pricing', this)">Cost</button>
         <button type="button" class="about-pill" onclick="showTopic('topic-time', this)">Repair Time</button>
         <button type="button" class="about-pill" onclick="showTopic('topic-tracking', this)">Tracking</button>
         <button type="button" class="about-pill" onclick="showTopic('topic-location', this)">Location</button>
@@ -62,81 +62,83 @@
     <div class="about-panel">
         <div class="about-topic active" id="topic-repairs">
             <h3>Expert Repairs</h3>
-            <p>Our skilled students repair computers, laptops, tablets, and smartphones using professional-grade tools and techniques.</p>
+            <p>Students in Barry Tech's Computer Technology program repair computers, laptops, tablets, and phones with professional-grade tools.</p>
         </div>
         <div class="about-topic" id="topic-pricing">
-            <h3>How Pricing Works</h3>
-            <p>Labor is always free. If a part needs replacing, we tell you which one, you order it, and we install it: screens $40–$200, batteries $20–$60, RAM $20–$80.</p>
-            <p class="about-link"><a href="#pricing">See prices by device and the parts dictionary →</a></p>
+            <h3>What It Costs</h3>
+            <p>We don't charge for repairs. If your device needs a new part, we'll tell you which one to buy. You order it from any store or website and pay the seller yourself, and we install it at no charge.</p>
+            <p>Typical part prices: screens $40–$200, batteries $20–$60, RAM $20–$80.</p>
+            <details class="cost-details">
+                <summary>What a repair costs</summary>
+                <h4 class="pricing-heading">How it works</h4>
+                <ol class="pricing-steps">
+                    <li>
+                        <span class="step-num" aria-hidden="true">1</span>
+                        <h5>We tell you which part you need</h5>
+                        <p>Bring your device to Room C220. A student technician will find the problem and tell you which part to order. Some repairs don't need a part at all.</p>
+                    </li>
+                    <li>
+                        <span class="step-num" aria-hidden="true">2</span>
+                        <h5>You order the part</h5>
+                        <p>Buy it from any store or website and pay the seller. The parts dictionary below shows you what to search for.</p>
+                    </li>
+                    <li>
+                        <span class="step-num" aria-hidden="true">3</span>
+                        <h5>We install it for free</h5>
+                        <p>Bring the part to Room C220 and we'll take it from there. Most repairs take 2–7 school days, and your tracking code lets you check on the status.</p>
+                    </li>
+                </ol>
+
+                <h4 class="pricing-heading">Typical part prices by device</h4>
+                <p class="pricing-note">These prices are what you'd pay a seller for the part. Your cost depends on your device's model and where you buy it. Select a part to read its dictionary entry.</p>
+                <div class="device-grid" id="deviceGrid"></div>
+            </details>
         </div>
         <div class="about-topic" id="topic-time">
             <h3>Repair Time</h3>
-            <p>Most repairs are done in 2–7 school days. Ordering a part can add extra time.</p>
+            <p>Most repairs take 2–7 school days. If your device needs a part, add the time it takes for the part to arrive.</p>
         </div>
         <div class="about-topic" id="topic-tracking">
             <h3>Tracking Your Repair</h3>
-            <p>Every repair gets a tracking code at drop-off — use it under "Track Repair" anytime to check your status. No account needed.</p>
+            <p>You'll get a tracking code when you drop off your device. Enter it under Track Repair to check on your repair. You don't need an account.</p>
         </div>
         <div class="about-topic" id="topic-location">
             <h3>Where We're Located</h3>
-            <p>Our classroom (C220) is on the right side of the building, next to Joe's Store.</p>
+            <p>We're in Room C220, on the right side of the building next to Joe's Store.</p>
         </div>
         <div class="about-topic" id="topic-services">
             <h3>Our Services</h3>
-            <p>Computers, laptops, tablets, and phones — plus data recovery and software installs.</p>
+            <p>We repair computers, laptops, tablets, and phones. We also recover lost files and install software.</p>
         </div>
         <div class="about-topic" id="topic-ai">
             <h3>AI Engineers</h3>
-            <p>Curious about AI? Our team can explain how tools like ChatGPT actually work and how machine learning systems learn.</p>
+            <p>Curious about AI? Ask our students. They can explain how tools like ChatGPT work and how machine learning systems learn.</p>
         </div>
         <div class="about-topic" id="topic-warranty">
             <h3>Warranty Education</h3>
-            <p>Not sure if a repair affects your warranty? We'll help you understand your coverage and pick the best option.</p>
+            <p>Not sure whether a repair will affect your warranty? We'll go over your coverage with you so you can decide before we start.</p>
         </div>
     </div>
 </div>
 
-<div class="section" id="pricing">
-    <h2>Parts &amp; Pricing</h2>
-    <p class="pricing-intro">Labor is always free. You only pay for the part, and you buy it yourself, so you always know exactly what you're paying.</p>
-
-    <h3 class="pricing-heading">How it works</h3>
-    <ol class="pricing-steps">
-        <li>
-            <span class="step-num" aria-hidden="true">1</span>
-            <h4>We tell you which part you need</h4>
-            <p>Bring your device to C220. A tech checks it and tells you the exact part to buy.</p>
-        </li>
-        <li>
-            <span class="step-num" aria-hidden="true">2</span>
-            <h4>You order the part yourself</h4>
-            <p>Buy it from any store or website. The parts dictionary below shows what to search for.</p>
-        </li>
-        <li>
-            <span class="step-num" aria-hidden="true">3</span>
-            <h4>Bring it to C220 and we install it</h4>
-            <p>Labor is free. Most repairs take 2–7 school days, and you get a tracking code.</p>
-        </li>
-    </ol>
-
-    <h3 class="pricing-heading">Typical part prices by device</h3>
-    <p class="pricing-note">Prices are for the part only. The exact cost depends on your model and where you buy it. Tap a part to see its dictionary entry.</p>
-    <div class="device-grid" id="deviceGrid"></div>
-
-    <h3 class="pricing-heading" id="parts-dictionary">Parts dictionary</h3>
-    <p class="pricing-note">What each part does, how to tell it has failed, and what to search for when you buy it.</p>
-    <div class="form-group parts-search">
-        <label for="partsSearch">Search parts</label>
-        <input type="search" id="partsSearch" placeholder="Try &quot;battery&quot;, &quot;slow&quot;, or &quot;won't charge&quot;" oninput="filterParts(this.value)" autocomplete="off">
-    </div>
-    <p class="parts-empty hidden" id="partsEmpty">No parts match your search. Try a single word, like "screen" or "hot".</p>
-    <div class="parts-list" id="partsList"></div>
+<div class="section" id="parts-dictionary">
+    <h2>Parts Dictionary</h2>
+    <p class="pricing-intro">Look up what a part does, the signs that it has failed, and what to search for when you buy one.</p>
+    <details class="parts-details" id="partsDetails">
+        <summary>Browse the parts dictionary</summary>
+        <div class="form-group parts-search">
+            <label for="partsSearch">Search parts</label>
+            <input type="search" id="partsSearch" placeholder="Try &quot;battery&quot;, &quot;slow&quot;, or &quot;won't charge&quot;" oninput="filterParts(this.value)" autocomplete="off">
+        </div>
+        <p class="parts-empty hidden" id="partsEmpty">No parts match that search. Try one word, like "screen" or "hot".</p>
+        <div class="parts-list" id="partsList"></div>
+    </details>
 </div>
 
 <div class="section stats">
     <h2 style="color: white">Total Repairs Completed</h2>
     <div class="stats-number" id="totalRepairs">0</div>
-    <p style="font-size: 1.2rem;">Devices successfully repaired and counting!</p>
+    <p style="font-size: 1.2rem;">Devices repaired and counting.</p>
 </div>
 
 <!-- Login Modal -->
@@ -260,7 +262,7 @@
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('trackModal')">×</span>
         <h2>Track Your Repair</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Enter the tracking code our tech gave you when you dropped off your device.</p>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Enter the tracking code you got when you dropped off your device.</p>
         <div class="form-group">
             <label for="trackCodeInput">Tracking Code</label>
             <input type="text" id="trackCodeInput" placeholder="e.g. BT4X92" style="text-transform: uppercase;" onkeydown="if(event.key==='Enter'){trackRepair();}">

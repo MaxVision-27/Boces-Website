@@ -349,18 +349,59 @@ body {
     font-size: 1.05rem;
 }
 
-.about-topic .about-link {
-    margin-top: .75rem;
+/* Cost topic: steps and part prices open under the blurb; the panel
+   widens while open so the cards have room */
+.about-panel {
+    transition: max-width .3s ease;
 }
 
-.about-link a,
+.about-panel:has(.about-topic.active details[open]) {
+    max-width: 1100px;
+}
+
+.cost-details {
+    margin-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+}
+
+.cost-details summary,
+.parts-details summary {
+    cursor: pointer;
+    color: var(--navy-700);
+    font-weight: 600;
+    font-size: 1.05rem;
+}
+
+.cost-details summary:hover,
+.parts-details summary:hover {
+    color: var(--navy-900);
+}
+
+.parts-details {
+    margin-top: -1.5rem;
+}
+
+.parts-details summary {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.cost-details .pricing-heading {
+    font-size: 1.25rem;
+    margin-top: 2rem;
+}
+
+.cost-details .pricing-note {
+    margin-bottom: 1.25rem;
+}
+
 .part-link {
     color: var(--navy-700);
     font-weight: 600;
     text-underline-offset: 3px;
 }
 
-.about-link a:hover,
 .part-link:hover {
     color: var(--navy-900);
 }
@@ -428,7 +469,7 @@ body {
     margin-bottom: .9rem;
 }
 
-.pricing-steps h4,
+.pricing-steps h5,
 .device-card h4,
 .part-entry h4 {
     color: var(--navy-900);
