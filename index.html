@@ -1,15 +1,16 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=17">
+    <link rel="stylesheet" href="css/styles.css?v=18">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="js/effects.js?v=10" defer></script>
-    <script src="js/main.js?v=21" defer></script>
+    <script src="js/main.js?v=22" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -207,7 +208,16 @@
     <div class="modal-content" style="max-width: 700px;">
         <span class="close-btn" onclick="closeModal('myTicketsModal')">×</span>
         <h2>My Tickets</h2>
-        <div id="myTicketsContainer" style="max-height: 500px; overflow-y: auto;"></div>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Open a ticket to log your work, add parts, and print its paperwork.</p>
+        <div id="myTicketsContainer"></div>
+    </div>
+</div>
+
+<!-- Ticket Workspace (Tech): one ticket opened up with room to work -->
+<div class="modal" id="ticketWorkspaceModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('ticketWorkspaceModal')">×</span>
+        <div id="ticketWorkspaceContainer"></div>
     </div>
 </div>
 
@@ -217,6 +227,17 @@
         <span class="close-btn" onclick="closeModal('myHoursModal')">×</span>
         <h2>My Hours</h2>
         <div id="myHoursContainer" style="max-height: 500px; overflow-y: auto;"></div>
+    </div>
+</div>
+
+<!-- Paper Preview: see a form exactly as it prints before printing or downloading it -->
+<div class="modal" id="paperPreviewModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('paperPreviewModal')">×</span>
+        <h2 id="paperPreviewTitle"></h2>
+        <p class="ws-hint" id="paperPreviewNote"></p>
+        <div class="ws-actions" id="paperPreviewActions"></div>
+        <div class="paper-sheets" id="paperPreviewSheets"></div>
     </div>
 </div>
 
