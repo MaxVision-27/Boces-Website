@@ -1,5 +1,6 @@
 // ============================================================
-// WORKFLOW GUIDE (Tech) — a game-style tour of the real screens.
+// WORKFLOW GUIDE (Tech and Admin) — a game-style tour of the real
+// screens, with one step list per role.
 // Each step spotlights one element (everything else dims) with a
 // callout joined to it by a line. Two modes: "self" (click the
 // highlighted button or press Next) and "present" (full screen, big
@@ -57,26 +58,50 @@ function fakeDb(tables) {
     return { from, rpc: async () => ({ data: null, error: null }) };
 }
 
-function enterSandbox() {
-    const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString();
-    const me = { id: 1, name: currentTechName || 'You' };
-    const sampleTicket = {
-        id: 41, name: 'Riley Chen', email: '', device: 'Desktop', issue: "Won't turn on after a storm.",
-        status: 'in_progress', tracking_code: 'Z9X1CV', created_at: daysAgo(2), assigned_tech_ids: [1, 2],
-        creation_tech_ids: [1, 2], created_by: 'Jordan (sample)', parts_used: '', review_note: null
-    };
-    const sampleLog = {
-        id: 7, ticket_id: 41, tech_id: 2, work_date: daysAgo(1).slice(0, 10), start_time: '13:15:00', end_time: '14:00:00',
-        note: 'Power supply fan does not spin. Tested with a spare PSU and it boots. Next: customer orders a PSU.',
-        team_tech_ids: [1, 2], created_at: daysAgo(1)
-    };
+const SAMPLE_SEND_BACK_NOTE = 'The screen still flickers when the lid is half open. Check the display cable.';
 
-    techs = [me, { id: 2, name: 'Jordan (sample)' }, { id: 3, name: 'Priya (sample)' }];
-    currentTechId = me.id;
-    currentTechName = me.name;
-    appointments = [{ ...sampleTicket }];
+function enterSandbox(role) {
+    const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString();
+    const ticket = (id, name, device, issue, status, team, days) => ({
+        id, name, email: '', device, issue, status, tracking_code: `PRAC${id}`, created_at: daysAgo(days),
+        assigned_tech_ids: team, creation_tech_ids: team, created_by: 'Sample', parts_used: '', review_note: null
+    });
+    const log = (id, ticket_id, tech_id, days, start, end, note, team) => ({
+        id, ticket_id, tech_id, work_date: daysAgo(days).slice(0, 10), start_time: start, end_time: end, note,
+        team_tech_ids: team, created_at: daysAgo(days)
+    });
+    let tickets, logs;
+
+    if (role === 'admin') {
+        techs = [{ id: 1, name: 'Alex (sample)' }, { id: 2, name: 'Jordan (sample)' }, { id: 3, name: 'Priya (sample)' }];
+        currentTechId = null;
+        tickets = [
+            ticket(58, 'Sam Patel', 'Smartphone', 'Battery drains by lunch.', 'in_progress', [1], 3),
+            ticket(57, 'Jamie Rivera', 'Laptop', 'Screen is cracked in the top left corner and flickers.', 'review', [2, 3], 4),
+            ticket(60, 'Morgan Blake', 'Tablet', 'Charging port is loose.', 'pending', [], 0)
+        ];
+        logs = [
+            log(7, 57, 2, 3, '13:15:00', '14:00:00', 'Took off the bezel. LCD panel is cracked. Customer is ordering one.', [2, 3]),
+            log(8, 57, 3, 1, '13:10:00', '14:05:00', 'Installed the new panel and tested it. No flicker.', [2, 3]),
+            log(9, 58, 1, 1, '13:20:00', '13:55:00', 'Battery health is 61%. Customer is ordering a battery.', [1])
+        ];
+    } else {
+        const me = { id: 1, name: currentTechName || 'You' };
+        techs = [me, { id: 2, name: 'Jordan (sample)' }, { id: 3, name: 'Priya (sample)' }];
+        currentTechId = me.id;
+        currentTechName = me.name;
+        tickets = [ticket(41, 'Riley Chen', 'Desktop', "Won't turn on after a storm.", 'in_progress', [1, 2], 2)];
+        logs = [log(7, 41, 2, 1, '13:15:00', '14:00:00', 'Power supply fan does not spin. Tested with a spare PSU and it boots. Next: customer orders a PSU.', [1, 2])];
+    }
+
+    appointments = tickets.map(t => ({ ...t }));
     myTimeLogs = [];
-    db = fakeDb({ repair_requests: [sampleTicket], time_logs: [sampleLog], techs: techs.map(t => ({ ...t })), stats: [] });
+    db = fakeDb({ repair_requests: tickets, time_logs: logs, techs: techs.map(t => ({ ...t })), stats: [] });
+    // Native dialogs would stall the tour; the page reload on exit brings them back.
+    window.alert = () => {};
+    window.confirm = () => true;
+    window.prompt = () => SAMPLE_SEND_BACK_NOTE;
+    populateAppointmentsModal();
 }
 
 const $g = sel => document.querySelector(sel);
@@ -89,29 +114,51 @@ function closeAllModals() {
     document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
 }
 
-// Going Back past Start Repair or Ready for Check-Off puts the practice
-// ticket back in the status that step expects.
-async function sandboxStatus(status) {
-    const appt = appointments.find(a => a.id === guideTicketId());
-    if (appt.status !== status) {
-        await db.from('repair_requests').update({ status }).eq('id', appt.id);
-        appt.status = status;
+// Going Back past a status change puts the practice ticket back in the
+// status (and note) that step expects.
+async function sandboxStatus(status, id = guideTicketId(), extra = {}) {
+    const appt = appointments.find(a => a.id === id);
+    const update = { status, ...extra };
+    if (Object.keys(update).some(k => appt[k] !== update[k])) {
+        await db.from('repair_requests').update(update).eq('id', id);
+        Object.assign(appt, update);
+        populateAppointmentsModal();
         renderTicketWorkspace();
     }
 }
 
-async function ensureWorkspace() {
+function fillNewTicket() {
+    if (!isOpen('techTicketModal')) { closeAllModals(); openTechTicketModal(); }
+    $g('#techApptName').value ||= 'Jamie Rivera';
+    $g('#techApptEmail').value ||= 'jrivera@school.edu';
+    $g('#techApptDevice').value = 'Laptop';
+    $g('#techApptIssue').value ||= 'Screen is cracked in the top left corner and flickers when opened.';
+}
+
+async function showServiceLogPreview(id) {
+    if (!isOpen('paperPreviewModal')) { await ensureWorkspace(id); await previewServiceLog(id); }
+}
+
+async function ensureWorkspace(id = guideTicketId()) {
     closeModal('paperPreviewModal');
-    if (!isWorkspaceOpen() || workspaceTicketId !== guideTicketId()) {
+    if (!isWorkspaceOpen() || workspaceTicketId !== id) {
         closeAllModals();
-        await openTicketWorkspace(guideTicketId());
+        await openTicketWorkspace(id);
+    }
+}
+
+function ensurePool() {
+    if (!isOpen('ticketPoolModal')) {
+        closeAllModals();
+        populateAppointmentsModal();
+        openModal('ticketPoolModal');
     }
 }
 
 // target: the element to spotlight (none = centered message).
 // click: the step is done by pressing that element; Next presses it too.
 // talk / ask: shown in presentation mode only.
-const GUIDE_STEPS = [
+const TECH_STEPS = [
     {
         title: 'Welcome to the Workflow Guide',
         text: "We'll walk through one repair, from drop-off to check-off, on the real screens. The tickets are practice ones, so go ahead and click what we highlight. Nothing is saved, emailed, or added to your hours.",
@@ -131,13 +178,7 @@ const GUIDE_STEPS = [
     {
         title: 'Describe the problem',
         text: 'Fill in the customer\'s name, their email if they have one, the device, and the problem in their words. We filled in an example.',
-        setup: () => {
-            if (!isOpen('techTicketModal')) { closeAllModals(); openTechTicketModal(); }
-            $g('#techApptName').value ||= 'Jamie Rivera';
-            $g('#techApptEmail').value ||= 'jrivera@school.edu';
-            $g('#techApptDevice').value = 'Laptop';
-            $g('#techApptIssue').value ||= 'Screen is cracked in the top left corner and flickers when opened.';
-        },
+        setup: fillNewTicket,
         target: () => $g('#techApptIssue'),
         talk: ["Write what the customer tells you, not your guess about what's wrong."],
         ask: "Why write the problem in the customer's own words?"
@@ -148,6 +189,15 @@ const GUIDE_STEPS = [
         target: () => $g('#techPartnerPicker'),
         talk: ['The hours sheet lists everyone on the ticket.', 'If the ticket moves to other students later, an admin changes it.'],
         ask: "Why does it matter who's on the ticket?"
+    },
+    {
+        title: 'The whole New Ticket form',
+        text: "That's everything on a new ticket: the customer, their device, the problem, and who's working on it. Next, create it.",
+        setup: fillNewTicket,
+        target: () => $g('#techTicketModal .modal-content'),
+        section: true,
+        talk: ['Every ticket has the same four parts.'],
+        ask: 'Which part of the form do you think gets skipped most?'
     },
     {
         title: 'Create the ticket',
@@ -167,7 +217,8 @@ const GUIDE_STEPS = [
                 openModal('ticketCreatedModal');
             }
         },
-        target: () => $g('#createdTrackingCode'),
+        target: () => $g('#ticketCreatedModal .modal-content'),
+        section: true,
         talk: ['The code is the only way a customer checks on a repair. They never need an account.'],
         ask: 'What should happen if a customer loses their code?'
     },
@@ -179,6 +230,15 @@ const GUIDE_STEPS = [
         click: true,
         talk: ['You only see tickets you are on.'],
         ask: 'Why show each student only their own tickets?'
+    },
+    {
+        title: 'Your ticket list',
+        text: 'Active tickets are at the top and completed ones below. Each card shows its status and how much time you have logged on it.',
+        setup: async () => { if (!isOpen('myTicketsModal')) { closeAllModals(); await viewMyTickets(); } },
+        target: () => $g('#myTicketsModal .modal-content'),
+        section: true,
+        talk: ['This list is your to-do list for the day.'],
+        ask: 'How would you decide which ticket to work on first?'
     },
     {
         title: 'Each ticket is a folder',
@@ -248,10 +308,19 @@ const GUIDE_STEPS = [
     {
         title: 'The real form',
         text: 'Below is the school Service Log, filled in from the sessions. When the repair is done, print it with this button.',
-        setup: async () => { if (!isOpen('paperPreviewModal')) { await ensureWorkspace(); await previewServiceLog(guideTicketId()); } },
+        setup: () => showServiceLogPreview(guideTicketId()),
         target: () => $g('#paperPreviewActions button'),
         talk: ['Serial number, date completed and accessories are written by hand.'],
         ask: 'Who reads these forms after you hand them in?'
+    },
+    {
+        title: 'The whole preview',
+        text: "The form's name, a note on what fills in, the Print button, and the sheet itself. Scroll inside the outline to see the full sheet.",
+        setup: () => showServiceLogPreview(guideTicketId()),
+        target: () => $g('#paperPreviewModal .modal-content'),
+        section: true,
+        talk: ['The Hours sheets open the same way, with Download instead of Print.'],
+        ask: 'What would you check on this sheet before printing it?'
     },
     {
         title: 'Finished and tested?',
@@ -271,6 +340,15 @@ const GUIDE_STEPS = [
         ask: 'What would you do if the admin sent your repair back?'
     },
     {
+        title: 'The whole ticket',
+        text: "That's everything on a ticket: the details at the top, the next-step box, logging your sessions, everyone's work, parts, and paperwork. Scroll inside the outline to see it all.",
+        setup: ensureWorkspace,
+        target: () => $g('#ticketWorkspaceModal .modal-content'),
+        section: true,
+        talk: ['Top to bottom, the page follows the order you work in.'],
+        ask: 'Which part of this page will you use every class?'
+    },
+    {
         title: 'Your hours',
         text: 'My Hours lists every session you logged, with your total. Use it to check your Hours sheets.',
         setup: closeAllModals,
@@ -279,11 +357,231 @@ const GUIDE_STEPS = [
         ask: 'How could logging hours help you later, for a job or a reference?'
     },
     {
+        title: 'Tech Tools',
+        text: 'Everything you need lives here: New Ticket, My Tickets, My Hours, and this guide.',
+        setup: closeAllModals,
+        target: () => $g('#techToolbar'),
+        section: true,
+        talk: ['If you get lost, come back to Tech Tools.'],
+        ask: 'Which button will you use most?'
+    },
+    {
         title: "That's the whole path",
         text: 'Drop-off, ticket, work sessions, check-off. Exit the guide to go back to the real site.',
         setup: closeAllModals,
         talk: ['Questions before we start on real devices?'],
         ask: 'Which step do you think is easiest to forget?'
+    }
+];
+
+const CHECK_ID = 57, NEW_ID = 60;
+const nextStepBox = () => $g('#ticketWorkspaceContainer .ws-next');
+
+const ADMIN_STEPS = [
+    {
+        title: 'Welcome to the Admin Guide',
+        text: "This walks through your side of the workflow: checking off repairs, picking students for new tickets, and keeping track of your students. Everything here is practice data. Nothing is saved or sent.",
+        setup: closeAllModals,
+        talk: ['Students do the repairs. You make sure each one is right before it goes home.'],
+        ask: 'Why should someone other than the student sign off on a repair?'
+    },
+    {
+        title: 'Start in the Ticket Pool',
+        text: 'Every ticket lands here. The number on the button is how many repairs are waiting for your check-off.',
+        setup: closeAllModals,
+        target: () => $g('#adminPanel [onclick*="ticketPoolModal"]'),
+        click: true,
+        talk: ['Check the count at the start and end of every class.'],
+        ask: 'How often should repairs be checked off?'
+    },
+    {
+        title: 'Repairs waiting for you',
+        text: 'Repairs the students say are finished sit at the top. Open one.',
+        setup: async () => { await sandboxStatus('review', CHECK_ID, { review_note: null }); ensurePool(); },
+        target: () => $g(`#appointmentsContainer .folder-card[onclick="openTicketWorkspace(${CHECK_ID})"]`),
+        click: true,
+        talk: ['Tickets are grouped by status, with check-offs at the top.'],
+        ask: 'What would you look for before opening a ticket?'
+    },
+    {
+        title: 'Check the device',
+        text: 'Test the device yourself. Then approve it, or send it back with what still needs doing.',
+        setup: async () => { await ensureWorkspace(CHECK_ID); await sandboxStatus('review', CHECK_ID, { review_note: null }); },
+        target: nextStepBox,
+        talk: ['Only you can mark a repair complete. The database enforces it.'],
+        ask: 'What should you test before approving a screen replacement?'
+    },
+    {
+        title: 'Read what they did',
+        text: "Every session from the students on this ticket, with their notes. Read it before you decide.",
+        setup: () => ensureWorkspace(CHECK_ID),
+        target: () => wsCard('Work so far'),
+        talk: ['Good notes make check-off fast.'],
+        ask: 'What makes a student note easy to check?'
+    },
+    {
+        title: 'Not right yet? Send it back',
+        text: "Click Send Back. You'll type what still needs doing. In practice mode we fill in an example for you.",
+        setup: async () => { await ensureWorkspace(CHECK_ID); await sandboxStatus('review', CHECK_ID, { review_note: null }); },
+        target: () => $g('#ticketWorkspaceContainer .ws-next [onclick^="sendBack"]'),
+        click: true,
+        talk: ['Be specific so the students know exactly what to fix.'],
+        ask: 'What makes a send-back note helpful instead of frustrating?'
+    },
+    {
+        title: 'The students see your note',
+        text: 'Your note now sits at the top of their ticket. When they fix it, they send it back to you for another check.',
+        setup: async () => { await ensureWorkspace(CHECK_ID); await sandboxStatus('in_progress', CHECK_ID, { review_note: SAMPLE_SEND_BACK_NOTE }); },
+        target: nextStepBox,
+        talk: ['A sent-back ticket is normal. It is how students learn to test their own work.'],
+        ask: 'How should students respond when a repair is sent back?'
+    },
+    {
+        title: 'Approve the repair',
+        text: 'The students fixed it and sent it again. It works, so press Approve & Complete.',
+        setup: async () => { await ensureWorkspace(CHECK_ID); await sandboxStatus('review', CHECK_ID, { review_note: null }); },
+        target: () => $g('#ticketWorkspaceContainer .ws-next [onclick^="markCompleted"]'),
+        click: true,
+        talk: ['Completed repairs count toward the total on the home page.'],
+        ask: 'What should happen next with the customer?'
+    },
+    {
+        title: 'Paperwork',
+        text: 'Open the Service Log and Hours sheets from here. Each one shows a preview of the real form before you print or download it.',
+        setup: async () => { await ensureWorkspace(CHECK_ID); await sandboxStatus('completed', CHECK_ID, { review_note: null }); },
+        target: () => wsCard('Paperwork'),
+        talk: ['Hours sheets split by team, so a handoff starts a new sheet.'],
+        ask: 'When should paperwork be printed and handed in?'
+    },
+    {
+        title: 'The whole ticket, from your side',
+        text: "Customer details, the check-off box, the students on it, their work, parts, paperwork, and delete. Scroll inside the outline to see it all.",
+        setup: () => ensureWorkspace(CHECK_ID),
+        target: () => $g('#ticketWorkspaceModal .modal-content'),
+        section: true,
+        talk: ['You see what the students see, plus your controls.'],
+        ask: 'What would you check on a ticket before approving it?'
+    },
+    {
+        title: 'The whole Ticket Pool',
+        text: 'Search and filters at the top, then every ticket grouped by status. Check-offs come first, then tickets that need students.',
+        setup: async () => { await sandboxStatus('pending', NEW_ID, { assigned_tech_ids: [] }); ensurePool(); },
+        target: () => $g('#ticketPoolModal .modal-content'),
+        section: true,
+        talk: ['Filter by status to focus on one group, or search a customer by name or email.'],
+        ask: 'Which group should be empty by the end of each class?'
+    },
+    {
+        title: 'New tickets need students',
+        text: 'Tickets with nobody on them wait under In the Pool. Open the new one.',
+        setup: async () => { await sandboxStatus('pending', NEW_ID, { assigned_tech_ids: [] }); ensurePool(); },
+        target: () => $g(`#appointmentsContainer .folder-card[onclick="openTicketWorkspace(${NEW_ID})"]`),
+        click: true,
+        talk: ['Students usually pick their own team when they create a ticket. This is for the ones that come in without one.'],
+        ask: 'How would you decide which students take a repair?'
+    },
+    {
+        title: 'Pick the students',
+        text: 'Tick everyone who will work on it. If you hand it to new students later, change it here. Their time starts a new Hours sheet.',
+        setup: async () => {
+            await ensureWorkspace(NEW_ID);
+            const box = $g(`.assign-tech-${NEW_ID}[value="3"]`);
+            if (box && !$g(`.assign-tech-${NEW_ID}:checked`)) box.checked = true;
+        },
+        target: () => wsCard('Students on this ticket'),
+        talk: ['We ticked Priya as an example.'],
+        ask: 'When would you move a ticket to different students?'
+    },
+    {
+        title: 'Save it',
+        text: 'Click Save Students.',
+        target: () => $g(`#saveStudents-${NEW_ID}`),
+        click: true,
+        talk: ['The ticket moves from In the Pool to Assigned.'],
+        ask: 'What should the students do first once they are assigned?'
+    },
+    {
+        title: 'Deleting a ticket',
+        text: 'Delete takes a ticket out of the pool. It is not gone: bring it back any time from the Deleted filter.',
+        setup: () => ensureWorkspace(NEW_ID),
+        target: () => wsCard('Delete ticket'),
+        talk: ['Use it for duplicates or tickets made by mistake.'],
+        ask: 'Why keep deleted tickets instead of erasing them?'
+    },
+    {
+        title: 'A new ticket, from your side',
+        text: 'Details, the next step, the students on it, and delete. Once students are on it, they take it from here.',
+        setup: () => ensureWorkspace(NEW_ID),
+        target: () => $g('#ticketWorkspaceModal .modal-content'),
+        section: true,
+        talk: ['New tickets have no sessions yet, so Work so far is empty.'],
+        ask: 'What should happen if nobody picks up a new ticket?'
+    },
+    {
+        title: 'Your students',
+        text: 'Manage Students shows every student at a glance.',
+        setup: closeAllModals,
+        target: () => $g('#adminPanel [onclick^="openManageStudents"]'),
+        click: true,
+        talk: ['Add new students here at the start of the year.'],
+        ask: 'What would you want to know about each student every week?'
+    },
+    {
+        title: 'Hours and tickets for each student',
+        text: 'Each card shows hours logged, active tickets, and any waiting for your check-off. Open, Rename, or Remove a student here.',
+        setup: async () => { if (!isOpen('manageStudentsModal')) { closeAllModals(); openStudentId = null; await openManageStudents(); } else { showStudent(null); } },
+        target: () => $g('#manageStudentsContainer .folder-card'),
+        talk: ['Rename keeps their tickets and hours. Remove takes them off every ticket.'],
+        ask: 'Who might need a nudge based on these numbers?'
+    },
+    {
+        title: "Open a student",
+        text: "Click Open to see one student's work.",
+        target: () => $g('#manageStudentsContainer [onclick="showStudent(2)"]'),
+        click: true,
+        talk: ['Great for parent conferences and grading.'],
+        ask: 'How could this page help with grading?'
+    },
+    {
+        title: 'Everything they worked on',
+        text: 'Their tickets, including ones handed off to others, and every session they logged with its notes.',
+        setup: async () => { if (!isOpen('manageStudentsModal')) { closeAllModals(); await openManageStudents(); } showStudent(2); },
+        target: () => $g('#manageStudentsContainer .folder-list'),
+        talk: ['Open any ticket from here. The back arrow returns to this student.'],
+        ask: 'What would a strong student page look like by the end of the year?'
+    },
+    {
+        title: "A student's whole page",
+        text: 'Their hours, their tickets, and every session they logged. Use ← All students to go back to the list.',
+        setup: async () => { if (!isOpen('manageStudentsModal')) { closeAllModals(); await openManageStudents(); } showStudent(2); },
+        target: () => $g('#manageStudentsModal .modal-content'),
+        section: true,
+        talk: ['Handed-off tickets stay on their page, so their work is never lost.'],
+        ask: "What would you look for on a student's page before grading?"
+    },
+    {
+        title: "The students' guide",
+        text: 'Techs have their own Workflow Guide under Tech Tools. Pick Present to the class to teach it on the projector.',
+        setup: closeAllModals,
+        target: () => $g('#adminPanel [onclick^="openWorkflowGuide"]'),
+        talk: ['It uses practice tickets too, so students can click anything.'],
+        ask: 'When in the year should students go through the guide?'
+    },
+    {
+        title: 'The Admin Panel',
+        text: 'Everything you need lives here: Manage Students, Update Stats, Ticket Pool, this guide, and Logout.',
+        setup: closeAllModals,
+        target: () => $g('#adminPanel'),
+        section: true,
+        talk: ['If you get lost, come back to the Admin Panel.'],
+        ask: 'Which button will you use most?'
+    },
+    {
+        title: "That's the admin side",
+        text: 'Check off repairs, pick students, and keep an eye on your roster. Exit the guide to go back to the real site.',
+        setup: closeAllModals,
+        talk: ['Questions?'],
+        ask: 'Which part of this will take the most of your time?'
     }
 ];
 
@@ -295,9 +593,10 @@ function openWorkflowGuide() {
 }
 
 function startGuide(mode) {
+    const role = currentRole === 'admin' ? 'admin' : 'tech';
     closeModal('guideChooserModal');
-    enterSandbox();
-    guide = { i: 0, mode };
+    enterSandbox(role);
+    guide = { i: 0, mode, steps: role === 'admin' ? ADMIN_STEPS : TECH_STEPS };
     document.body.classList.toggle('guide-present', mode === 'present');
     if (mode === 'present') document.documentElement.requestFullscreen?.().catch(() => {});
     document.getElementById('guideLayer').hidden = false;
@@ -305,6 +604,10 @@ function startGuide(mode) {
     document.addEventListener('keydown', guideKeys);
     window.addEventListener('resize', placeGuide);
     document.addEventListener('scroll', placeGuide, true);
+    // The dimmed layer takes the mouse, so pass the wheel to the outlined popup.
+    document.getElementById('guideBlock').addEventListener('wheel', e => {
+        guideTarget?.closest('.modal-content')?.scrollBy(0, e.deltaY);
+    }, { passive: true });
     showGuideStep();
 }
 
@@ -321,9 +624,9 @@ function guideKeys(e) {
 }
 
 async function showGuideStep() {
-    const step = GUIDE_STEPS[guide.i];
+    const step = guide.steps[guide.i];
     const present = guide.mode === 'present';
-    const last = guide.i === GUIDE_STEPS.length - 1;
+    const last = guide.i === guide.steps.length - 1;
     await step.setup?.();
 
     // Modals and results can take a moment to appear.
@@ -335,7 +638,7 @@ async function showGuideStep() {
 
     const box = document.getElementById('guideBox');
     box.innerHTML = `
-        <p class="guide-count">Step ${guide.i + 1} of ${GUIDE_STEPS.length}</p>
+        <p class="guide-count">Step ${guide.i + 1} of ${guide.steps.length}</p>
         <h3>${step.title}</h3>
         <p>${step.text}</p>
         ${present && step.talk ? `<ul class="guide-talk">${step.talk.map(t => `<li>${t}</li>`).join('')}</ul>` : ''}
@@ -350,8 +653,14 @@ async function showGuideStep() {
         </div>
         ${present ? '<p class="guide-keys">← → to move · Esc to exit</p>' : ''}`;
 
+    // Section steps outline a whole area: its popup moves to the top and
+    // shrinks so everything fits inside the outline, with the box below.
+    const room = innerHeight - document.getElementById('sandboxBanner').offsetHeight;
+    document.body.classList.toggle('guide-section', !!step.section);
+    document.documentElement.style.setProperty('--guide-room', `${room - box.offsetHeight - 80}px`);
+
     // Center the target, unless it's tall: then put it at the top so the box fits below.
-    if (guideTarget) {
+    if (guideTarget && !step.section) {
         const room = innerHeight - document.getElementById('sandboxBanner').offsetHeight;
         const tall = (room - guideTarget.offsetHeight) / 2 < box.offsetHeight + 44; // box won't fit above or below
         guideTarget.scrollIntoView({ block: tall ? 'start' : 'center', behavior: 'instant' });
@@ -366,8 +675,8 @@ function onGuideTargetClick() {
 }
 
 function guideNext() {
-    const step = GUIDE_STEPS[guide.i];
-    if (guide.i === GUIDE_STEPS.length - 1) return exitGuide();
+    const step = guide.steps[guide.i];
+    if (guide.i === guide.steps.length - 1) return exitGuide();
     if (step.click && guideTarget) return guideTarget.click(); // does the step, then advances
     guide.i++;
     showGuideStep();
@@ -406,7 +715,7 @@ function placeGuide() {
     Object.assign(spot.style, { left: `${s.l}px`, top: `${s.t}px`, width: `${s.r - s.l}px`, height: `${s.b - s.t}px` });
 
     // Clicks pass through the hole only when the step is done by clicking.
-    block.style.clipPath = GUIDE_STEPS[guide.i].click
+    block.style.clipPath = guide.steps[guide.i].click
         ? `polygon(evenodd, 0 0, ${W}px 0, ${W}px ${H}px, 0 ${H}px, 0 0, ${s.l}px ${s.t}px, ${s.r}px ${s.t}px, ${s.r}px ${s.b}px, ${s.l}px ${s.b}px, ${s.l}px ${s.t}px)`
         : 'none';
 
