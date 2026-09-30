@@ -86,6 +86,7 @@ function showForumPost(id) {
     document.getElementById('forumListView').hidden = true;
     const detail = document.getElementById('forumDetail');
     detail.hidden = false;
+    detail.dataset.post = id; // which post is showing
     detail.innerHTML = `
         <button class="ws-back" onclick="showForumList()">← All posts</button>
         <div class="ws-header">
@@ -138,6 +139,7 @@ async function openForumForm(editId = null) {
     document.getElementById('forumListView').hidden = true;
     const detail = document.getElementById('forumDetail');
     detail.hidden = false;
+    detail.dataset.post = '';
     detail.innerHTML = `
         <button class="ws-back" onclick="showForumList()">← All posts</button>
         <h2>${p ? 'Edit your post' : 'Share a fix'}</h2>
