@@ -1,7 +1,7 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=23">
+    <link rel="stylesheet" href="css/styles.css?v=24">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -10,9 +10,9 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="js/effects.js?v=10" defer></script>
-    <script src="js/main.js?v=24" defer></script>
+    <script src="js/main.js?v=25" defer></script>
     <script src="js/forum.js?v=2" defer></script>
-    <script src="js/guide.js?v=5" defer></script>
+    <script src="js/guide.js?v=6" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -153,7 +153,8 @@
             <label for="loginRole">Role</label>
             <select id="loginRole">
                 <option value="admin">Admin (Teacher)</option>
-                <option value="tech">Tech (Student)</option>
+                <option value="am">AM Tech (Student)</option>
+                <option value="pm">PM Tech (Student)</option>
             </select>
         </div>
         <div class="form-group">
@@ -252,7 +253,7 @@
     </div>
 </div>
 
-<!-- Paper Preview: see a form exactly as it prints before printing or downloading it -->
+<!-- Paper Preview: see a form exactly as it prints before printing it -->
 <div class="modal" id="paperPreviewModal">
     <div class="modal-content wide">
         <span class="close-btn" onclick="closeModal('paperPreviewModal')">×</span>
@@ -388,7 +389,11 @@
         <h2>Ticket Created</h2>
         <p style="font-size: 0.9rem; color: #555;">Give the customer this tracking code. They enter it under Track Repair to check on their repair.</p>
         <div class="tracking-code-big" id="createdTrackingCode"></div>
-        <button class="btn btn-primary" onclick="copyText(document.getElementById('createdTrackingCode').textContent, this)">Copy Code</button>
+        <div class="ws-actions" style="justify-content: center;">
+            <button class="btn btn-primary" onclick="copyText(document.getElementById('createdTrackingCode').textContent, this)">Copy Code</button>
+            <button class="btn btn-primary" id="printHelpDeskBtn" onclick="closeModal('ticketCreatedModal'); previewHelpDesk(Number(this.dataset.ticket))">🖨 Print Help Desk Ticket</button>
+        </div>
+        <p style="font-size: 0.85rem; color: #555; margin-top: 0.75rem;">Have the customer sign the Help Desk Ticket before they leave the device.</p>
     </div>
 </div>
 
@@ -404,41 +409,71 @@
 
 <!-- Tech-created Ticket Modal -->
 <div class="modal" id="techTicketModal">
-    <div class="modal-content">
+    <div class="modal-content wide">
         <span class="close-btn" onclick="closeModal('techTicketModal')">×</span>
         <h2>New Ticket</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">This ticket will be assigned to you and anyone you're working with. If it's handed to someone else, an admin changes that in the Ticket Pool.</p>
-        <div class="form-group">
-            <label for="techApptName">Customer Name</label>
-            <input type="text" id="techApptName" placeholder="Full name">
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Everything the Help Desk Ticket needs. After you create it, print the Help Desk Ticket for the customer to sign.</p>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="techApptName">Customer Name</label>
+                <input type="text" id="techApptName" placeholder="Example: Jamie Rivera" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptContact">Contact Number</label>
+                <input type="tel" id="techApptContact" placeholder="Example: (516) 555-0123" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptClass">Class Name</label>
+                <input type="text" id="techApptClass" placeholder="Example: Culinary Arts AM" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptRoom">Room Number</label>
+                <input type="text" id="techApptRoom" placeholder="Example: B112" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptDevice">Device Type</label>
+                <select id="techApptDevice">
+                    <option>Laptop</option>
+                    <option>Desktop</option>
+                    <option>Tablet</option>
+                    <option>Smartphone</option>
+                    <option>Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="techApptModel">Computer Make/Model</label>
+                <input type="text" id="techApptModel" placeholder="Example: Dell Latitude 5420" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptSerial">Serial Tag</label>
+                <input type="text" id="techApptSerial" placeholder="Example: 7XK3LM2 (sticker on the bottom)" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptPassword">Computer Password (optional)</label>
+                <input type="text" id="techApptPassword" placeholder="Only if you need it to test" autocomplete="off">
+                <small style="color:#555;">Deleted automatically when the repair is completed.</small>
+            </div>
         </div>
         <div class="form-group">
-            <label for="techApptEmail">Customer Email (optional)</label>
-            <input type="email" id="techApptEmail" placeholder="yourname@school.edu">
+            <label for="techApptIssue">Problem Description</label>
+            <textarea id="techApptIssue" rows="3" placeholder="Example: Screen is cracked in the top left corner and flickers when opened."></textarea>
         </div>
         <div class="form-group">
-            <label for="techApptDevice">Device Type</label>
-            <select id="techApptDevice">
-                <option>Laptop</option>
-                <option>Desktop</option>
-                <option>Tablet</option>
-                <option>Smartphone</option>
-                <option>Other</option>
-            </select>
+            <label for="techApptEmail">Customer Email (optional, not on the paper form)</label>
+            <input type="email" id="techApptEmail" placeholder="Example: jrivera@school.edu" autocomplete="off">
         </div>
         <div class="form-group">
-            <label for="techApptIssue">Issue Description</label>
-            <textarea id="techApptIssue" rows="3" placeholder="Describe the problem in detail"></textarea>
-        </div>
-        <div class="form-group">
+            <label>Receiving Tech</label>
+            <p id="techReceiving" style="font-weight:600; margin-bottom:0.5rem;"></p>
             <label>Working with (optional)</label>
             <div id="techPartnerPicker" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
         </div>
+        <p class="forum-error" id="techTicketError" hidden></p>
         <button class="btn btn-primary" onclick="submitTechTicket()">Create Ticket</button>
     </div>
 </div>
 
-<!-- Filled by printServiceLog(); the only thing visible when printing -->
+<!-- Filled by printPaperPreview(); the only thing visible when printing -->
 <div id="printArea"></div>
 
 </body></html>

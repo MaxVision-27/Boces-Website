@@ -1188,6 +1188,13 @@ body {
     background: white;
 }
 
+/* New Ticket: the Help Desk Ticket fields, two per row */
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+    gap: 0 1rem;
+}
+
 /* Tech Forum (js/forum.js) */
 .forum-tags {
     display: flex;
@@ -1592,6 +1599,23 @@ body {
     }
 
     .print-sheet:last-child {
+        break-after: auto;
+    }
+
+    /* The school's Word forms (docx-preview) carry their own page margins */
+    @page wordform {
+        size: letter;
+        margin: 0;
+    }
+
+    #printArea section.docx {
+        page: wordform;
+        margin: 0 !important;
+        box-shadow: none !important;
+        break-after: page;
+    }
+
+    #printArea > div:last-child section.docx:last-child {
         break-after: auto;
     }
 }

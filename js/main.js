@@ -16,6 +16,7 @@ let appointments = [];
 let techs = [];
 let currentTechId = null;
 let currentTechName = null;
+let currentSession = null; // 'AM' or 'PM' for a tech login (016_am_pm_and_help_desk.sql)
 let myTimeLogs = [];
 let deletedAppointments = [];
 // Session token from staff_login(). Sent as x-staff-token on every
@@ -71,7 +72,7 @@ async function loadTechs() {
 // (teacher removed them), clear the stale identity.
 function hydrateTechIdentity() {
     if (!currentTechId) return;
-    const tech = techs.find(t => t.id === currentTechId);
+    const tech = classRoster().find(t => t.id === currentTechId);
     if (tech) {
         currentTechName = tech.name;
     } else {
@@ -81,8 +82,15 @@ function hydrateTechIdentity() {
     }
 }
 
+// The students in the logged-in tech's class (students with no class set
+// show in both, so nobody disappears before an admin sorts them).
+function classRoster() {
+    return techs.filter(t => !currentSession || !t.session || t.session === currentSession);
+}
+
 // ============================================================
-// LOGIN
+// LOGIN — admin, or a tech from the AM or PM class. Each has its own
+// password; the server remembers the class with the session.
 // ============================================================
 async function login() {
     const role = document.getElementById('loginRole').value;
@@ -106,7 +114,8 @@ async function login() {
     }
 
     staffToken = token;
-    currentRole = role;
+    currentRole = role === 'admin' ? 'admin' : 'tech';
+    currentSession = role === 'admin' ? null : role.toUpperCase();
     sessionStorage.setItem('bocesStaffToken', token);
     closeModal('loginModal');
     document.getElementById('loginPassword').value = '';
@@ -114,9 +123,9 @@ async function login() {
     // Tickets, students and hours only come back once the token is set.
     await loadData();
 
-    if (role === 'tech') {
+    if (currentRole === 'tech') {
         const savedTechId = sessionStorage.getItem('bocesTechId');
-        if (savedTechId && techs.find(t => t.id === parseInt(savedTechId))) {
+        if (savedTechId && classRoster().find(t => t.id === parseInt(savedTechId))) {
             selectTech(parseInt(savedTechId), false);
         } else {
             openTechPicker();
@@ -130,6 +139,7 @@ async function logout() {
     if (staffToken) await db.rpc('staff_logout');
 
     staffToken = null;
+    currentSession = null;
     currentRole = null;
     currentTechId = null;
     currentTechName = null;
@@ -147,18 +157,19 @@ async function logout() {
 // ============================================================
 function openTechPicker() {
     const container = document.getElementById('techPickerContainer');
+    const roster = classRoster();
 
-    if (techs.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#999;">No students have been added yet. Ask your teacher to add you in Manage Students.</p>';
+    if (roster.length === 0) {
+        container.innerHTML = `<p style="text-align:center;color:#999;">No ${currentSession || ''} students have been added yet. Ask your teacher to add you in Manage Students.</p>`;
     } else {
-        container.innerHTML = techs.map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${t.name}</button>`).join('');
+        container.innerHTML = roster.map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${escapeHtml(t.name)}</button>`).join('');
     }
 
     openModal('techPickerModal');
 }
 
 function selectTech(techId, showAlert = true) {
-    const tech = techs.find(t => t.id === techId);
+    const tech = classRoster().find(t => t.id === techId);
     if (!tech) return;
 
     currentTechId = tech.id;
@@ -224,11 +235,12 @@ function populateManageStudentsModal() {
         const waiting = tickets.filter(a => a.status === 'review').length;
         return `
         <div class="folder-card" style="cursor:default;">
-            <span class="folder-top"><strong>${escapeHtml(t.name)}</strong> <span class="folder-meta">${studentHours(t.id).toFixed(2)} hr logged</span></span>
+            <span class="folder-top"><strong>${escapeHtml(t.name)} <span class="forum-type">${t.session || 'No class'}</span></strong> <span class="folder-meta">${studentHours(t.id).toFixed(2)} hr logged</span></span>
             <span class="ws-hint" style="margin:0;">${active} active ticket${active === 1 ? '' : 's'}${waiting ? ` · <strong style="color:#6f42c1;">${waiting} waiting for your check-off</strong>` : ''}</span>
             <div class="ws-actions" style="margin-top:0.4rem;">
                 <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="showStudent(${t.id})">Open</button>
                 <button class="btn btn-primary" style="padding:0.3rem 1rem; background:white; color:var(--navy-900); border:1px solid var(--border);" onclick="renameStudent(${t.id})">Rename</button>
+                <button class="btn btn-primary" style="padding:0.3rem 1rem; background:white; color:var(--navy-900); border:1px solid var(--border);" onclick="setStudentSession(${t.id}, '${t.session === 'AM' ? 'PM' : 'AM'}')">Move to ${t.session === 'AM' ? 'PM' : 'AM'}</button>
                 <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#dc3545; color:white;" onclick="removeStudent(${t.id})">Remove</button>
             </div>
         </div>`;
@@ -239,6 +251,10 @@ function populateManageStudentsModal() {
             <label for="newStudentName">Add Student</label>
             <div style="display:flex; gap:8px;">
                 <input type="text" id="newStudentName" placeholder="Example: Alex Kim" style="flex:1;" onkeydown="if(event.key==='Enter'){addStudent();}">
+                <select id="newStudentSession" aria-label="Class" style="width:auto;">
+                    <option value="AM">AM class</option>
+                    <option value="PM">PM class</option>
+                </select>
                 <button class="btn btn-primary" onclick="addStudent()">Add</button>
             </div>
         </div>
@@ -251,7 +267,7 @@ function studentPageHtml(student) {
     const ticketFolder = appt => `
         <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
             <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> ${statusBadge(appt.status)}</span>
-            <span class="folder-issue">${escapeHtml(appt.device)}: ${escapeHtml(appt.issue)}</span>
+            <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
             <span class="folder-meta">${(appt.assigned_tech_ids || []).includes(student.id) ? 'On this ticket now' : 'Handed off'} <strong>Open →</strong></span>
         </button>`;
 
@@ -276,6 +292,13 @@ function studentPageHtml(student) {
             </div>`).join('') : '<p class="ws-hint">No sessions logged yet.</p>'}`;
 }
 
+async function setStudentSession(techId, session) {
+    const { error } = await db.from('techs').update({ session }).eq('id', techId);
+    if (error) { console.error('Error moving student:', error); alert('Failed to move student.'); return; }
+    techs.find(t => t.id === techId).session = session;
+    populateManageStudentsModal();
+}
+
 async function renameStudent(techId) {
     const tech = techs.find(t => t.id === techId);
     const name = prompt('New name for this student:', tech.name)?.trim();
@@ -296,7 +319,8 @@ async function addStudent() {
 
     if (!name) { alert('Please enter a name'); return; }
 
-    const { data, error } = await db.from('techs').insert({ name }).select().single();
+    const session = document.getElementById('newStudentSession').value;
+    const { data, error } = await db.from('techs').insert({ name, session }).select().single();
     if (error) { console.error('Error adding student:', error); alert('Failed to add student.'); return; }
 
     techs.push(data);
@@ -342,7 +366,9 @@ async function removeStudent(techId) {
 // ============================================================
 function openTechTicketModal() {
     if (!currentTechId) { openTechPicker(); return; }
-    const others = techs.filter(t => t.id !== currentTechId);
+    document.getElementById('techReceiving').textContent = currentTechName;
+    document.getElementById('techTicketError').hidden = true;
+    const others = classRoster().filter(t => t.id !== currentTechId);
     document.getElementById('techPartnerPicker').innerHTML = others.length ? others.map(t => `
         <label style="display:inline-flex; align-items:center; gap:4px; background:white; padding:3px 8px; border-radius:10px; border:1px solid #ccc; font-size:0.85rem; font-weight:normal; cursor:pointer;">
             <input type="checkbox" class="partner-pick" value="${t.id}" style="width:auto;">
@@ -360,25 +386,33 @@ function generateTrackingCode() {
     return code;
 }
 
-async function submitTechTicket() {
-    const name = document.getElementById('techApptName').value.trim();
-    const email = document.getElementById('techApptEmail').value.trim().toLowerCase();
-    const device = document.getElementById('techApptDevice').value;
-    const issue = document.getElementById('techApptIssue').value.trim();
+// The New Ticket form mirrors the school's Help Desk Ticket
+// (forms/help-desk-template.docx), which prints from these fields.
+const TICKET_FIELDS = {
+    name: 'techApptName', contact_number: 'techApptContact', class_name: 'techApptClass', room_number: 'techApptRoom',
+    device: 'techApptDevice', make_model: 'techApptModel', serial_tag: 'techApptSerial',
+    computer_password: 'techApptPassword', issue: 'techApptIssue', email: 'techApptEmail'
+};
 
-    if (!name || !issue) {
-        alert('Please fill in the customer name and issue.');
-        return;
-    }
+async function submitTechTicket() {
+    const ticket = Object.fromEntries(Object.entries(TICKET_FIELDS)
+        .map(([col, id]) => [col, document.getElementById(id).value.trim()]));
+    ticket.email = ticket.email.toLowerCase();
+
+    const missing = [['name', 'the customer name'], ['contact_number', 'a contact number'], ['make_model', 'the computer make/model'], ['issue', 'the problem description']]
+        .filter(([col]) => !ticket[col]).map(([, label]) => label);
+    const errorBox = document.getElementById('techTicketError');
+    errorBox.hidden = !missing.length;
+    const list = missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing.at(-1)}` : missing[0];
+    errorBox.textContent = missing.length ? `Please add ${list}.` : '';
+    if (missing.length) { errorBox.scrollIntoView({ block: 'center' }); return; }
 
     let data, error;
     for (let attempt = 0; attempt < 5; attempt++) {
         const trackingCode = generateTrackingCode();
         ({ data, error } = await db.from('repair_requests').insert({
-            name,
-            email,
-            device,
-            issue,
+            ...ticket,
+            computer_password: ticket.computer_password || null,
             status: 'assigned',
             flagged: false,
             flag_reason: null,
@@ -396,11 +430,10 @@ async function submitTechTicket() {
     populateAppointmentsModal();
     closeModal('techTicketModal');
 
-    document.getElementById('techApptName').value = '';
-    document.getElementById('techApptEmail').value = '';
-    document.getElementById('techApptIssue').value = '';
+    Object.values(TICKET_FIELDS).forEach(id => { if (id !== 'techApptDevice') document.getElementById(id).value = ''; });
 
     document.getElementById('createdTrackingCode').textContent = data.tracking_code;
+    document.getElementById('printHelpDeskBtn').dataset.ticket = data.id;
     openModal('ticketCreatedModal');
 }
 
@@ -1001,7 +1034,7 @@ function updateRoleDisplay() {
         adminPanel.style.display = 'block';
         techToolbar.style.display = 'none';
     } else if (currentRole === 'tech') {
-        indicator.textContent = currentTechName ? `Tech: ${currentTechName}` : 'Tech';
+        indicator.textContent = `${currentSession ? currentSession + ' ' : ''}Tech${currentTechName ? `: ${currentTechName}` : ''}`;
         indicator.style.background = '#4169e1';
         indicator.style.color = 'white';
         indicator.classList.remove('hidden');
@@ -1061,7 +1094,7 @@ function populateAppointmentsModal() {
             : `<div class="folder-list">${deleted.map(appt => `
                 <div class="folder-card" style="cursor:default;">
                     <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> <span class="status-badge" style="background:#dc3545; color:white;">Deleted</span></span>
-                    <span class="folder-issue">${escapeHtml(appt.device)}: ${escapeHtml(appt.issue)}</span>
+                    <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
                     <span class="folder-meta">Deleted ${new Date(appt.deleted_at).toLocaleDateString()}</span>
                     <div class="ws-actions" style="margin-top:0.4rem;">
                         <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="restoreAppointment(${appt.id})">Restore</button>
@@ -1105,7 +1138,7 @@ function populateAppointmentsModal() {
         return `
         <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
             <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}${duplicate ? ' ⚠️' : ''}</strong> ${statusBadge(appt.status)}</span>
-            <span class="folder-issue">${escapeHtml(appt.device)}: ${escapeHtml(appt.issue)}</span>
+            <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
             <span class="folder-meta">${names.length ? escapeHtml(names.join(', ')) : 'No students yet'} <strong>Open →</strong></span>
         </button>`;
     };
@@ -1142,7 +1175,7 @@ async function viewMyTickets() {
         return `
         <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
             <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> ${statusBadge(appt.status)}</span>
-            <span class="folder-issue">${escapeHtml(appt.device)}: ${escapeHtml(appt.issue)}</span>
+            <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
             <span class="folder-meta">Your time: ${hours.toFixed(2)} hr <strong>Open →</strong></span>
         </button>`;
     };
@@ -1239,7 +1272,7 @@ function renderTicketWorkspace() {
         <button class="ws-back" onclick="leaveWorkspace()">← ${workspaceFrom.label}</button>
         <div class="ws-header">
             <div>
-                <p class="ws-eyebrow">Ticket #${appt.id} · ${escapeHtml(appt.device)}</p>
+                <p class="ws-eyebrow">Ticket #${appt.id} · ${escapeHtml([appt.make_model, appt.device].filter(Boolean).join(' · '))}</p>
                 <h2>${escapeHtml(appt.name)}</h2>
             </div>
             ${statusBadge(appt.status)}
@@ -1247,7 +1280,11 @@ function renderTicketWorkspace() {
         <dl class="ws-facts">
             <div><dt>Problem</dt><dd>${escapeHtml(appt.issue)}</dd></div>
             <div><dt>Team</dt><dd>${escapeHtml(team.join(', ') || 'Nobody yet')}</dd></div>
+            ${appt.serial_tag ? `<div><dt>Serial tag</dt><dd>${escapeHtml(appt.serial_tag)}</dd></div>` : ''}
+            ${appt.computer_password ? `<div><dt>Computer password</dt><dd>${escapeHtml(appt.computer_password)}</dd></div>` : ''}
+            ${appt.class_name || appt.room_number ? `<div><dt>Class and room</dt><dd>${escapeHtml([appt.class_name, appt.room_number && `Room ${appt.room_number}`].filter(Boolean).join(' · '))}</dd></div>` : ''}
             ${isAdmin ? `
+            <div><dt>Contact number</dt><dd>${escapeHtml(appt.contact_number || 'None given')}</dd></div>
             <div><dt>Customer email</dt><dd>${escapeHtml(appt.email || 'None given')}${duplicate ? ' <span style="color:#b45309;">⚠️ has other tickets</span>' : ''}</dd></div>
             <div><dt>Created</dt><dd>${new Date(appt.created_at).toLocaleDateString()}${appt.created_by ? ` by ${escapeHtml(appt.created_by)}` : ''}</dd></div>` : ''}
             ${appt.tracking_code ? `<div><dt>Tracking code</dt><dd><strong>${appt.tracking_code}</strong>
@@ -1298,7 +1335,7 @@ function renderTicketWorkspace() {
 
         <section class="ws-card">
             <h3>Paperwork</h3>
-            <p class="ws-hint">Open a form to check what's on it, then print or download it.</p>
+            <p class="ws-hint">Open a form to check what's on it, then print it.</p>
             ${paperworkButtons(appt.id)}
         </section>
 
@@ -1442,7 +1479,8 @@ function renderMyHours() {
 
 // ============================================================
 // PRINTABLE FORMS — the paper Service Log (printed from the page) and
-// the WBL Hours sheet (the school's own .docx, filled and downloaded).
+// the WBL Hours sheet and Help Desk Ticket (the school's own .docx files,
+// filled in the browser).
 // Tickets and time logs are staff-only in the database (008), so these
 // only fill in for a logged-in admin or tech. Each form opens in the
 // Paper Preview first: the Service Log as HTML (printed by copying it
@@ -1458,6 +1496,7 @@ function escapeHtml(text) {
 function paperworkButtons(apptId) {
     return `
         <div class="ws-actions" style="margin:0.4rem 0;">
+            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewHelpDesk(${apptId})">📄 Help Desk Ticket</button>
             <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewServiceLog(${apptId})">📄 Service Log</button>
             <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewHoursSheets(${apptId}, 'creation')">📄 Hours: Ticket Creation</button>
             <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewHoursSheets(${apptId}, 'repair')">📄 Hours: Repair Work</button>
@@ -1494,57 +1533,83 @@ async function previewServiceLog(apptId) {
     const techName = id => techs.find(t => t.id === id)?.name || '';
     const studentNames = (appt.assigned_tech_ids || []).map(techName).filter(Boolean);
     const sheets = openPaperPreview(`Service Log · Ticket #${appt.id}`,
-        'Each work session with a note fills a dated row. Write the serial number, date completed, and accessories by hand.',
-        '<button class="btn btn-primary" onclick="printPaperPreview()">🖨 Print</button>');
+        'Each work session with a note fills a dated row. Write the date completed and accessories by hand.',
+        PRINT_BUTTON);
     sheets.innerHTML = serviceLogHtml(appt, logs, studentNames, techName);
     fitPaperPreview();
 }
 
-function printPaperPreview() {
-    const area = document.getElementById('printArea');
-    area.innerHTML = document.getElementById('paperPreviewSheets').innerHTML;
-    area.querySelectorAll('.print-sheet').forEach(page => page.style.zoom = '');
-    window.addEventListener('afterprint', () => { area.innerHTML = ''; }, { once: true });
-    window.print();
-}
-
-let previewFiles = [];
-
-async function previewHoursSheets(apptId, kind) {
-    const files = await buildHoursSheets(apptId, kind);
-    if (!files) return;
-
-    previewFiles = files;
-    const label = kind === 'creation' ? 'Ticket Creation' : 'Repair Work';
-    const note = kind === 'creation'
-        ? 'Credits 30 minutes to the students on the ticket when it was created.'
-        : 'Each logged session fills a date line. A new team or a sixth session starts another sheet.';
-    const sheets = openPaperPreview(`Hours: ${label} · Ticket #${apptId}`, note,
-        `<button class="btn btn-primary" onclick="downloadPreviewFiles()">⬇ Download ${files.length > 1 ? `all ${files.length} sheets` : 'sheet'} (.docx)</button>`);
-
-    sheets.innerHTML = '';
-    for (const file of files) {
+// The school's Word forms render as HTML with docx-preview, one section
+// per page, so they preview and print like the Service Log.
+async function renderDocxPages(blobs, container) {
+    container.innerHTML = '';
+    for (const blob of blobs) {
         const page = document.createElement('div');
-        sheets.append(page);
-        await docx.renderAsync(file.blob, page, null, { inWrapper: false, ignoreLastRenderedPageBreak: true });
+        container.append(page);
+        await docx.renderAsync(blob, page, null, { inWrapper: false, ignoreLastRenderedPageBreak: true });
     }
     fitPaperPreview();
 }
 
-function downloadPreviewFiles() {
-    for (const file of previewFiles) {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(file.blob);
-        link.download = file.name;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-    }
+const PRINT_BUTTON = '<button class="btn btn-primary" onclick="printPaperPreview()">🖨 Print</button>';
+
+function printPaperPreview() {
+    const area = document.getElementById('printArea');
+    area.innerHTML = document.getElementById('paperPreviewSheets').innerHTML;
+    area.querySelectorAll('.print-sheet, section.docx').forEach(page => page.style.zoom = '');
+    window.addEventListener('afterprint', () => { area.innerHTML = ''; }, { once: true });
+    window.print();
+}
+
+async function previewHoursSheets(apptId, kind) {
+    const blobs = await buildHoursSheets(apptId, kind);
+    if (!blobs) return;
+
+    const label = kind === 'creation' ? 'Ticket Creation' : 'Repair Work';
+    const note = kind === 'creation'
+        ? 'Credits 30 minutes to the students on the ticket when it was created.'
+        : 'Each logged session fills a date line. A new team or a sixth session starts another sheet.';
+    const sheets = openPaperPreview(`Hours: ${label} · Ticket #${apptId}`, note, PRINT_BUTTON);
+    await renderDocxPages(blobs, sheets);
+}
+
+// The school's Help Desk Ticket with {{KEY}} after each label (see
+// scripts/make-help-desk-template.py). Signatures stay blank for the customer.
+const HELP_DESK_TEMPLATE = 'forms/help-desk-template.docx';
+
+async function previewHelpDesk(apptId) {
+    const appt = appointments.find(a => a.id === apptId);
+    const response = await fetch(HELP_DESK_TEMPLATE);
+    if (!response.ok) { alert('Could not load the Help Desk Ticket.'); return; }
+    const zip = await JSZip.loadAsync(await response.arrayBuffer());
+    const values = {
+        INTAKE: `#${appt.id}`,
+        CUSTOMER: appt.name,
+        CONTACT: appt.contact_number,
+        CLASS: appt.class_name,
+        ROOM: appt.room_number,
+        MODEL: [appt.make_model, appt.device && `(${appt.device})`].filter(Boolean).join(' '),
+        SERIAL: appt.serial_tag,
+        PASSWORD: appt.computer_password,
+        PROBLEM: (appt.issue || '').replace(/\s+/g, ' '),
+        TECH: appt.created_by,
+        DATE: new Date(appt.created_at).toLocaleDateString()
+    };
+    const xml = (await zip.file('word/document.xml').async('string'))
+        .replace(/\{\{(\w+)\}\}/g, (_, key) => escapeHtml(values[key] || ''));
+    zip.file('word/document.xml', xml);
+
+    const sheets = openPaperPreview(`Help Desk Ticket · Ticket #${appt.id}`,
+        'Print this when the device comes in and have the customer sign both pages.', PRINT_BUTTON);
+    await renderDocxPages([await zip.generateAsync({ type: 'blob' })], sheets);
 }
 
 function serviceLogHtml(appt, logs, studentNames, techName) {
+    const session = id => techs.find(t => t.id === id)?.session || 'PM';
+    const amPm = id => session(id) === 'AM' ? '<span class="circled">AM</span> or PM' : 'AM or <span class="circled">PM</span>';
     const rows = logs.filter(l => l.note).map(l => `
         <tr>
-            <th>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}<br>AM or <span class="circled">PM</span></th>
+            <th>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}<br>${amPm(l.tech_id)}</th>
             <td><strong>${escapeHtml(techName(l.tech_id))}:</strong> ${escapeHtml(l.note)}</td>
         </tr>`);
     while (rows.length < 7) rows.push('<tr class="blank-row"><th>Date<br>AM or PM</th><td></td></tr>');
@@ -1555,8 +1620,8 @@ function serviceLogHtml(appt, logs, studentNames, techName) {
         <table>
             <tr><th>Start date</th><td>${new Date(appt.created_at).toLocaleDateString()}</td></tr>
             <tr><th>Intake #</th><td>Ticket #${appt.id}${appt.tracking_code ? ` &nbsp;·&nbsp; Tracking code: ${escapeHtml(appt.tracking_code)}` : ''}</td></tr>
-            <tr><th>Model of computer</th><td>${escapeHtml(appt.device)}</td></tr>
-            <tr><th>Serial Number</th><td></td></tr>
+            <tr><th>Model of computer</th><td>${escapeHtml(appt.make_model || appt.device)}</td></tr>
+            <tr><th>Serial Number</th><td>${escapeHtml(appt.serial_tag || '')}</td></tr>
             <tr><th>Description of problem</th><td>${escapeHtml(appt.issue)}</td></tr>
             <tr><th>Date completed</th><td></td></tr>
             <tr><th>Tech Names</th><td>${escapeHtml(studentNames.join(', '))}</td></tr>
@@ -1594,6 +1659,7 @@ function fillHoursTemplate(xml, values) {
 async function buildHoursSheets(apptId, kind) {
     const appt = appointments.find(a => a.id === apptId);
     const teamNames = ids => (ids || []).map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
+    const teamSessions = ids => new Set((ids || []).map(id => techs.find(t => t.id === id)?.session || 'PM'));
     let teams;
 
     if (kind === 'creation') {
@@ -1602,6 +1668,7 @@ async function buildHoursSheets(apptId, kind) {
         const hhmm = d => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
         teams = [{
             names: teamNames(appt.creation_tech_ids),
+            classes: teamSessions(appt.creation_tech_ids),
             sessions: [{ date: start.toLocaleDateString(), start: formatTime12h(hhmm(start)), end: formatTime12h(hhmm(end)) }]
         }];
     } else {
@@ -1616,7 +1683,7 @@ async function buildHoursSheets(apptId, kind) {
         const byTeam = new Map();
         for (const l of logs) {
             const key = [...(l.team_tech_ids || [])].sort((a, b) => a - b).join(',');
-            if (!byTeam.has(key)) byTeam.set(key, { names: teamNames(l.team_tech_ids), sessions: new Map() });
+            if (!byTeam.has(key)) byTeam.set(key, { names: teamNames(l.team_tech_ids), classes: teamSessions(l.team_tech_ids), sessions: new Map() });
             // Students who worked a session together each log it; list it once.
             byTeam.get(key).sessions.set(`${l.work_date} ${l.start_time} ${l.end_time}`, {
                 date: new Date(l.work_date + 'T00:00:00').toLocaleDateString(),
@@ -1624,22 +1691,21 @@ async function buildHoursSheets(apptId, kind) {
                 end: formatTime12h(l.end_time)
             });
         }
-        teams = [...byTeam.values()].map(t => ({ names: t.names, sessions: [...t.sessions.values()] }));
+        teams = [...byTeam.values()].map(t => ({ ...t, sessions: [...t.sessions.values()] }));
     }
 
     // The form has five date lines, so more sessions go on another sheet.
     const sheets = teams.flatMap(t => Array.from({ length: Math.ceil(t.sessions.length / 5) },
-        (_, i) => ({ names: t.names, sessions: t.sessions.slice(i * 5, i * 5 + 5) })));
+        (_, i) => ({ ...t, sessions: t.sessions.slice(i * 5, i * 5 + 5) })));
 
     const response = await fetch(HOURS_TEMPLATE);
     if (!response.ok) { alert('Could not load the Hours sheet template.'); return; }
     const zip = await JSZip.loadAsync(await response.arrayBuffer());
     const xml = await zip.file('word/document.xml').async('string');
-    const label = kind === 'creation' ? 'Ticket-Creation' : 'Repair';
-    const files = [];
+    const blobs = [];
 
-    for (const [n, sheet] of sheets.entries()) {
-        const values = { DEVICE: `Ticket #${appt.id}`, PM: '✔' };
+    for (const sheet of sheets) {
+        const values = { DEVICE: `Ticket #${appt.id}`, AM: sheet.classes.has('AM') ? '✔' : '', PM: sheet.classes.has('PM') ? '✔' : '' };
         // ponytail: the form has 6 name lines; a 7th student on one team is left off
         sheet.names.slice(0, 6).forEach((name, j) => { values[`NAME${j + 1}`] = name; });
         sheet.sessions.forEach((s, j) => {
@@ -1649,12 +1715,9 @@ async function buildHoursSheets(apptId, kind) {
         });
 
         zip.file('word/document.xml', fillHoursTemplate(xml, values));
-        files.push({
-            name: `Ticket-${appt.id}-Hours-${label}${sheets.length > 1 ? `-${n + 1}` : ''}.docx`,
-            blob: await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
-        });
+        blobs.push(await zip.generateAsync({ type: 'blob' }));
     }
-    return files;
+    return blobs;
 }
 
 // ============================================================
@@ -1722,6 +1785,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data: role } = await db.rpc('current_staff_role');
         if (role) {
             currentRole = role;
+            if (role === 'tech') currentSession = (await db.rpc('current_staff_group')).data;
             const savedTechId = sessionStorage.getItem('bocesTechId');
             if (savedTechId) currentTechId = parseInt(savedTechId);
         } else {
