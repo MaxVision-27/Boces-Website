@@ -71,6 +71,21 @@ function enterSandbox(role) {
         team_tech_ids: team, created_at: daysAgo(days)
     });
     let tickets, logs;
+    const posts = [
+        {
+            id: 3, created_at: daysAgo(6), updated_at: null, tech_id: 2, author_name: 'Jordan (sample)',
+            title: 'Laptop screen flickers when the lid moves', device: 'Dell Latitude 5420', device_type: 'Laptop', tags: ['Screen'],
+            body: 'It was the display cable, not the panel. Take off the hinge covers (two screws under the back rubber feet), reseat the cable at both ends, and test before you close it up.',
+            links: ['https://www.youtube.com/results?search_query=dell+latitude+5420+display+cable'], ticket_id: null, ticket_notes: null
+        },
+        {
+            id: 4, created_at: daysAgo(2), updated_at: null, tech_id: 3, author_name: 'Priya (sample)',
+            title: 'Phone battery dead by lunch', device: 'iPhone 12', device_type: 'Phone', tags: ['Battery', 'Software'],
+            body: 'Check Settings > Battery > Battery Health first. Under 80% means it needs a new battery. Above that, look for an app with lots of background activity.',
+            links: ['https://www.ifixit.com/Device/iPhone_12'], ticket_id: 30,
+            ticket_notes: 'Battery health 71%. Customer is ordering a battery.\nInstalled the new battery. Health reads 100%.'
+        }
+    ];
 
     if (role === 'admin') {
         techs = [{ id: 1, name: 'Alex (sample)' }, { id: 2, name: 'Jordan (sample)' }, { id: 3, name: 'Priya (sample)' }];
@@ -90,13 +105,20 @@ function enterSandbox(role) {
         techs = [me, { id: 2, name: 'Jordan (sample)' }, { id: 3, name: 'Priya (sample)' }];
         currentTechId = me.id;
         currentTechName = me.name;
-        tickets = [ticket(41, 'Riley Chen', 'Desktop', "Won't turn on after a storm.", 'in_progress', [1, 2], 2)];
-        logs = [log(7, 41, 2, 1, '13:15:00', '14:00:00', 'Power supply fan does not spin. Tested with a spare PSU and it boots. Next: customer orders a PSU.', [1, 2])];
+        tickets = [
+            ticket(35, 'Casey Morgan', 'Laptop', 'Keyboard missing keys.', 'completed', [1], 9),
+            ticket(41, 'Riley Chen', 'Desktop', "Won't turn on after a storm.", 'in_progress', [1, 2], 2)
+        ];
+        logs = [
+            log(5, 35, 1, 8, '13:10:00', '13:50:00', 'Ordered the keyboard for the HP 250 G8. Pop the old keys off with a plastic pry tool.', [1]),
+            log(6, 35, 1, 6, '13:15:00', '14:00:00', 'Swapped the keyboard. Tested every key in Notepad.', [1]),
+            log(7, 41, 2, 1, '13:15:00', '14:00:00', 'Power supply fan does not spin. Tested with a spare PSU and it boots. Next: customer orders a PSU.', [1, 2])
+        ];
     }
 
     appointments = tickets.map(t => ({ ...t }));
     myTimeLogs = [];
-    db = fakeDb({ repair_requests: tickets, time_logs: logs, techs: techs.map(t => ({ ...t })), stats: [] });
+    db = fakeDb({ repair_requests: tickets, time_logs: logs, techs: techs.map(t => ({ ...t })), stats: [], forum_posts: posts });
     // Native dialogs would stall the tour; the page reload on exit brings them back.
     window.alert = () => {};
     window.confirm = () => true;
@@ -137,6 +159,16 @@ function fillNewTicket() {
 
 async function showServiceLogPreview(id) {
     if (!isOpen('paperPreviewModal')) { await ensureWorkspace(id); await previewServiceLog(id); }
+}
+
+async function ensureForum() {
+    if (!isOpen('forumModal')) { closeAllModals(); await openForum(); }
+    else showForumList();
+}
+
+async function ensureForumForm() {
+    if (!isOpen('forumModal')) { closeAllModals(); await openForum(); }
+    if (document.getElementById('forumDetail').hidden || !$g('#forumTitle')) await openForumForm();
 }
 
 async function ensureWorkspace(id = guideTicketId()) {
@@ -357,8 +389,43 @@ const TECH_STEPS = [
         ask: 'How could logging hours help you later, for a job or a reference?'
     },
     {
+        title: 'Stuck? Check the Forum',
+        text: 'Other students post how they fixed things: the steps, YouTube videos, and part links. Look here before you ask someone.',
+        setup: closeAllModals,
+        target: () => $g('#techToolbar [onclick^="openForum"]'),
+        click: true,
+        talk: ['Someone may have fixed the same device last month.'],
+        ask: 'Why search the forum before asking a classmate?'
+    },
+    {
+        title: 'Search and filter',
+        text: 'Type a device or a problem, pick a device type, or tap filters like Screen or Battery.',
+        setup: ensureForum,
+        target: () => $g('#forumFilters'),
+        talk: ['Filters only work because every post has to pick at least one.'],
+        ask: 'What would you type to find help with a laptop that will not charge?'
+    },
+    {
+        title: 'Share a fix',
+        text: 'Fixed something tricky? Post it so the next student can learn from you.',
+        setup: ensureForum,
+        target: () => $g('#forumNewBtn'),
+        click: true,
+        talk: ['Teaching someone else is the best way to remember a fix.'],
+        ask: 'What kind of fix is worth posting?'
+    },
+    {
+        title: 'The post form',
+        text: 'A title, the device name and type, filters, how you fixed it, and links. You can also copy the notes from a ticket you finished. Posts with swear words are blocked.',
+        setup: ensureForumForm,
+        target: () => $g('#forumModal .modal-content'),
+        section: true,
+        talk: ['Only the notes come over from a ticket, never the customer.', 'Leave out names, emails, and passwords.'],
+        ask: 'What makes a post easy to follow?'
+    },
+    {
         title: 'Tech Tools',
-        text: 'Everything you need lives here: New Ticket, My Tickets, My Hours, and this guide.',
+        text: 'Everything you need lives here: New Ticket, My Tickets, My Hours, the Forum, and this guide.',
         setup: closeAllModals,
         target: () => $g('#techToolbar'),
         section: true,
@@ -560,6 +627,14 @@ const ADMIN_STEPS = [
         ask: "What would you look for on a student's page before grading?"
     },
     {
+        title: 'The Forum',
+        text: 'Students share fixes, videos, and part links here. Read along, and delete any post that should not be there.',
+        setup: closeAllModals,
+        target: () => $g('#adminPanel [onclick^="openForum"]'),
+        talk: ['Swear words are blocked automatically. You handle anything else.'],
+        ask: 'What should students never post in the forum?'
+    },
+    {
         title: "The students' guide",
         text: 'Techs have their own Workflow Guide under Tech Tools. Pick Present to the class to teach it on the projector.',
         setup: closeAllModals,
@@ -569,7 +644,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'The Admin Panel',
-        text: 'Everything you need lives here: Manage Students, Update Stats, Ticket Pool, this guide, and Logout.',
+        text: 'Everything you need lives here: Manage Students, Update Stats, Ticket Pool, the Forum, this guide, and Logout.',
         setup: closeAllModals,
         target: () => $g('#adminPanel'),
         section: true,

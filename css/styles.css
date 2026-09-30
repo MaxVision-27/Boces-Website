@@ -1176,6 +1176,95 @@ body {
     cursor: pointer;
 }
 
+.ws-card select {
+    display: block;
+    width: 100%;
+    margin-top: .3rem;
+    padding: .6rem .7rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-weight: 400;
+    background: white;
+}
+
+/* Tech Forum (js/forum.js) */
+.forum-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .3rem;
+}
+
+.forum-tag,
+.forum-type {
+    display: inline-block;
+    padding: .1rem .55rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    color: var(--ink-soft);
+    font-size: .75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.forum-type {
+    background: var(--navy-900);
+    border-color: var(--navy-900);
+    color: white;
+}
+
+.forum-filter {
+    padding: .3rem .8rem;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--ink);
+    font: inherit;
+    font-size: .85rem;
+    cursor: pointer;
+}
+
+.forum-filter[aria-pressed="true"] {
+    background: var(--navy-900);
+    border-color: var(--navy-900);
+    color: white;
+}
+
+.forum-body {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--ink);
+}
+
+.forum-body a,
+.forum-links a {
+    color: var(--navy-700);
+    font-weight: 600;
+}
+
+.forum-links {
+    list-style: none;
+    display: grid;
+    gap: .4rem;
+}
+
+.forum-label {
+    font-weight: 600;
+    font-size: .9rem;
+    margin-bottom: .4rem;
+}
+
+.forum-error {
+    background: #fef2f2;
+    border: 1px solid #dc3545;
+    color: #b91c1c;
+    border-radius: var(--radius-sm);
+    padding: .6rem .8rem;
+    margin-bottom: .75rem;
+    font-weight: 600;
+}
+
 /* Paper preview: the real sheet, scaled down to fit */
 .paper-sheets {
     display: grid;
