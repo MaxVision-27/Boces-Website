@@ -1335,6 +1335,17 @@ body {
     border: 1px solid var(--border);
 }
 
+/* Section steps: the open popup sits at the top, short enough that the
+   whole thing fits inside the outline with the description below it */
+.guide-section .modal {
+    align-items: flex-start;
+    padding-top: 16px;
+}
+
+.guide-section .modal .modal-content {
+    max-height: max(220px, var(--guide-room));
+}
+
 /* Class presentation: big enough to read from the back of the room */
 .guide-present #guideBox {
     width: min(720px, calc(100vw - 48px));
