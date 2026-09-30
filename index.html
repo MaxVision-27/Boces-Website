@@ -1,7 +1,7 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=22">
+    <link rel="stylesheet" href="css/styles.css?v=23">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -11,7 +11,8 @@
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="js/effects.js?v=10" defer></script>
     <script src="js/main.js?v=24" defer></script>
-    <script src="js/guide.js?v=3" defer></script>
+    <script src="js/forum.js?v=1" defer></script>
+    <script src="js/guide.js?v=4" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -169,6 +170,7 @@
     <button class="btn btn-primary" onclick="openManageStudents()">Manage Students</button>
     <button class="btn btn-primary" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
     <button class="btn btn-primary" onclick="openModal('ticketPoolModal')">Ticket Pool<span id="checkoffCount"></span></button>
+    <button class="btn btn-primary" onclick="openForum()">Forum</button>
     <button class="btn btn-primary" onclick="openWorkflowGuide()">Workflow Guide</button>
     <button class="btn btn-primary" onclick="logout()">Logout</button>
 </div>
@@ -179,6 +181,7 @@
     <button class="btn btn-primary" style="background:#17a2b8; color:white;" onclick="openTechTicketModal()">New Ticket</button>
     <button class="btn btn-primary" onclick="viewMyTickets()">My Tickets</button>
     <button class="btn btn-primary" onclick="openMyHours()">My Hours</button>
+    <button class="btn btn-primary" onclick="openForum()">Forum</button>
     <button class="btn btn-primary" onclick="openWorkflowGuide()">Workflow Guide</button>
     <button class="btn btn-primary" onclick="logout()">Logout</button>
 </div>
@@ -257,6 +260,34 @@
         <p class="ws-hint" id="paperPreviewNote"></p>
         <div class="ws-actions" id="paperPreviewActions"></div>
         <div class="paper-sheets" id="paperPreviewSheets"></div>
+    </div>
+</div>
+
+<!-- Tech Forum (js/forum.js): the list view's search and filters stay put while typing -->
+<div class="modal" id="forumModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('forumModal')">×</span>
+        <div id="forumListView">
+            <h2>Tech Forum</h2>
+            <p class="ws-hint">Fixes, videos, and part links from other students. Search here before you ask someone.</p>
+            <button class="btn btn-primary" id="forumNewBtn" style="margin-bottom: 1rem;" onclick="openForumForm()">+ New Post</button>
+            <div id="forumFilters">
+                <div class="pool-filters">
+                    <input type="search" id="forumSearch" placeholder="Search titles, devices, and fixes" oninput="renderForumList()" autocomplete="off">
+                    <select id="forumType" onchange="renderForumList()">
+                        <option value="">All device types</option>
+                        <option>Laptop</option>
+                        <option>Desktop</option>
+                        <option>Tablet</option>
+                        <option>Phone</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="ws-actions" id="forumTagFilters" style="margin-bottom: 1rem;"></div>
+            </div>
+            <div id="forumList"></div>
+        </div>
+        <div id="forumDetail" hidden></div>
     </div>
 </div>
 
