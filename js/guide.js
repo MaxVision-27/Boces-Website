@@ -171,6 +171,31 @@ async function ensureForumForm() {
     if (document.getElementById('forumDetail').hidden || !$g('#forumTitle')) await openForumForm();
 }
 
+async function ensureForumPost(id) {
+    if (!isOpen('forumModal')) { closeAllModals(); await openForum(); }
+    const detail = document.getElementById('forumDetail');
+    if (detail.hidden || detail.dataset.post !== String(id)) showForumPost(id);
+}
+
+const forumFormCard = field => $g(field)?.closest('.ws-card');
+
+// The example post the tech tour writes, filled in only where empty.
+async function fillForumSample() {
+    await ensureForumForm();
+    $g('#forumTitle').value ||= 'Replacing missing keys on an HP keyboard';
+    $g('#forumDevice').value ||= 'HP 250 G8';
+    $g('#forumDeviceType').value ||= 'Laptop';
+    if (!$g('.forum-tag-pick:checked')) $g('.forum-tag-pick[value="Keyboard"]').checked = true;
+    $g('#forumBody').value ||= 'Order the whole keyboard, not single keys.\n1. Take out the battery and the screws under the rubber feet.\n2. Pop the keyboard up from the top edge with a plastic pry tool.\n3. Flip up the ribbon cable latch before you pull the keyboard out.';
+    $g('#forumLinks').value ||= 'https://www.youtube.com/results?search_query=hp+250+g8+keyboard+replacement';
+}
+
+async function fillForumSampleNotes() {
+    await fillForumSample();
+    const pick = $g('#forumTicket');
+    if (pick && !pick.value) { pick.value = '35'; await importForumTicketNotes('35'); }
+}
+
 async function ensureWorkspace(id = guideTicketId()) {
     closeModal('paperPreviewModal');
     if (!isWorkspaceOpen() || workspaceTicketId !== id) {
@@ -406,6 +431,24 @@ const TECH_STEPS = [
         ask: 'What would you type to find help with a laptop that will not charge?'
     },
     {
+        title: 'Read a post',
+        text: "Each card shows the device and its filters. Open Jordan's fix for a flickering laptop screen.",
+        setup: ensureForum,
+        target: () => $g('#forumList .folder-card[onclick="showForumPost(3)"]'),
+        click: true,
+        talk: ['Read a couple of posts before your first repair on a new device.'],
+        ask: 'What would make you trust a post?'
+    },
+    {
+        title: 'What a good post looks like',
+        text: 'The device, the steps that fixed it, and a video to watch. Short, clear, and easy to follow.',
+        setup: () => ensureForumPost(3),
+        target: () => $g('#forumModal .modal-content'),
+        section: true,
+        talk: ['Good posts say what the problem really was, not just what they tried.'],
+        ask: 'What would you add to make this post even more helpful?'
+    },
+    {
         title: 'Share a fix',
         text: 'Fixed something tricky? Post it so the next student can learn from you.',
         setup: ensureForum,
@@ -415,13 +458,58 @@ const TECH_STEPS = [
         ask: 'What kind of fix is worth posting?'
     },
     {
-        title: 'The post form',
-        text: 'A title, the device name and type, filters, how you fixed it, and links. You can also copy the notes from a ticket you finished. Posts with swear words are blocked.',
-        setup: ensureForumForm,
+        title: 'Title, device, and filters',
+        text: 'Give it a clear title, the exact device, its type, and at least one filter so others can find it. We filled in an example.',
+        setup: fillForumSample,
+        target: () => forumFormCard('#forumTitle'),
+        talk: ['The exact model matters. "HP 250 G8" is much more useful than "HP laptop".'],
+        ask: 'Which filters would you pick for a laptop that overheats and shuts off?'
+    },
+    {
+        title: 'How you fixed it',
+        text: 'Number your steps. Add links to videos or the part you used, one per line.',
+        setup: fillForumSample,
+        target: () => forumFormCard('#forumBody'),
+        talk: ['Write it for someone who has never opened this device.'],
+        ask: 'Why number the steps?'
+    },
+    {
+        title: 'Add your ticket notes (optional)',
+        text: 'Pick a repair you finished and its session notes come over. Only the notes, never the customer. You can edit them before posting.',
+        setup: fillForumSampleNotes,
+        target: () => forumFormCard('#forumNotes'),
+        talk: ['Your notes already tell the story of the repair.'],
+        ask: 'What should you remove from notes before sharing them?'
+    },
+    {
+        title: 'The whole post form',
+        text: "That's everything in a post. Keep it clean: posts with swear words are blocked.",
+        setup: fillForumSampleNotes,
         target: () => $g('#forumModal .modal-content'),
         section: true,
-        talk: ['Only the notes come over from a ticket, never the customer.', 'Leave out names, emails, and passwords.'],
+        talk: ['Leave out customer names, emails, and passwords.'],
         ask: 'What makes a post easy to follow?'
+    },
+    {
+        title: 'Post it',
+        text: 'Click Post.',
+        setup: fillForumSampleNotes,
+        target: () => $g('#forumDetail [onclick^="saveForumPost"]'),
+        click: true,
+        talk: ['Everyone on the team can find it right away.'],
+        ask: 'When is the best time to write a post: right after the repair, or later?'
+    },
+    {
+        title: 'Your post is live',
+        text: 'It is in the list for everyone now. You can edit or delete your own posts any time.',
+        setup: async () => {
+            const mine = forumPosts.find(p => p.tech_id === currentTechId);
+            if (mine) await ensureForumPost(mine.id);
+        },
+        target: () => $g('#forumModal .modal-content'),
+        section: true,
+        talk: ['Your ticket notes show at the bottom under Notes from the repair.'],
+        ask: 'What fix have you done that others should know about?'
     },
     {
         title: 'Tech Tools',
@@ -628,11 +716,38 @@ const ADMIN_STEPS = [
     },
     {
         title: 'The Forum',
-        text: 'Students share fixes, videos, and part links here. Read along, and delete any post that should not be there.',
+        text: 'Students share fixes, videos, and part links here. Open it to read along.',
         setup: closeAllModals,
         target: () => $g('#adminPanel [onclick^="openForum"]'),
-        talk: ['Swear words are blocked automatically. You handle anything else.'],
+        click: true,
+        talk: ['Reading the forum shows you what students are learning.'],
         ask: 'What should students never post in the forum?'
+    },
+    {
+        title: 'Read a post',
+        text: "Open Priya's post about a phone battery.",
+        setup: ensureForum,
+        target: () => $g('#forumList .folder-card[onclick="showForumPost(4)"]'),
+        click: true,
+        talk: ['Check that the advice is right and safe.'],
+        ask: 'How would you spot wrong advice?'
+    },
+    {
+        title: 'Remove a post if needed',
+        text: 'You can delete any post: customer info, off-topic posts, or advice that could damage a device. Swear words are already blocked.',
+        setup: () => ensureForumPost(4),
+        target: () => $g('#forumDetail [onclick^="deleteForumPost"]'),
+        talk: ['Students can only edit or delete their own posts.'],
+        ask: 'When would you delete a post instead of asking the student to fix it?'
+    },
+    {
+        title: 'The whole Forum',
+        text: 'Search, device types, filters, and every post, newest first.',
+        setup: ensureForum,
+        target: () => $g('#forumModal .modal-content'),
+        section: true,
+        talk: ['Point students here before they ask you a question.'],
+        ask: 'How could you use the forum in class?'
     },
     {
         title: "The students' guide",
