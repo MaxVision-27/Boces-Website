@@ -62,9 +62,10 @@ const SAMPLE_SEND_BACK_NOTE = 'The screen still flickers when the lid is half op
 
 function enterSandbox(role) {
     const daysAgo = n => new Date(Date.now() - n * 864e5).toISOString();
-    const ticket = (id, name, device, issue, status, team, days) => ({
+    const ticket = (id, name, device, issue, status, team, days, make_model) => ({
         id, name, email: '', device, issue, status, tracking_code: `PRAC${id}`, created_at: daysAgo(days),
-        assigned_tech_ids: team, creation_tech_ids: team, created_by: 'Sample', parts_used: '', review_note: null
+        assigned_tech_ids: team, creation_tech_ids: team, created_by: 'Sample', parts_used: '', review_note: null,
+        make_model, serial_tag: `SN${id}X7`, contact_number: '(516) 555-0100', class_name: 'Culinary Arts', room_number: 'B112', computer_password: null
     });
     const log = (id, ticket_id, tech_id, days, start, end, note, team) => ({
         id, ticket_id, tech_id, work_date: daysAgo(days).slice(0, 10), start_time: start, end_time: end, note,
@@ -88,12 +89,12 @@ function enterSandbox(role) {
     ];
 
     if (role === 'admin') {
-        techs = [{ id: 1, name: 'Alex (sample)' }, { id: 2, name: 'Jordan (sample)' }, { id: 3, name: 'Priya (sample)' }];
+        techs = [{ id: 1, name: 'Alex (sample)', session: 'AM' }, { id: 2, name: 'Jordan (sample)', session: 'PM' }, { id: 3, name: 'Priya (sample)', session: 'PM' }];
         currentTechId = null;
         tickets = [
-            ticket(58, 'Sam Patel', 'Smartphone', 'Battery drains by lunch.', 'in_progress', [1], 3),
-            ticket(57, 'Jamie Rivera', 'Laptop', 'Screen is cracked in the top left corner and flickers.', 'review', [2, 3], 4),
-            ticket(60, 'Morgan Blake', 'Tablet', 'Charging port is loose.', 'pending', [], 0)
+            ticket(58, 'Sam Patel', 'Smartphone', 'Battery drains by lunch.', 'in_progress', [1], 3, 'iPhone 12'),
+            ticket(57, 'Jamie Rivera', 'Laptop', 'Screen is cracked in the top left corner and flickers.', 'review', [2, 3], 4, 'Dell Latitude 5420'),
+            ticket(60, 'Morgan Blake', 'Tablet', 'Charging port is loose.', 'pending', [], 0, 'iPad 9th gen')
         ];
         logs = [
             log(7, 57, 2, 3, '13:15:00', '14:00:00', 'Took off the bezel. LCD panel is cracked. Customer is ordering one.', [2, 3]),
@@ -101,13 +102,14 @@ function enterSandbox(role) {
             log(9, 58, 1, 1, '13:20:00', '13:55:00', 'Battery health is 61%. Customer is ordering a battery.', [1])
         ];
     } else {
-        const me = { id: 1, name: currentTechName || 'You' };
-        techs = [me, { id: 2, name: 'Jordan (sample)' }, { id: 3, name: 'Priya (sample)' }];
+        currentSession ||= 'PM';
+        const me = { id: 1, name: currentTechName || 'You', session: currentSession };
+        techs = [me, { id: 2, name: 'Jordan (sample)', session: currentSession }, { id: 3, name: 'Priya (sample)', session: currentSession }];
         currentTechId = me.id;
         currentTechName = me.name;
         tickets = [
-            ticket(35, 'Casey Morgan', 'Laptop', 'Keyboard missing keys.', 'completed', [1], 9),
-            ticket(41, 'Riley Chen', 'Desktop', "Won't turn on after a storm.", 'in_progress', [1, 2], 2)
+            ticket(35, 'Casey Morgan', 'Laptop', 'Keyboard missing keys.', 'completed', [1], 9, 'HP 250 G8'),
+            ticket(41, 'Riley Chen', 'Desktop', "Won't turn on after a storm.", 'in_progress', [1, 2], 2, 'Dell OptiPlex 7080')
         ];
         logs = [
             log(5, 35, 1, 8, '13:10:00', '13:50:00', 'Ordered the keyboard for the HP 250 G8. Pop the old keys off with a plastic pry tool.', [1]),
@@ -151,10 +153,13 @@ async function sandboxStatus(status, id = guideTicketId(), extra = {}) {
 
 function fillNewTicket() {
     if (!isOpen('techTicketModal')) { closeAllModals(); openTechTicketModal(); }
-    $g('#techApptName').value ||= 'Jamie Rivera';
-    $g('#techApptEmail').value ||= 'jrivera@school.edu';
+    const example = {
+        techApptName: 'Jamie Rivera', techApptContact: '(516) 555-0123', techApptClass: 'Culinary Arts AM', techApptRoom: 'B112',
+        techApptModel: 'Dell Latitude 5420', techApptSerial: '7XK3LM2',
+        techApptIssue: 'Screen is cracked in the top left corner and flickers when opened.'
+    };
+    Object.entries(example).forEach(([id, value]) => { $g(`#${id}`).value ||= value; });
     $g('#techApptDevice').value = 'Laptop';
-    $g('#techApptIssue').value ||= 'Screen is cracked in the top left corner and flickers when opened.';
 }
 
 async function showServiceLogPreview(id) {
@@ -233,8 +238,16 @@ const TECH_STEPS = [
         ask: 'What should you ask the customer before you take their device?'
     },
     {
+        title: 'Fill in the Help Desk Ticket',
+        text: "The customer's name, a contact number, their class and room, and the computer's make, model, and serial tag (usually on a sticker underneath). Only take the password if you need it to test. We filled in an example.",
+        setup: fillNewTicket,
+        target: () => $g('#techTicketModal .form-row'),
+        talk: ['These are the same boxes as the paper Help Desk Ticket.', 'The password is deleted automatically when the repair is done.'],
+        ask: 'Why do we need the serial tag?'
+    },
+    {
         title: 'Describe the problem',
-        text: 'Fill in the customer\'s name, their email if they have one, the device, and the problem in their words. We filled in an example.',
+        text: 'Write the problem in the customer\'s words.',
         setup: fillNewTicket,
         target: () => $g('#techApptIssue'),
         talk: ["Write what the customer tells you, not your guess about what's wrong."],
@@ -278,6 +291,31 @@ const TECH_STEPS = [
         section: true,
         talk: ['The code is the only way a customer checks on a repair. They never need an account.'],
         ask: 'What should happen if a customer loses their code?'
+    },
+    {
+        title: 'Print the Help Desk Ticket',
+        text: 'Click Print Help Desk Ticket. It comes out filled in from what you typed.',
+        setup: () => {
+            if (!isOpen('ticketCreatedModal')) {
+                closeAllModals();
+                $g('#createdTrackingCode').textContent = appointments.at(-1).tracking_code;
+                $g('#printHelpDeskBtn').dataset.ticket = guideTicketId();
+                openModal('ticketCreatedModal');
+            }
+        },
+        target: () => $g('#printHelpDeskBtn'),
+        click: true,
+        talk: ['This paper is the customer agreeing to let us work on their device.'],
+        ask: 'Why get a signature before starting a repair?'
+    },
+    {
+        title: 'Have the customer sign it',
+        text: 'Both pages print filled in. The customer signs and dates both before they leave the device. Print it with the button at the top.',
+        setup: async () => { if (!isOpen('paperPreviewModal')) { closeAllModals(); await previewHelpDesk(guideTicketId()); } },
+        target: () => $g('#paperPreviewModal .modal-content'),
+        section: true,
+        talk: ['Keep the signed copy with the device.'],
+        ask: 'What should you do if a customer will not sign?'
     },
     {
         title: 'Your tickets',
@@ -376,7 +414,7 @@ const TECH_STEPS = [
         setup: () => showServiceLogPreview(guideTicketId()),
         target: () => $g('#paperPreviewModal .modal-content'),
         section: true,
-        talk: ['The Hours sheets open the same way, with Download instead of Print.'],
+        talk: ['The Help Desk Ticket and Hours sheets open the same way, each with a Print button.'],
         ask: 'What would you check on this sheet before printing it?'
     },
     {
@@ -602,7 +640,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'Paperwork',
-        text: 'Open the Service Log and Hours sheets from here. Each one shows a preview of the real form before you print or download it.',
+        text: 'Open the Help Desk Ticket, Service Log, and Hours sheets from here. Each one shows a preview of the real form before you print it.',
         setup: async () => { await ensureWorkspace(CHECK_ID); await sandboxStatus('completed', CHECK_ID, { review_note: null }); },
         target: () => wsCard('Paperwork'),
         talk: ['Hours sheets split by team, so a handoff starts a new sheet.'],
@@ -683,7 +721,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'Hours and tickets for each student',
-        text: 'Each card shows hours logged, active tickets, and any waiting for your check-off. Open, Rename, or Remove a student here.',
+        text: 'Each card shows the student\'s class (AM or PM), hours logged, active tickets, and any waiting for your check-off. Open, Rename, Move to the other class, or Remove a student here.',
         setup: async () => { if (!isOpen('manageStudentsModal')) { closeAllModals(); openStudentId = null; await openManageStudents(); } else { showStudent(null); } },
         target: () => $g('#manageStudentsContainer .folder-card'),
         talk: ['Rename keeps their tickets and hours. Remove takes them off every ticket.'],
