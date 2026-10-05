@@ -6,6 +6,9 @@
 // ============================================================
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Hold the background still while a popup (ticket, form, preview) is open,
+// so it doesn't pull focus from the work in front of you.
+const popupOpen = () => !!document.querySelector('.modal[style*="flex"]');
 const isSmallViewport = () => window.innerWidth < 640;
 
 // Wireframe hero shape — a desktop monitor on computer-sized screens, a
@@ -137,6 +140,7 @@ function initHeroScene() {
     const clock = new THREE.Clock();
     (function animate() {
         requestAnimationFrame(animate);
+        if (popupOpen()) return;
         const t = clock.getElapsedTime();
         group.rotation.y = Math.sin(t * 0.28) * 0.55;
         group.rotation.x = Math.sin(t * 0.35) * 0.12;
@@ -204,6 +208,7 @@ function initBackgroundField() {
     const clock = new THREE.Clock();
     (function animate() {
         requestAnimationFrame(animate);
+        if (popupOpen()) return;
         const t = clock.getElapsedTime();
         points.rotation.y = t * 0.01;
         camera.position.y = -scrollY * 0.01;

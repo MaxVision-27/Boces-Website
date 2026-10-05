@@ -262,10 +262,10 @@ function populateManageStudentsModal() {
             <span class="folder-top"><strong>${escapeHtml(t.name)} <span class="forum-type">${t.session || 'No class'}</span></strong> <span class="folder-meta">${studentHours(t.id).toFixed(2)} hr logged</span></span>
             <span class="ws-hint" style="margin:0;">${active} active ticket${active === 1 ? '' : 's'}${waiting ? ` · <strong style="color:#6f42c1;">${waiting} waiting for your check-off</strong>` : ''}</span>
             <div class="ws-actions" style="margin-top:0.4rem;">
-                <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="showStudent(${t.id})">Open</button>
-                <button class="btn btn-primary" style="padding:0.3rem 1rem; background:white; color:var(--navy-900); border:1px solid var(--border);" onclick="renameStudent(${t.id})">Rename</button>
-                <button class="btn btn-primary" style="padding:0.3rem 1rem; background:white; color:var(--navy-900); border:1px solid var(--border);" onclick="setStudentSession(${t.id}, '${t.session === 'AM' ? 'PM' : 'AM'}')">Move to ${t.session === 'AM' ? 'PM' : 'AM'}</button>
-                <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#dc3545; color:white;" onclick="removeStudent(${t.id})">Remove</button>
+                <button class="btn btn-outline btn-sm" onclick="showStudent(${t.id})">Open</button>
+                <button class="btn btn-outline btn-sm" onclick="renameStudent(${t.id})">Rename</button>
+                <button class="btn btn-outline btn-sm" onclick="setStudentSession(${t.id}, '${t.session === 'AM' ? 'PM' : 'AM'}')">Move to ${t.session === 'AM' ? 'PM' : 'AM'}</button>
+                <button class="btn btn-danger btn-sm" onclick="removeStudent(${t.id})">Remove</button>
             </div>
         </div>`;
     };
@@ -548,7 +548,7 @@ async function updateTicketAssignment(apptId) {
     renderTicketWorkspace();
     const saved = document.getElementById(`saveStudents-${apptId}`);
     if (saved) {
-        saved.textContent = 'Saved ✓';
+        saved.textContent = 'Saved';
         setTimeout(() => saved.textContent = 'Save Students', 1500);
     }
 }
@@ -571,7 +571,7 @@ async function saveTicketParts(apptId, btn) {
     if (error) { console.error('Error saving parts:', error); alert('Failed to save parts.'); return; }
 
     appointments.find(a => a.id === apptId).parts_used = partsUsed;
-    btn.textContent = 'Saved ✓';
+    btn.textContent = 'Saved';
     setTimeout(() => btn.textContent = 'Save Parts', 1500);
 }
 
@@ -691,61 +691,61 @@ async function updateStats() {
 // Tags for each star level
 const reviewTagsByRating = {
     5: [
-        '⚡ Super fast repair',
-        '😊 Incredibly friendly',
-        '💯 Outstanding service',
-        '🔧 Perfectly fixed',
-        '📱 Handled with great care',
-        '💬 Excellent communication',
-        '💰 Amazing value',
-        '🎓 Very knowledgeable',
-        '⏱️ Finished ahead of time',
-        '👍 Highly recommend',
-        '🌟 Exceeded expectations',
-        '🏆 Best repair experience'
+        'Super fast repair',
+        'Incredibly friendly',
+        'Outstanding service',
+        'Perfectly fixed',
+        'Handled with great care',
+        'Excellent communication',
+        'Amazing value',
+        'Very knowledgeable',
+        'Finished ahead of time',
+        'Highly recommend',
+        'Exceeded expectations',
+        'Best repair experience'
     ],
     4: [
-        '⚡ Fast repair',
-        '😊 Friendly staff',
-        '💯 Great service',
-        '🔧 Fixed my issue',
-        '📱 Handled my device carefully',
-        '💬 Good communication',
-        '💰 Good value',
-        '🎓 Knowledgeable team',
-        '⏱️ Completed on time',
-        '👍 Would recommend',
-        '🔄 Minor issue but resolved'
+        'Fast repair',
+        'Friendly staff',
+        'Great service',
+        'Fixed my issue',
+        'Handled my device carefully',
+        'Good communication',
+        'Good value',
+        'Knowledgeable team',
+        'Completed on time',
+        'Would recommend',
+        'Minor issue but resolved'
     ],
     3: [
-        '⏱️ Took a bit longer than expected',
-        '💬 Communication could improve',
-        '🔧 Issue was mostly fixed',
-        '😐 Experience was okay',
-        '💰 Fair value',
-        '📋 Could be more organized',
-        '🔄 Needed a follow-up visit',
-        '👍 Decent service overall'
+        'Took a bit longer than expected',
+        'Communication could improve',
+        'Issue was mostly fixed',
+        'Experience was okay',
+        'Fair value',
+        'Could be more organized',
+        'Needed a follow-up visit',
+        'Decent service overall'
     ],
     2: [
-        '⏳ Took too long',
-        '💬 Poor communication',
-        '🔧 Issue not fully resolved',
-        '😞 Disappointing experience',
-        '💰 Not worth the wait',
-        '📋 Disorganized process',
-        '❓ Unclear about repair status',
-        '🔄 Had to come back multiple times'
+        'Took too long',
+        'Poor communication',
+        'Issue not fully resolved',
+        'Disappointing experience',
+        'Not worth the wait',
+        'Disorganized process',
+        'Unclear about repair status',
+        'Had to come back multiple times'
     ],
     1: [
-        '❌ Issue not fixed at all',
-        '😠 Very poor experience',
-        '⏳ Extremely long wait',
-        '💬 No communication',
-        '📱 Device not handled carefully',
-        '💰 Waste of time',
-        '👎 Would not recommend',
-        '😔 Very disappointed'
+        'Issue not fixed at all',
+        'Very poor experience',
+        'Extremely long wait',
+        'No communication',
+        'Device not handled carefully',
+        'Waste of time',
+        'Would not recommend',
+        'Very disappointed'
     ]
 };
 
@@ -1063,7 +1063,7 @@ function updateRoleDisplay() {
         indicator.style.background = '#ffd700';
         indicator.style.color = '#333';
         indicator.classList.remove('hidden');
-        adminPanel.style.display = 'block';
+        adminPanel.style.display = 'grid';
         techToolbar.style.display = 'none';
     } else if (currentRole === 'tech') {
         indicator.textContent = `${currentSession ? currentSession + ' ' : ''}Tech${currentTechName ? `: ${currentTechName}` : ''}`;
@@ -1071,7 +1071,7 @@ function updateRoleDisplay() {
         indicator.style.color = 'white';
         indicator.classList.remove('hidden');
         adminPanel.style.display = 'none';
-        techToolbar.style.display = 'block';
+        techToolbar.style.display = 'grid';
     } else {
         indicator.classList.add('hidden');
         adminPanel.style.display = 'none';
@@ -1129,8 +1129,8 @@ function populateAppointmentsModal() {
                     <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
                     <span class="folder-meta">Deleted ${new Date(appt.deleted_at).toLocaleDateString()}</span>
                     <div class="ws-actions" style="margin-top:0.4rem;">
-                        <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#28a745; color:white;" onclick="restoreAppointment(${appt.id})">Restore</button>
-                        <button class="btn btn-primary" style="padding:0.3rem 1rem; background:#dc3545; color:white;" onclick="permanentlyDeleteAppointment(${appt.id})">Delete Forever</button>
+                        <button class="btn btn-approve btn-sm" onclick="restoreAppointment(${appt.id})">Restore</button>
+                        <button class="btn btn-danger btn-sm" onclick="permanentlyDeleteAppointment(${appt.id})">Delete Forever</button>
                     </div>
                 </div>`).join('')}</div>`;
         return;
@@ -1150,7 +1150,7 @@ function populateAppointmentsModal() {
     if (duplicateEmails.length > 0) {
         html += `
         <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:0.8rem; margin-bottom:1rem; font-size:0.9rem;">
-            ⚠️ <strong>Possible duplicate tickets.</strong> Select an email to see its tickets:<br>
+            <strong>Possible duplicate tickets.</strong> Select an email to see its tickets:<br>
             ${duplicateEmails.map(email => `
                 <button type="button" data-email="${escapeHtml(email)}" onclick="filterByEmail(this.dataset.email)"
                     style="background:#ffc107; color:#333; border:none; padding:2px 10px; border-radius:10px; margin:4px 4px 0 0; font-size:0.85rem; cursor:pointer;">
@@ -1169,7 +1169,7 @@ function populateAppointmentsModal() {
         const duplicate = appt.email && counts[appt.email.toLowerCase()] > 1;
         return `
         <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
-            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}${duplicate ? ' ⚠️' : ''}</strong> ${statusBadge(appt.status)}</span>
+            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}${duplicate ? ' <span class="dup-badge">duplicate</span>' : ''}</strong> ${statusBadge(appt.status)}</span>
             <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
             <span class="folder-meta">${names.length ? escapeHtml(names.join(', ')) : 'No students yet'} <strong>Open →</strong></span>
         </button>`;
@@ -1273,21 +1273,21 @@ function renderTicketWorkspace() {
     const team = (appt.assigned_tech_ids || []).map(techName);
     const duplicate = appt.email && emailCounts()[appt.email.toLowerCase()] > 1;
 
-    const complete = `<button class="btn btn-primary" style="background:#28a745; color:white;" onclick="markCompleted(${appt.id})">✓ Approve &amp; Complete</button>`;
+    const complete = `<button class="btn btn-approve" onclick="markCompleted(${appt.id})">Approve &amp; Complete</button>`;
     const sentBack = appt.review_note ? `<span style="flex-basis:100%;"><strong>↩ Sent back by the admin:</strong> ${escapeHtml(appt.review_note)}</span>` : '';
     const nextStep = {
         pending: '<span>Nobody is on this ticket yet. Pick students below to get it started.</span>',
         assigned: `<span>Ready to begin? Press Start Repair when you start working on it.</span>
-                   <button class="btn btn-primary" style="background:#0d6efd; color:white;" onclick="startProgress(${appt.id})">Start Repair</button>`,
+                   <button class="btn btn-start" onclick="startProgress(${appt.id})">▶ Start Repair</button>`,
         in_progress: sentBack + (isAdmin
             ? `<span>The students are still working on it. You can check it off yourself once it's done.</span>${complete}`
             : `<span>Finished and tested? Send it to the admin to check off.</span>
-               <button class="btn btn-primary" style="background:#6f42c1; color:white;" onclick="requestCheckoff(${appt.id})">Ready for Check-Off</button>`),
+               <button class="btn btn-review" onclick="requestCheckoff(${appt.id})">Ready for Check-Off</button>`),
         review: isAdmin
             ? `<span>The students say this repair is done. Check the device, then approve it or send it back with what's left to do.</span>
-               <span class="ws-actions">${complete}<button class="btn btn-primary" onclick="sendBack(${appt.id})">↩ Send Back</button></span>`
-            : '<span>⏳ Waiting for the admin to check it off. If they send it back, their note will show here.</span>',
-        completed: '<span>✅ This repair is complete. You can still print its paperwork below.</span>'
+               <span class="ws-actions">${complete}<button class="btn btn-warn" onclick="sendBack(${appt.id})">↩ Send Back</button></span>`
+            : '<span>Waiting for the admin to check it off. If they send it back, their note will show here.</span>',
+        completed: '<span>This repair is complete. You can still print its paperwork below.</span>'
     }[appt.status] || '';
 
     const sessions = workspaceLogs.length ? workspaceLogs.map(l => `
@@ -1317,10 +1317,10 @@ function renderTicketWorkspace() {
             ${appt.class_name || appt.room_number ? `<div><dt>Class and room</dt><dd>${escapeHtml([appt.class_name, appt.room_number && `Room ${appt.room_number}`].filter(Boolean).join(' · '))}</dd></div>` : ''}
             ${isAdmin ? `
             <div><dt>Contact number</dt><dd>${escapeHtml(appt.contact_number || 'None given')}</dd></div>
-            <div><dt>Customer email</dt><dd>${escapeHtml(appt.email || 'None given')}${duplicate ? ' <span style="color:#b45309;">⚠️ has other tickets</span>' : ''}</dd></div>
+            <div><dt>Customer email</dt><dd>${escapeHtml(appt.email || 'None given')}${duplicate ? ' <span class="dup-badge">has other tickets</span>' : ''}</dd></div>
             <div><dt>Created</dt><dd>${new Date(appt.created_at).toLocaleDateString()}${appt.created_by ? ` by ${escapeHtml(appt.created_by)}` : ''}</dd></div>` : ''}
             ${appt.tracking_code ? `<div><dt>Tracking code</dt><dd><strong>${appt.tracking_code}</strong>
-                <button class="btn btn-primary" style="padding:0.1rem 0.6rem; font-size:0.75rem;" onclick="copyText('${appt.tracking_code}', this)">Copy</button></dd></div>` : ''}
+                <button class="btn btn-outline btn-chip" onclick="copyText('${appt.tracking_code}', this)">Copy</button></dd></div>` : ''}
         </dl>
         ${nextStep ? `<div class="ws-next">${nextStep}</div>` : ''}
 
@@ -1362,7 +1362,7 @@ function renderTicketWorkspace() {
             <h3>Parts</h3>
             <p class="ws-hint">List any part the customer bought for this repair. Leave it blank if the repair didn't need one.</p>
             <label>Parts used <input type="text" id="parts-${appt.id}" value="${escapeHtml(appt.parts_used || '')}" placeholder="Example: Battery for Dell Latitude 5420"></label>
-            <button class="btn btn-primary" onclick="saveTicketParts(${appt.id}, this)">Save Parts</button>
+            <button class="btn btn-outline" onclick="saveTicketParts(${appt.id}, this)">Save Parts</button>
         </section>
 
         <section class="ws-card">
@@ -1375,7 +1375,7 @@ function renderTicketWorkspace() {
         <section class="ws-card">
             <h3>Delete ticket</h3>
             <p class="ws-hint">Takes it out of the pool. You can bring it back from the Deleted filter.</p>
-            <button class="btn btn-primary" style="background:#dc3545; color:white;" onclick="deleteAppointment(${appt.id})">Delete Ticket</button>
+            <button class="btn btn-danger" onclick="deleteAppointment(${appt.id})">Delete Ticket</button>
         </section>` : ''}`;
 }
 
@@ -1536,10 +1536,10 @@ function escapeHtml(text) {
 function paperworkButtons(apptId) {
     return `
         <div class="ws-actions" style="margin:0.4rem 0;">
-            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewHelpDesk(${apptId})">📄 Help Desk Ticket</button>
-            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewServiceLog(${apptId})">📄 Service Log</button>
-            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewHoursSheets(${apptId}, 'creation')">📄 Hours: Ticket Creation</button>
-            <button class="btn btn-primary" style="padding:0.3rem 1rem;" onclick="previewHoursSheets(${apptId}, 'repair')">📄 Hours: Repair Work</button>
+            <button class="btn btn-outline btn-sm" onclick="previewHelpDesk(${apptId})">Help Desk Ticket</button>
+            <button class="btn btn-outline btn-sm" onclick="previewServiceLog(${apptId})">Service Log</button>
+            <button class="btn btn-outline btn-sm" onclick="previewHoursSheets(${apptId}, 'creation')">Hours: Ticket Creation</button>
+            <button class="btn btn-outline btn-sm" onclick="previewHoursSheets(${apptId}, 'repair')">Hours: Repair Work</button>
         </div>`;
 }
 
@@ -1591,7 +1591,7 @@ async function renderDocxPages(blobs, container) {
     fitPaperPreview();
 }
 
-const PRINT_BUTTON = '<button class="btn btn-primary" onclick="printPaperPreview()">🖨 Print</button>';
+const PRINT_BUTTON = '<button class="btn btn-primary" onclick="printPaperPreview()">Print</button>';
 
 function printPaperPreview() {
     const area = document.getElementById('printArea');
