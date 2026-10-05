@@ -1188,6 +1188,30 @@ body {
     background: white;
 }
 
+/* Staff Login: AM / PM class picker (the picked one stays highlighted) */
+.class-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .5rem;
+}
+
+.class-option {
+    padding: .7rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: white;
+    color: var(--navy-900);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.class-option[aria-pressed="true"] {
+    background: var(--navy-900);
+    border-color: var(--navy-900);
+    color: white;
+}
+
 /* New Ticket: the Help Desk Ticket fields, two per row */
 .form-row {
     display: grid;

@@ -1,7 +1,7 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=24">
+    <link rel="stylesheet" href="css/styles.css?v=25">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -10,9 +10,9 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="js/effects.js?v=10" defer></script>
-    <script src="js/main.js?v=25" defer></script>
+    <script src="js/main.js?v=28" defer></script>
     <script src="js/forum.js?v=2" defer></script>
-    <script src="js/guide.js?v=6" defer></script>
+    <script src="js/guide.js?v=7" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -151,15 +151,21 @@
         <h2>Staff Login</h2>
         <div class="form-group">
             <label for="loginRole">Role</label>
-            <select id="loginRole">
+            <select id="loginRole" onchange="showLoginButtons()">
                 <option value="admin">Admin (Teacher)</option>
-                <option value="am">AM Tech (Student)</option>
-                <option value="pm">PM Tech (Student)</option>
+                <option value="tech">Tech (Student)</option>
             </select>
         </div>
+        <div class="form-group" id="loginClassPicker" style="display: none;">
+            <label>Your class</label>
+            <div class="class-toggle" role="group" aria-label="Your class">
+                <button type="button" class="class-option" aria-pressed="false" data-class="am" onclick="pickLoginClass(this)">AM</button>
+                <button type="button" class="class-option" aria-pressed="false" data-class="pm" onclick="pickLoginClass(this)">PM</button>
+            </div>
+        </div>
         <div class="form-group">
-            <label for="loginPassword">Password</label>
-            <input type="password" id="loginPassword" placeholder="Enter password">
+            <label for="loginPassword" id="loginPasswordLabel">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter password" onkeydown="if(event.key==='Enter'){login();}">
         </div>
         <button class="btn btn-primary" onclick="login()">Login</button>
     </div>
@@ -324,6 +330,12 @@
     <div class="modal-content">
         <span class="close-btn" onclick="closeModal('reviewModal')">×</span>
         <h2>Leave a Review</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Reviews come from customers whose devices we repaired. Each repair can be reviewed once.</p>
+
+        <div class="form-group">
+            <label for="reviewCode">Tracking Code</label>
+            <input type="text" id="reviewCode" placeholder="The code from your repair, e.g. BT4X92" style="text-transform: uppercase;" autocomplete="off">
+        </div>
 
         <div class="form-group">
             <label for="reviewRating">Rating</label>

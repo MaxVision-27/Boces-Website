@@ -92,8 +92,32 @@ function classRoster() {
 // LOGIN — admin, or a tech from the AM or PM class. Each has its own
 // password; the server remembers the class with the session.
 // ============================================================
+// Tech (Student) asks which class you're in; the picked one stays
+// highlighted, and the password must be that class's own password.
+function showLoginButtons() {
+    const tech = document.getElementById('loginRole').value === 'tech';
+    document.getElementById('loginClassPicker').style.display = tech ? '' : 'none';
+    updateLoginPasswordLabel();
+}
+
+function pickLoginClass(btn) {
+    document.querySelectorAll('.class-option').forEach(b => b.setAttribute('aria-pressed', b === btn));
+    updateLoginPasswordLabel();
+}
+
+function loginClass() {
+    return document.querySelector('.class-option[aria-pressed="true"]')?.dataset.class || null;
+}
+
+function updateLoginPasswordLabel() {
+    const tech = document.getElementById('loginRole').value === 'tech';
+    const cls = loginClass();
+    document.getElementById('loginPasswordLabel').textContent = tech && cls ? `${cls.toUpperCase()} password` : 'Password';
+}
+
 async function login() {
-    const role = document.getElementById('loginRole').value;
+    const role = document.getElementById('loginRole').value === 'tech' ? loginClass() : 'admin';
+    if (!role) { alert('Pick your class: AM or PM.'); return; }
     const password = document.getElementById('loginPassword').value;
 
     if (!password) {
@@ -749,11 +773,19 @@ async function submitReview() {
         return;
     }
 
+    const code = document.getElementById('reviewCode').value.trim().toUpperCase();
+    if (!code) { alert('Please enter the tracking code from your repair.'); return; }
+
     const comment = selectedTags.join(' · ');
 
-    const { error } = await db.from('reviews').insert({ rating, comment });
+    // One review per repair: the database checks the code and that it hasn't been used.
+    const { data: result, error } = await db.rpc('submit_review', { p_code: code, p_rating: rating, p_comment: comment });
     if (error) { console.error('Error submitting review:', error); alert('Failed to submit review.'); return; }
+    if (result === 'bad_code') { alert("We couldn't find a repair with that tracking code. Check the code and try again."); return; }
+    if (result === 'used') { alert('This repair already has a review. Thank you!'); return; }
+    if (result !== 'ok') { alert('Failed to submit review.'); return; }
 
+    document.getElementById('reviewCode').value = '';
     document.querySelectorAll('.review-tag.selected').forEach(btn => btn.classList.remove('selected'));
 
     closeModal('reviewModal');
@@ -1310,10 +1342,10 @@ function renderTicketWorkspace() {
             <p class="ws-hint">Fill this in every time you work on the device. It goes on the Service Log and the Hours sheet.</p>
             <div class="ws-fields">
                 <label>Date <input type="date" id="logDate-${appt.id}" value="${todayDateStr()}"></label>
-                <label>Start time <input type="time" id="logStart-${appt.id}"></label>
-                <label>End time <input type="time" id="logEnd-${appt.id}"></label>
+                <label>Start time <select id="logStart-${appt.id}">${QUARTER_HOUR_OPTIONS}</select></label>
+                <label>End time <select id="logEnd-${appt.id}">${QUARTER_HOUR_OPTIONS}</select></label>
             </div>
-            <p class="ws-hint">Example: you worked from 1:15 to 2:00 in the afternoon, so enter 1:15 PM and 2:00 PM.</p>
+            <p class="ws-hint">Example: you worked from 1:15 to 2:00 in the afternoon, so pick 1:15 PM and 2:00 PM.</p>
             <label>What did you do?
                 <textarea id="logNote-${appt.id}" rows="3" placeholder="Example: Took off the back panel and tested the battery. It only holds 40% charge. Next: the customer orders a new battery."></textarea>
             </label>
@@ -1376,6 +1408,14 @@ function hoursBetween(startTime, endTime) {
     const [eh, em] = endTime.split(':').map(Number);
     return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
 }
+
+// Sessions are logged in quarter hours (017 enforces it): 6:00 AM to 6:00 PM.
+const QUARTER_HOUR_OPTIONS = '<option value="">Choose a time</option>' +
+    Array.from({ length: 49 }, (_, i) => {
+        const minutes = 6 * 60 + i * 15;
+        const value = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+        return `<option value="${value}">${formatTime12h(value)}</option>`;
+    }).join('');
 
 function formatTime12h(timeStr) {
     const [h, m] = timeStr.split(':').map(Number);
@@ -1664,6 +1704,7 @@ async function buildHoursSheets(apptId, kind) {
 
     if (kind === 'creation') {
         const start = new Date(appt.created_at);
+        start.setMinutes(start.getMinutes() - start.getMinutes() % 15, 0, 0); // 1:19 counts as 1:15
         const end = new Date(start.getTime() + 30 * 60 * 1000);
         const hhmm = d => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
         teams = [{

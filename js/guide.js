@@ -98,8 +98,8 @@ function enterSandbox(role) {
         ];
         logs = [
             log(7, 57, 2, 3, '13:15:00', '14:00:00', 'Took off the bezel. LCD panel is cracked. Customer is ordering one.', [2, 3]),
-            log(8, 57, 3, 1, '13:10:00', '14:05:00', 'Installed the new panel and tested it. No flicker.', [2, 3]),
-            log(9, 58, 1, 1, '13:20:00', '13:55:00', 'Battery health is 61%. Customer is ordering a battery.', [1])
+            log(8, 57, 3, 1, '13:15:00', '14:00:00', 'Installed the new panel and tested it. No flicker.', [2, 3]),
+            log(9, 58, 1, 1, '13:15:00', '14:00:00', 'Battery health is 61%. Customer is ordering a battery.', [1])
         ];
     } else {
         currentSession ||= 'PM';
@@ -112,7 +112,7 @@ function enterSandbox(role) {
             ticket(41, 'Riley Chen', 'Desktop', "Won't turn on after a storm.", 'in_progress', [1, 2], 2, 'Dell OptiPlex 7080')
         ];
         logs = [
-            log(5, 35, 1, 8, '13:10:00', '13:50:00', 'Ordered the keyboard for the HP 250 G8. Pop the old keys off with a plastic pry tool.', [1]),
+            log(5, 35, 1, 8, '13:00:00', '13:45:00', 'Ordered the keyboard for the HP 250 G8. Pop the old keys off with a plastic pry tool.', [1]),
             log(6, 35, 1, 6, '13:15:00', '14:00:00', 'Swapped the keyboard. Tested every key in Notepad.', [1]),
             log(7, 41, 2, 1, '13:15:00', '14:00:00', 'Power supply fan does not spin. Tested with a spare PSU and it boots. Next: customer orders a PSU.', [1, 2])
         ];
