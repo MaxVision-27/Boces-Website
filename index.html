@@ -1,7 +1,7 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=25">
+    <link rel="stylesheet" href="css/styles.css?v=29">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
@@ -9,9 +9,9 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
-    <script src="js/effects.js?v=10" defer></script>
-    <script src="js/main.js?v=28" defer></script>
-    <script src="js/forum.js?v=2" defer></script>
+    <script src="js/effects.js?v=11" defer></script>
+    <script src="js/main.js?v=30" defer></script>
+    <script src="js/forum.js?v=4" defer></script>
     <script src="js/guide.js?v=7" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -173,24 +173,24 @@
 
 <!-- Admin Panel -->
 <div class="admin-panel" id="adminPanel" style="display: none; position: fixed; top: 60px; right: 20px;">
-    <h3 style="margin-bottom: 1rem;">Admin Panel</h3>
-    <button class="btn btn-primary" onclick="openManageStudents()">Manage Students</button>
-    <button class="btn btn-primary" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
+    <h3>Admin Panel</h3>
     <button class="btn btn-primary" onclick="openModal('ticketPoolModal')">Ticket Pool<span id="checkoffCount"></span></button>
-    <button class="btn btn-primary" onclick="openForum()">Forum</button>
-    <button class="btn btn-primary" onclick="openWorkflowGuide()">Workflow Guide</button>
-    <button class="btn btn-primary" onclick="logout()">Logout</button>
+    <button class="btn btn-outline" onclick="openManageStudents()">Manage Students</button>
+    <button class="btn btn-outline" onclick="openForum()">Forum</button>
+    <button class="btn btn-outline" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
+    <button class="btn btn-outline" onclick="openWorkflowGuide()">Workflow Guide</button>
+    <button class="btn btn-danger panel-logout" onclick="logout()">Log Out</button>
 </div>
 
 <!-- Tech Toolbar -->
 <div class="admin-panel" id="techToolbar" style="display: none; position: fixed; top: 60px; right: 20px;">
-    <h3 style="margin-bottom: 1rem;">Tech Tools</h3>
-    <button class="btn btn-primary" style="background:#17a2b8; color:white;" onclick="openTechTicketModal()">New Ticket</button>
-    <button class="btn btn-primary" onclick="viewMyTickets()">My Tickets</button>
-    <button class="btn btn-primary" onclick="openMyHours()">My Hours</button>
-    <button class="btn btn-primary" onclick="openForum()">Forum</button>
-    <button class="btn btn-primary" onclick="openWorkflowGuide()">Workflow Guide</button>
-    <button class="btn btn-primary" onclick="logout()">Logout</button>
+    <h3>Tech Tools</h3>
+    <button class="btn btn-primary" onclick="openTechTicketModal()">+ New Ticket</button>
+    <button class="btn btn-outline" onclick="viewMyTickets()">My Tickets</button>
+    <button class="btn btn-outline" onclick="openMyHours()">My Hours</button>
+    <button class="btn btn-outline" onclick="openForum()">Forum</button>
+    <button class="btn btn-outline" onclick="openWorkflowGuide()">Workflow Guide</button>
+    <button class="btn btn-danger panel-logout" onclick="logout()">Log Out</button>
 </div>
 
 <!-- Update Stats Modal -->
@@ -378,7 +378,7 @@
             <label for="trackCodeInput">Tracking Code</label>
             <input type="text" id="trackCodeInput" placeholder="e.g. BT4X92" style="text-transform: uppercase;" onkeydown="if(event.key==='Enter'){trackRepair();}">
         </div>
-        <button class="btn btn-primary" style="background:#003d7a; color:white;" onclick="trackRepair()">Look Up</button>
+        <button class="btn btn-primary" onclick="trackRepair()">Look Up</button>
         <div id="trackResult"></div>
     </div>
 </div>
@@ -390,7 +390,7 @@
         <h2>Who are you?</h2>
         <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Select your name so your tickets and repairs are tracked under you.</p>
         <div id="techPickerContainer"></div>
-        <button class="btn btn-secondary" style="width:100%; margin-top:1.5rem; color:#001f3f; border-color:#001f3f;" onclick="closeModal('techPickerModal'); logout();">Log Out</button>
+        <button class="btn btn-danger" style="width:100%; margin-top:1.5rem;" onclick="closeModal('techPickerModal'); logout();">Log Out</button>
     </div>
 </div>
 
@@ -402,8 +402,8 @@
         <p style="font-size: 0.9rem; color: #555;">Give the customer this tracking code. They enter it under Track Repair to check on their repair.</p>
         <div class="tracking-code-big" id="createdTrackingCode"></div>
         <div class="ws-actions" style="justify-content: center;">
-            <button class="btn btn-primary" onclick="copyText(document.getElementById('createdTrackingCode').textContent, this)">Copy Code</button>
-            <button class="btn btn-primary" id="printHelpDeskBtn" onclick="closeModal('ticketCreatedModal'); previewHelpDesk(Number(this.dataset.ticket))">🖨 Print Help Desk Ticket</button>
+            <button class="btn btn-outline" onclick="copyText(document.getElementById('createdTrackingCode').textContent, this)">Copy Code</button>
+            <button class="btn btn-primary" id="printHelpDeskBtn" onclick="closeModal('ticketCreatedModal'); previewHelpDesk(Number(this.dataset.ticket))">Print Help Desk Ticket</button>
         </div>
         <p style="font-size: 0.85rem; color: #555; margin-top: 0.75rem;">Have the customer sign the Help Desk Ticket before they leave the device.</p>
     </div>

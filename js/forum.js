@@ -62,7 +62,7 @@ function renderForumList() {
                 <span class="folder-top"><strong>${escapeHtml(p.title)}</strong> <span class="forum-type">${escapeHtml(p.device_type)}</span></span>
                 <span class="folder-issue">${escapeHtml(p.device)}</span>
                 <span class="forum-tags">${forumTagChips(p.tags)}</span>
-                <span class="folder-meta">${escapeHtml(p.author_name)} · ${new Date(p.created_at).toLocaleDateString()}${p.ticket_notes ? ' · 📝 ticket notes' : ''} <strong>Read →</strong></span>
+                <span class="folder-meta">${escapeHtml(p.author_name)} · ${new Date(p.created_at).toLocaleDateString()}${p.ticket_notes ? ' · Ticket notes' : ''} <strong>Read →</strong></span>
             </button>`).join('')}</div>`
         : `<p class="ws-hint" style="text-align:center; padding:1.5rem 0;">${forumPosts.length ? 'No posts match. Try fewer filters or another word.' : 'No posts yet. Fixed something tricky? Be the first to share it.'}</p>`;
 }
@@ -73,7 +73,7 @@ function linkify(text) {
 
 function forumLinkLabel(url) {
     const host = new URL(url).hostname.replace(/^www\./, '');
-    return /(^|\.)youtu(\.be|be\.com)$/.test(host) ? `▶ Video on ${host}` : `🔩 ${host}`;
+    return /(^|\.)youtu(\.be|be\.com)$/.test(host) ? `▶ Video on ${host}` : `${host} ↗`;
 }
 
 function canEditForumPost(p) {
@@ -117,8 +117,8 @@ function showForumPost(id) {
 
         ${canEditForumPost(p) ? `
         <div class="ws-actions">
-            ${currentTechId && p.tech_id === currentTechId ? `<button class="btn btn-primary" onclick="openForumForm(${p.id})">Edit</button>` : ''}
-            <button class="btn btn-primary" style="background:#dc3545; color:white;" onclick="deleteForumPost(${p.id})">Delete</button>
+            ${currentTechId && p.tech_id === currentTechId ? `<button class="btn btn-outline" onclick="openForumForm(${p.id})">Edit</button>` : ''}
+            <button class="btn btn-danger" onclick="deleteForumPost(${p.id})">Delete</button>
         </div>` : ''}`;
     detail.closest('.modal-content').scrollTop = 0;
 }

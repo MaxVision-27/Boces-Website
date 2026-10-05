@@ -221,10 +221,73 @@ body {
     transform: translateY(0);
 }
 
-/* White buttons vanish on white modals; go navy there */
-.modal-content .btn-primary {
+/* =========================================================
+   STAFF BUTTONS — one look per purpose, used in popups and the
+   Tech Tools / Admin Panel. (.btn-primary stays white on the dark
+   hero; inside white popups and panels it turns navy.)
+     .btn-primary   main action of a section (navy)
+     .btn-outline   secondary action (white, navy outline)
+     .btn-start / .btn-review / .btn-approve   one color per workflow step
+     .btn-warn      send back (amber outline)
+     .btn-danger    delete / remove (red outline)
+     .btn-sm        smaller size, for lists and cards
+   ========================================================= */
+.modal-content .btn-primary,
+.admin-panel .btn-primary {
     background: var(--navy-900);
     color: white;
+    border: 1.5px solid var(--navy-900);
+}
+
+.btn.btn-outline {
+    background: white;
+    color: var(--navy-900);
+    border: 1.5px solid #b9c6d8;
+}
+
+.btn.btn-outline:hover {
+    border-color: var(--navy-700);
+    background: var(--surface-alt);
+}
+
+.btn.btn-start { background: #0d6efd; border: 1.5px solid #0d6efd; color: white; }
+.btn.btn-review { background: #6f42c1; border: 1.5px solid #6f42c1; color: white; }
+.btn.btn-approve { background: #1e7e34; border: 1.5px solid #1e7e34; color: white; }
+
+.btn.btn-warn {
+    background: #fffaf0;
+    color: #a35a00;
+    border: 1.5px solid #e0a040;
+}
+
+.btn.btn-danger {
+    background: white;
+    color: #c62828;
+    border: 1.5px solid #e5a3a3;
+}
+
+.btn.btn-danger:hover {
+    background: #c62828;
+    border-color: #c62828;
+    color: white;
+}
+
+.btn.btn-sm {
+    padding: .4rem .9rem;
+    font-size: .85rem;
+}
+
+.btn.btn-chip {
+    padding: .1rem .6rem;
+    font-size: .75rem;
+    border-radius: var(--radius-pill);
+    vertical-align: middle;
+}
+
+.modal-content .btn:hover,
+.admin-panel .btn:hover {
+    transform: none;
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-secondary {
@@ -644,8 +707,8 @@ body {
     inset: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 10, 25, .55);
-    backdrop-filter: blur(3px);
+    background: rgba(4, 14, 30, .86);
+    backdrop-filter: blur(8px);
     z-index: 1200; /* above the fixed site nav */
     justify-content: center;
     align-items: center;
@@ -750,15 +813,71 @@ body {
     padding: 1rem;
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg);
-    width: 220px;
+    width: 240px;
     z-index: 1000;
-    display: flex;
-    flex-direction: column;
+    display: grid;
     gap: .5rem;
 }
 
 .admin-panel h3 {
     color: var(--navy-900);
+    font-size: 1rem;
+    margin-bottom: .25rem !important;
+}
+
+.admin-panel .btn {
+    width: 100%;
+    padding: .6rem .9rem;
+    font-size: .92rem;
+    text-align: left;
+}
+
+.admin-panel .panel-logout {
+    margin-top: .35rem;
+}
+
+/* Tool buttons: each its own shade of navy. Hovering sweeps a yellow
+   gradient in from the right over half the button, fading to transparent
+   at its far end (Log Out sweeps red),
+   leaving the left-aligned white text on navy. */
+.admin-panel .btn.btn {
+    color: white;
+    border: 1.5px solid rgba(255, 255, 255, .08);
+    background-image: linear-gradient(to left, #ffd700, rgba(255, 215, 0, 0));
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 0% 100%;
+    transition: background-size .35s ease, box-shadow .2s ease;
+}
+
+.admin-panel .btn:nth-of-type(1) { background-color: #001a35; }
+.admin-panel .btn:nth-of-type(2) { background-color: #0a2a52; }
+.admin-panel .btn:nth-of-type(3) { background-color: #12366a; }
+.admin-panel .btn:nth-of-type(4) { background-color: #1b4280; }
+.admin-panel .btn:nth-of-type(5) { background-color: #244d93; }
+.admin-panel .btn:nth-of-type(6) { background-color: #2e58a6; }
+
+.admin-panel .btn.btn-danger {
+    background-image: linear-gradient(to left, #e35d5d, rgba(227, 93, 93, 0));
+}
+
+.admin-panel .btn.btn:hover,
+.admin-panel .btn.btn:focus-visible {
+    background-size: 50% 100%;
+    color: white;
+}
+
+/* Marks a customer who has more than one ticket */
+.dup-badge {
+    display: inline-block;
+    padding: .05rem .5rem;
+    border-radius: var(--radius-pill);
+    background: #fff4d6;
+    border: 1px solid #e0a040;
+    color: #8a4b00;
+    font-size: .72rem;
+    font-weight: 700;
+    vertical-align: middle;
 }
 
 /* =========================================================
