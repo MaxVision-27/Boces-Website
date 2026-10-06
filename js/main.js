@@ -1134,6 +1134,7 @@ function emailCounts() {
 function populateAppointmentsModal() {
     const container = document.getElementById('appointmentsContainer');
     if (!container) return;
+    renderGreeting(); // its counts follow the tickets
 
     const query = document.getElementById('nameSearch').value.trim().toLowerCase();
     const filterStatus = document.getElementById('statusFilter').value;
@@ -1245,32 +1246,54 @@ async function viewMyTickets() {
 
     closeModal('ticketWorkspaceModal');
     openModal('myTicketsModal');
-    renderTechGreeting();
+    renderGreeting();
 }
 
-// The hello at the top of Tech Tools: the time of day, the student's name,
-// one friendly line (picked once per visit), and where their tickets stand.
-const GREETING_LINES = [
-    'Ready to fix something?',
-    'What are we repairing today?',
-    'Pick up where you left off.',
-    'Stuck on a repair? Someone may have posted the fix in the Forum.',
-    'Log your sessions as you go and your Hours sheet fills itself in.',
-    ...({ 1: ['New week, new repairs.'], 5: ['Last push before the weekend.'] }[new Date().getDay()] || [])
-];
-const greetingLine = GREETING_LINES[Math.floor(Math.random() * GREETING_LINES.length)];
+// The hello at the top of the staff page: the time of day, the tech's
+// name, one friendly line (picked once per visit), and what's waiting.
+const weekdayLine = { 1: 'New week, new repairs.', 5: 'Last push before the weekend.' }[new Date().getDay()];
+const GREETING_LINES = {
+    tech: [
+        'Ready to fix something?',
+        'What are we repairing today?',
+        'Pick up where you left off.',
+        'Stuck on a repair? Someone may have posted the fix in the Forum.',
+        'Log your sessions as you go and your Hours sheet fills itself in.'
+    ],
+    admin: [
+        "Here's what your students are working on.",
+        'Ready to check some repairs?',
+        "Let's see how the repairs are going.",
+        'Manage Students shows everyone\'s hours at a glance.'
+    ]
+};
+const greetingPick = Math.random();
 
-function renderTechGreeting() {
+function renderGreeting() {
+    const el = document.getElementById('greeting');
+    if (!el || !currentRole) return;
     const hour = new Date().getHours();
     const partOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
-    document.getElementById('techGreeting').textContent = `Good ${partOfDay}${currentTechName ? `, ${currentTechName}` : ''}`;
+    const name = currentRole === 'tech' && currentTechName ? `, ${currentTechName}` : '';
+    el.textContent = `Good ${partOfDay}${name}`;
 
-    const open = appointments.filter(a => a.status !== 'completed' && (a.assigned_tech_ids || []).includes(currentTechId));
-    const sentBack = open.filter(a => a.status === 'in_progress' && a.review_note).length;
-    const status = !open.length ? 'No open tickets right now.'
-        : `You have ${open.length} open ticket${open.length === 1 ? '' : 's'}.` +
-          (sentBack ? ` ${sentBack} came back from the admin with a note.` : '');
-    document.getElementById('techGreetingLine').textContent = `${greetingLine} ${status}`;
+    const lines = [...GREETING_LINES[currentRole], ...(weekdayLine ? [weekdayLine] : [])];
+    const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+    let status;
+    if (currentRole === 'tech') {
+        const open = appointments.filter(a => a.status !== 'completed' && (a.assigned_tech_ids || []).includes(currentTechId));
+        const sentBack = open.filter(a => a.status === 'in_progress' && a.review_note).length;
+        status = !open.length ? 'No open tickets right now.'
+            : `You have ${plural(open.length, 'open ticket')}.` + (sentBack ? ` ${sentBack} came back from the admin with a note.` : '');
+    } else {
+        const waiting = appointments.filter(a => a.status === 'review').length;
+        const needStudents = appointments.filter(a => a.status === 'pending').length;
+        status = [
+            waiting && `${plural(waiting, 'repair')} ${waiting === 1 ? 'is' : 'are'} waiting for your check-off.`,
+            needStudents && `${plural(needStudents, 'new ticket')} ${needStudents === 1 ? 'needs' : 'need'} students.`
+        ].filter(Boolean).join(' ') || 'Nothing is waiting for you right now.';
+    }
+    document.getElementById('greetingLine').textContent = `${lines[Math.floor(greetingPick * lines.length)]} ${status}`;
 }
 
 let workspaceTicketId = null;
