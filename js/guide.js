@@ -129,8 +129,13 @@ function enterSandbox(role) {
 }
 
 const $g = sel => document.querySelector(sel);
-const wsCard = title => [...document.querySelectorAll('#ticketWorkspaceContainer .ws-card')]
-    .find(c => c.querySelector('h3')?.textContent === title);
+// Folded sections open when the guide points at them.
+const wsCard = title => {
+    const card = [...document.querySelectorAll('#ticketWorkspaceContainer .ws-card')]
+        .find(c => c.querySelector('h3')?.textContent === title);
+    if (card?.tagName === 'DETAILS') card.open = true;
+    return card;
+};
 const isOpen = id => document.getElementById(id).style.display === 'flex';
 const guideTicketId = () => appointments.at(-1).id;
 
@@ -239,7 +244,7 @@ const TECH_STEPS = [
     },
     {
         title: 'Fill in the Help Desk Ticket',
-        text: "The customer's name, a contact number, their class and room, and the computer's make, model, and serial tag (usually on a sticker underneath). Only take the password if you need it to test. We filled in an example.",
+        text: "The customer's name, a contact number, their class and room, and the computer's make, model, and serial tag (usually on a sticker underneath). Only take the password if you need it to test. It stays hidden while the customer watches. We filled in an example.",
         setup: fillNewTicket,
         target: () => $g('#techTicketModal .form-row'),
         talk: ['These are the same boxes as the paper Help Desk Ticket.', 'The password is deleted automatically when the repair is done.'],
@@ -436,7 +441,7 @@ const TECH_STEPS = [
     },
     {
         title: 'The whole ticket',
-        text: "That's everything on a ticket: the details at the top, the next-step box, logging your sessions, everyone's work, parts, and paperwork. Scroll inside the outline to see it all.",
+        text: "That's a ticket: the problem and team at the top, the next-step box, and logging your sessions. Work so far, Parts, Paperwork, and Ticket details fold away. Click a name to open it.",
         setup: ensureWorkspace,
         target: () => $g('#ticketWorkspaceModal .modal-content'),
         section: true,
@@ -648,7 +653,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'The whole ticket, from your side',
-        text: "Customer details, the check-off box, the students on it, their work, parts, paperwork, and delete. Scroll inside the outline to see it all.",
+        text: "The check-off box sits at the top. Below it, click a name to open that section: the students on it, their work, parts, paperwork, ticket details with the customer's contact, and delete.",
         setup: () => ensureWorkspace(CHECK_ID),
         target: () => $g('#ticketWorkspaceModal .modal-content'),
         section: true,
@@ -688,7 +693,7 @@ const ADMIN_STEPS = [
     {
         title: 'Save it',
         text: 'Click Save Students.',
-        target: () => $g(`#saveStudents-${NEW_ID}`),
+        target: () => wsCard('Students on this ticket')?.querySelector(`#saveStudents-${NEW_ID}`),
         click: true,
         talk: ['The ticket moves from In the Pool to Assigned.'],
         ask: 'What should the students do first once they are assigned?'

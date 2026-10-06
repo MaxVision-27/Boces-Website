@@ -179,20 +179,6 @@ body {
     color: rgba(255, 255, 255, .85);
 }
 
-.hero-note {
-    font-size: 1rem;
-    margin-bottom: 5rem;
-    color: rgba(255, 255, 255, .65);
-    max-width: 46ch;
-}
-
-.hero-buttons {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
 /* =========================================================
    BUTTONS
    ========================================================= */
@@ -338,122 +324,23 @@ body {
     color: var(--ink-soft);
 }
 
-/* =========================================================
-   ABOUT — click-to-explore topic pills
-   ========================================================= */
-
-.about-intro {
-    text-align: center;
-    color: var(--ink-soft);
-    margin-top: -1rem;
-    margin-bottom: 2rem;
-}
-
-.about-pills {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: .6rem;
-    margin-bottom: 2rem;
-}
-
-.about-pill {
-    padding: .55rem 1.1rem;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--border);
-    background: var(--surface-alt);
-    color: var(--ink);
-    font-size: .9rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .2s ease;
-}
-
-.about-pill:hover {
-    border-color: var(--navy-700);
-    background: white;
-    box-shadow: var(--shadow-sm);
-}
-
-.about-pill.active {
-    background: var(--navy-900);
-    border-color: var(--navy-900);
-    color: white;
-}
-
-.about-panel {
-    max-width: 640px;
-    margin: 0 auto;
-    padding: 2rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-sm);
-    min-height: 140px;
-}
-
-.about-topic {
-    display: none;
-    opacity: 0;
-    animation: about-topic-in .3s ease forwards;
-}
-
-.about-topic.active {
-    display: block;
-}
-
-@keyframes about-topic-in {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.about-topic h3 {
-    color: var(--navy-900);
-    margin-bottom: .75rem;
-    font-size: 1.3rem;
-}
-
-.about-topic p {
-    color: var(--ink-soft);
-    font-size: 1.05rem;
-}
-
-/* Cost topic: steps and part prices open under the blurb; the panel
-   widens while open so the cards have room */
-.about-panel {
-    transition: max-width .3s ease;
-}
-
-.about-panel:has(.about-topic.active details[open]) {
-    max-width: 1100px;
-}
-
+/* Fold-away extras under each public section */
 .cost-details {
-    margin-top: 1.25rem;
+    max-width: 900px;
+    margin: 1.25rem auto 0;
     border-top: 1px solid var(--border);
     padding-top: 1rem;
 }
 
-.cost-details summary,
-.parts-details summary {
+.cost-details summary {
     cursor: pointer;
     color: var(--navy-700);
     font-weight: 600;
     font-size: 1.05rem;
 }
 
-.cost-details summary:hover,
-.parts-details summary:hover {
+.cost-details summary:hover {
     color: var(--navy-900);
-}
-
-.parts-details {
-    margin-top: -1.5rem;
-}
-
-.parts-details summary {
-    text-align: center;
-    margin-bottom: 1.5rem;
 }
 
 .cost-details .pricing-heading {
@@ -644,27 +531,6 @@ body {
     padding: 0 .35rem;
     color: var(--ink);
     font-weight: 600;
-}
-
-/* =========================================================
-   STATS SECTION
-   ========================================================= */
-
-.stats {
-    background: linear-gradient(135deg, var(--navy-950) 0%, var(--navy-700) 100%);
-    color: white;
-    text-align: center;
-    position: relative;
-}
-
-.stats-number {
-    font-size: clamp(2.8rem, 7vw, 4.5rem);
-    font-weight: 700;
-    margin: 1rem 0;
-    background: linear-gradient(135deg, var(--gold-500), #fff6bf);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
 }
 
 /* =========================================================
@@ -937,6 +803,7 @@ body {
 }
 
 .btn-nav-login {
+    text-decoration: none;
     background: rgba(255, 255, 255, .12);
     color: white;
     border: 1px solid rgba(255, 255, 255, .3);
@@ -954,8 +821,40 @@ body {
 }
 
 @media (max-width: 640px) {
+    .site-nav-inner {
+        padding: .75rem;
+        gap: .75rem;
+    }
+
     .site-nav-links {
-        gap: 1rem;
+        gap: .75rem;
+    }
+
+    .site-nav-links a {
+        font-size: .82rem;
+        white-space: nowrap;
+    }
+
+    .btn-nav-login {
+        padding: .4rem .6rem;
+        white-space: nowrap;
+    }
+
+    /* Phones: a smaller logo so the tracking card shows without scrolling */
+    .hero {
+        padding-top: 4.5rem;
+    }
+
+    .hero img {
+        max-width: 130px !important;
+    }
+
+    .hero h2 {
+        margin-bottom: .5rem;
+    }
+
+    .hero-tagline {
+        margin-bottom: 1.25rem;
     }
 
     .site-nav-brand {
@@ -1661,6 +1560,234 @@ body {
     #bgFxCanvas {
         opacity: .3;
     }
+}
+
+/* =========================================================
+   PUBLIC PAGE — tracking card in the hero, reviews, more-about
+   ========================================================= */
+
+.track-card {
+    width: min(520px, 100%);
+    margin-top: .5rem;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, .08);
+    border: 2px solid var(--gold-500);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-glow);
+    backdrop-filter: blur(6px);
+    scroll-margin-top: 90px;
+}
+
+.track-card > h3 {
+    font-size: 1.5rem;
+    color: var(--gold-500);
+}
+
+.track-card > p {
+    color: rgba(255, 255, 255, .8);
+    margin-bottom: 1rem;
+}
+
+.track-form {
+    display: flex;
+    gap: .5rem;
+}
+
+.track-form input {
+    flex: 1;
+    min-width: 0;
+    padding: .8rem 1rem;
+    border: none;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.track-form input::placeholder {
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+}
+
+.track-form .btn {
+    padding: .8rem 1.4rem;
+}
+
+.track-card #trackResult {
+    color: var(--ink);
+}
+
+.track-msg {
+    margin-top: 1rem;
+    color: rgba(255, 255, 255, .75);
+}
+
+.track-msg.error {
+    color: #ffb4b4;
+    font-weight: 600;
+}
+
+.track-card .track-review {
+    margin: 1rem 0 0;
+    font-size: .95rem;
+}
+
+.track-review button {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 700;
+    color: var(--gold-500);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+
+.reviews-actions {
+    text-align: center;
+}
+
+.more-about p {
+    color: var(--ink-soft);
+    margin-top: .75rem;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+/* =========================================================
+   STAFF PAGE (staff.html) — plain background, the panel in the middle
+   ========================================================= */
+
+.staff-page {
+    background: var(--surface-sunken);
+}
+
+.staff-page .site-nav {
+    background: var(--navy-900);
+}
+
+.staff-home {
+    min-height: 100vh;
+    padding: 6rem 1rem 2rem;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.staff-page .admin-panel {
+    position: static;
+    width: min(340px, 100%);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+}
+
+.staff-page .admin-panel h3 {
+    font-size: 1.25rem;
+}
+
+.staff-page .admin-panel .btn {
+    padding: .8rem 1.1rem;
+    font-size: 1rem;
+}
+
+.staff-signed-out {
+    background: white;
+    padding: 2rem;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    text-align: center;
+    width: min(340px, 100%);
+}
+
+.staff-signed-out h2 {
+    color: var(--navy-900);
+}
+
+.staff-signed-out p {
+    color: var(--ink-soft);
+    margin-bottom: 1rem;
+}
+
+.staff-signed-out .btn-primary {
+    background: var(--navy-900);
+    color: white;
+}
+
+/* New Ticket: the computer password stays hidden unless the tech shows it */
+.password-field {
+    display: flex;
+    gap: .5rem;
+    align-items: center;
+}
+
+.password-field input {
+    flex: 1;
+}
+
+/* Ticket workspace sections that fold away (renderTicketWorkspace) */
+details.ws-card {
+    padding: 0;
+}
+
+details.ws-card > summary {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .9rem 1.25rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+details.ws-card > summary::-webkit-details-marker {
+    display: none;
+}
+
+details.ws-card > summary h3 {
+    margin: 0;
+}
+
+details.ws-card > summary::after {
+    content: '';
+    margin-left: auto;
+    flex: none;
+    width: .55rem;
+    height: .55rem;
+    border-right: 2px solid var(--ink-faint);
+    border-bottom: 2px solid var(--ink-faint);
+    transform: rotate(-45deg);
+    transition: transform .2s ease;
+}
+
+details.ws-card[open] > summary::after {
+    transform: rotate(45deg);
+}
+
+details.ws-card > summary:hover {
+    background: var(--surface-alt);
+}
+
+.ws-count {
+    color: var(--ink-faint);
+    font-size: .85rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ws-body {
+    padding: 0 1.25rem 1.25rem;
 }
 
 /* =========================================================

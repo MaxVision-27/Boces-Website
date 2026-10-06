@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
+    <link rel="stylesheet" href="css/styles.css?v=30">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
+    <script src="js/main.js?v=31" defer></script>
+    <script src="js/forum.js?v=4" defer></script>
+    <script src="js/guide.js?v=8" defer></script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex">
+    <title>Staff - BarryTech Repair Lab</title>
+</head>
+<body class="staff-page">
+
+<!-- Staff area: the tools only, away from the public site. Logging out goes back to it. -->
+<nav class="site-nav" id="siteNav">
+    <div class="site-nav-inner">
+        <span class="site-nav-brand">BarryTech Repair Lab · Staff</span>
+        <div class="site-nav-links">
+            <a href="./">Public site</a>
+        </div>
+        <div class="site-nav-actions">
+            <span class="role-indicator hidden" id="roleIndicator" onclick="onRoleIndicatorClick()"></span>
+        </div>
+    </div>
+</nav>
+
+<main class="staff-home">
+    <div class="staff-signed-out" data-signed-out>
+        <h2>Staff Login</h2>
+        <p>Log in to use the tech tools.</p>
+        <button class="btn btn-primary" onclick="openModal('loginModal')">Log In</button>
+    </div>
+
+<!-- Admin Panel -->
+<div class="admin-panel" id="adminPanel" style="display: none;">
+    <h3>Admin Panel</h3>
+    <button class="btn btn-primary" onclick="openModal('ticketPoolModal')">Ticket Pool<span id="checkoffCount"></span></button>
+    <button class="btn btn-outline" onclick="openManageStudents()">Manage Students</button>
+    <button class="btn btn-outline" onclick="openForum()">Forum</button>
+    <button class="btn btn-outline" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
+    <button class="btn btn-outline" onclick="openWorkflowGuide()">Workflow Guide</button>
+    <button class="btn btn-danger panel-logout" onclick="logout()">Log Out</button>
+</div>
+
+<!-- Tech Toolbar -->
+<div class="admin-panel" id="techToolbar" style="display: none;">
+    <h3>Tech Tools</h3>
+    <button class="btn btn-primary" onclick="openTechTicketModal()">+ New Ticket</button>
+    <button class="btn btn-outline" onclick="viewMyTickets()">My Tickets</button>
+    <button class="btn btn-outline" onclick="openMyHours()">My Hours</button>
+    <button class="btn btn-outline" onclick="openForum()">Forum</button>
+    <button class="btn btn-outline" onclick="openWorkflowGuide()">Workflow Guide</button>
+    <button class="btn btn-danger panel-logout" onclick="logout()">Log Out</button>
+</div>
+</main>
+
+<!-- Login Modal -->
+<div class="modal" id="loginModal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('loginModal')">×</span>
+        <h2>Staff Login</h2>
+        <div class="form-group">
+            <label for="loginRole">Role</label>
+            <select id="loginRole" onchange="showLoginButtons()">
+                <option value="admin">Admin (Teacher)</option>
+                <option value="tech">Tech (Student)</option>
+            </select>
+        </div>
+        <div class="form-group" id="loginClassPicker" style="display: none;">
+            <label>Your class</label>
+            <div class="class-toggle" role="group" aria-label="Your class">
+                <button type="button" class="class-option" aria-pressed="false" data-class="am" onclick="pickLoginClass(this)">AM</button>
+                <button type="button" class="class-option" aria-pressed="false" data-class="pm" onclick="pickLoginClass(this)">PM</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="loginPassword" id="loginPasswordLabel">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter password" onkeydown="if(event.key==='Enter'){login();}">
+        </div>
+        <button class="btn btn-primary" onclick="login()">Login</button>
+    </div>
+</div>
+
+
+<!-- Update Stats Modal -->
+<div class="modal" id="updateStatsModal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('updateStatsModal')">×</span>
+        <h2>Update Statistics</h2>
+        <div class="form-group">
+            <label for="totalRepairsInput">Total Repairs Completed</label>
+            <input type="number" id="totalRepairsInput" min="0">
+        </div>
+        <button class="btn btn-primary" onclick="updateStats()">Save Changes</button>
+    </div>
+</div>
+
+<!-- Ticket Pool Modal -->
+<div class="modal" id="ticketPoolModal">
+    <div class="modal-content" style="max-width: 800px;">
+        <span class="close-btn" onclick="closeModal('ticketPoolModal')">×</span>
+        <h2>Ticket Pool</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Every repair ticket lands here. Open one to pick its students, check progress, or print its paperwork.</p>
+        <div class="pool-filters">
+            <input type="search" id="nameSearch" placeholder="Search by name or email" oninput="populateAppointmentsModal()" autocomplete="off">
+            <select id="statusFilter" onchange="onStatusFilterChange()">
+                <option value="all">All tickets</option>
+                <option value="pending">In the Pool</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="review">Needs Check-Off</option>
+                <option value="completed">Completed</option>
+                <option value="deleted">Deleted</option>
+            </select>
+            <select id="sortFilter" onchange="populateAppointmentsModal()">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+            </select>
+        </div>
+        <div id="appointmentsContainer"></div>
+    </div>
+</div>
+
+<!-- My Tickets Modal (Tech) -->
+<div class="modal" id="myTicketsModal">
+    <div class="modal-content" style="max-width: 700px;">
+        <span class="close-btn" onclick="closeModal('myTicketsModal')">×</span>
+        <h2>My Tickets</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Open a ticket to log your work, add parts, and print its paperwork.</p>
+        <div id="myTicketsContainer"></div>
+    </div>
+</div>
+
+<!-- Ticket Workspace (Tech): one ticket opened up with room to work -->
+<div class="modal" id="ticketWorkspaceModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('ticketWorkspaceModal')">×</span>
+        <div id="ticketWorkspaceContainer"></div>
+    </div>
+</div>
+
+<!-- My Hours Modal (Tech) -->
+<div class="modal" id="myHoursModal">
+    <div class="modal-content" style="max-width: 600px;">
+        <span class="close-btn" onclick="closeModal('myHoursModal')">×</span>
+        <h2>My Hours</h2>
+        <div id="myHoursContainer" style="max-height: 500px; overflow-y: auto;"></div>
+    </div>
+</div>
+
+<!-- Paper Preview: see a form exactly as it prints before printing it -->
+<div class="modal" id="paperPreviewModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('paperPreviewModal')">×</span>
+        <h2 id="paperPreviewTitle"></h2>
+        <p class="ws-hint" id="paperPreviewNote"></p>
+        <div class="ws-actions" id="paperPreviewActions"></div>
+        <div class="paper-sheets" id="paperPreviewSheets"></div>
+    </div>
+</div>
+
+<!-- Tech Forum (js/forum.js): the list view's search and filters stay put while typing -->
+<div class="modal" id="forumModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('forumModal')">×</span>
+        <div id="forumListView">
+            <h2>Tech Forum</h2>
+            <p class="ws-hint">Fixes, videos, and part links from other students. Search here before you ask someone.</p>
+            <button class="btn btn-primary" id="forumNewBtn" style="margin-bottom: 1rem;" onclick="openForumForm()">+ New Post</button>
+            <div id="forumFilters">
+                <div class="pool-filters">
+                    <input type="search" id="forumSearch" placeholder="Search titles, devices, and fixes" oninput="renderForumList()" autocomplete="off">
+                    <select id="forumType" onchange="renderForumList()">
+                        <option value="">All device types</option>
+                        <option>Laptop</option>
+                        <option>Desktop</option>
+                        <option>Tablet</option>
+                        <option>Phone</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="ws-actions" id="forumTagFilters" style="margin-bottom: 1rem;"></div>
+            </div>
+            <div id="forumList"></div>
+        </div>
+        <div id="forumDetail" hidden></div>
+    </div>
+</div>
+
+<!-- Workflow Guide: pick self-paced or class presentation (js/guide.js) -->
+<div class="modal" id="guideChooserModal">
+    <div class="modal-content" style="max-width: 560px;">
+        <span class="close-btn" onclick="closeModal('guideChooserModal')">×</span>
+        <h2>Workflow Guide</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Walk through the workflow on the real screens. Both modes use practice tickets, so nothing is saved, emailed, or added to anyone's hours.</p>
+        <div class="folder-list">
+            <button type="button" class="folder-card" onclick="startGuide('self')">
+                <strong>Guide myself</strong>
+                <span class="folder-issue" style="white-space: normal;">Go at your own pace. Click each highlighted button to move on.</span>
+            </button>
+            <button type="button" class="folder-card" onclick="startGuide('present')">
+                <strong>Present to the class</strong>
+                <span class="folder-issue" style="white-space: normal;">Full screen with large text, talking points, and a discussion question on each step. Use the arrow keys.</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="guideLayer" hidden>
+    <div id="guideBlock"></div>
+    <div id="guideSpot"></div>
+    <svg id="guideLine" aria-hidden="true"><line/></svg>
+    <div id="guideBox" role="dialog" aria-live="polite" aria-label="Workflow Guide"></div>
+</div>
+<div id="sandboxBanner" hidden>Practice mode: sample tickets. Nothing here is saved or sent. <button type="button" onclick="exitGuide()">Exit guide</button></div>
+
+
+<!-- Tech Identity Picker (shown after Tech login) -->
+<div class="modal" id="techPickerModal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('techPickerModal')">×</span>
+        <h2>Who are you?</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Select your name so your tickets and repairs are tracked under you.</p>
+        <div id="techPickerContainer"></div>
+        <button class="btn btn-danger" style="width:100%; margin-top:1.5rem;" onclick="closeModal('techPickerModal'); logout();">Log Out</button>
+    </div>
+</div>
+
+<!-- Ticket Created: the tracking code to give the customer -->
+<div class="modal" id="ticketCreatedModal">
+    <div class="modal-content" style="text-align: center;">
+        <span class="close-btn" onclick="closeModal('ticketCreatedModal')">×</span>
+        <h2>Ticket Created</h2>
+        <p style="font-size: 0.9rem; color: #555;">Give the customer this tracking code. They enter it under Track Repair to check on their repair.</p>
+        <div class="tracking-code-big" id="createdTrackingCode"></div>
+        <div class="ws-actions" style="justify-content: center;">
+            <button class="btn btn-outline" onclick="copyText(document.getElementById('createdTrackingCode').textContent, this)">Copy Code</button>
+            <button class="btn btn-primary" id="printHelpDeskBtn" onclick="closeModal('ticketCreatedModal'); previewHelpDesk(Number(this.dataset.ticket))">Print Help Desk Ticket</button>
+        </div>
+        <p style="font-size: 0.85rem; color: #555; margin-top: 0.75rem;">Have the customer sign the Help Desk Ticket before they leave the device.</p>
+    </div>
+</div>
+
+<!-- Manage Students Modal (Admin) -->
+<div class="modal" id="manageStudentsModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('manageStudentsModal'); showStudent(null);">×</span>
+        <h2>Manage Students</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">See what each student is working on and how many hours they've logged. New students show up in the "Who are you?" list when they log in as Tech.</p>
+        <div id="manageStudentsContainer"></div>
+    </div>
+</div>
+
+<!-- Tech-created Ticket Modal -->
+<div class="modal" id="techTicketModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('techTicketModal')">×</span>
+        <h2>New Ticket</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Everything the Help Desk Ticket needs. After you create it, print the Help Desk Ticket for the customer to sign.</p>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="techApptName">Customer Name</label>
+                <input type="text" id="techApptName" placeholder="Example: Jamie Rivera" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptContact">Contact Number</label>
+                <input type="tel" id="techApptContact" placeholder="Example: (516) 555-0123" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptClass">Class Name</label>
+                <input type="text" id="techApptClass" placeholder="Example: Culinary Arts AM" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptRoom">Room Number</label>
+                <input type="text" id="techApptRoom" placeholder="Example: B112" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptDevice">Device Type</label>
+                <select id="techApptDevice">
+                    <option>Laptop</option>
+                    <option>Desktop</option>
+                    <option>Tablet</option>
+                    <option>Smartphone</option>
+                    <option>Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="techApptModel">Computer Make/Model</label>
+                <input type="text" id="techApptModel" placeholder="Example: Dell Latitude 5420" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptSerial">Serial Tag</label>
+                <input type="text" id="techApptSerial" placeholder="Example: 7XK3LM2 (sticker on the bottom)" autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label for="techApptPassword">Computer Password (optional)</label>
+                <div class="password-field">
+                    <input type="password" id="techApptPassword" placeholder="Only if you need it to test" autocomplete="off">
+                    <button type="button" class="btn btn-outline btn-chip" aria-pressed="false" onclick="togglePasswordShown(this)">Show</button>
+                </div>
+                <small style="color:#555;">Hidden while you type. Deleted automatically when the repair is completed.</small>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="techApptIssue">Problem Description</label>
+            <textarea id="techApptIssue" rows="3" placeholder="Example: Screen is cracked in the top left corner and flickers when opened."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="techApptEmail">Customer Email (optional, not on the paper form)</label>
+            <input type="email" id="techApptEmail" placeholder="Example: jrivera@school.edu" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>Receiving Tech</label>
+            <p id="techReceiving" style="font-weight:600; margin-bottom:0.5rem;"></p>
+            <label>Working with (optional)</label>
+            <div id="techPartnerPicker" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
+        <p class="forum-error" id="techTicketError" hidden></p>
+        <button class="btn btn-primary" onclick="submitTechTicket()">Create Ticket</button>
+    </div>
+</div>
+
+<!-- Filled by printPaperPreview(); the only thing visible when printing -->
+<div id="printArea"></div>
+
+</body></html>
