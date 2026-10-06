@@ -2,14 +2,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=33">
+    <link rel="stylesheet" href="css/styles.css?v=34">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
     <script src="js/effects.js?v=11" defer></script>
-    <script src="js/main.js?v=34" defer></script>
+    <script src="js/main.js?v=35" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -50,6 +50,7 @@
             <button class="btn btn-primary" onclick="trackRepair()">Look Up</button>
         </div>
         <div id="trackResult"></div>
+        <div class="my-repairs" id="myRepairs" hidden></div>
         <p class="track-review">Got your device back? <button type="button" onclick="openReview()">Leave a review</button></p>
     </section>
 </div>
@@ -60,7 +61,7 @@
         <li>
             <span class="step-num" aria-hidden="true">1</span>
             <h5>Bring it to Room C220</h5>
-            <p>We're on the right side of the building, next to Joe's Store. You don't need an appointment. A student technician finds the problem and gives you a tracking code.</p>
+            <p>We're on the right side of the building, next to Joe's Store. Walk in any class day, or tell us you're coming and get checked in first. A student technician finds the problem and gives you a tracking code.</p>
         </li>
         <li>
             <span class="step-num" aria-hidden="true">2</span>
@@ -73,6 +74,10 @@
             <p>Most repairs take 2–7 school days, plus shipping time for a part. Check on it anytime with your tracking code.</p>
         </li>
     </ol>
+    <div class="cta-row">
+        <button class="btn btn-primary" onclick="openDropOff()">Tell us you're coming</button>
+        <p>Pick a class day and skip the line. You still bring the device in person.</p>
+    </div>
     <details class="cost-details more-about">
         <summary>More about the lab</summary>
         <p>Students in Barry Tech's Computer Technology program repair computers, laptops, tablets, and phones with professional-grade tools. We also recover lost files and install software.</p>
@@ -110,6 +115,64 @@
         <summary>Read what customers said</summary>
         <div id="reviewsContainer"></div>
     </details>
+</div>
+
+<!-- Drop-off request: a saved spot for a class day, not a ticket (018_drop_off_requests.sql) -->
+<div class="modal" id="dropOffModal">
+    <div class="modal-content wide">
+        <span class="close-btn" onclick="closeModal('dropOffModal')">×</span>
+        <h2>Tell us you're coming</h2>
+        <div id="dropOffForm">
+            <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Pick a class day and we'll check you in before walk-ins. This saves your spot. We make your ticket and tracking code when you bring the device to Room C220.</p>
+            <div class="form-group">
+                <label for="dropOffDay">When are you coming?</label>
+                <select id="dropOffDay"></select>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="dropOffName">Your Name</label>
+                    <input type="text" id="dropOffName" placeholder="Example: Jamie Rivera" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="dropOffContact">Contact Number</label>
+                    <input type="tel" id="dropOffContact" placeholder="Example: (516) 555-0123" autocomplete="tel">
+                </div>
+                <div class="form-group">
+                    <label for="dropOffClass">Class Name (optional)</label>
+                    <input type="text" id="dropOffClass" placeholder="Example: Culinary Arts AM" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="dropOffRoom">Room Number (optional)</label>
+                    <input type="text" id="dropOffRoom" placeholder="Example: B112" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="dropOffDevice">Device Type</label>
+                    <select id="dropOffDevice">
+                        <option>Laptop</option>
+                        <option>Desktop</option>
+                        <option>Tablet</option>
+                        <option>Smartphone</option>
+                        <option>Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="dropOffModel">Make/Model (optional)</label>
+                    <input type="text" id="dropOffModel" placeholder="Example: Dell Latitude 5420" autocomplete="off">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="dropOffIssue">What's wrong with it?</label>
+                <textarea id="dropOffIssue" rows="3" placeholder="Example: The screen is cracked and flickers when I open it."></textarea>
+            </div>
+            <p class="forum-error" id="dropOffError" hidden></p>
+            <button class="btn btn-primary" onclick="submitDropOff(this)">Save My Spot</button>
+        </div>
+        <div id="dropOffDone" hidden>
+            <p class="drop-off-done">You're on the list for <strong id="dropOffWhen"></strong>.</p>
+            <p style="color: #555; margin-bottom: 1.25rem;">Bring your device to Room C220 and give the tech your name. You'll be checked in first. Can't make it that day? Walk in another day and we'll still help you.</p>
+            <button class="btn btn-primary" onclick="closeModal('dropOffModal')">Done</button>
+        </div>
+    </div>
 </div>
 
 <!-- Review Modal -->

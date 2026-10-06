@@ -19,6 +19,8 @@ let currentTechName = null;
 let currentSession = null; // 'AM' or 'PM' for a tech login (016_am_pm_and_help_desk.sql)
 let myTimeLogs = [];
 let deletedAppointments = [];
+let dropOffs = []; // upcoming drop-off requests (018_drop_off_requests.sql)
+let ticketDropOffId = null; // set while New Ticket is filled in from a request
 // Session token from staff_login(). Sent as x-staff-token on every
 // request so the database's row-level security can tell staff apart
 // from the public — tickets, students and hours are staff-only.
@@ -30,7 +32,7 @@ const STAFF_PAGE = document.body.classList.contains('staff-page');
 // LOAD ALL DATA FROM SUPABASE ON PAGE START
 // ============================================================
 async function loadData() {
-    await Promise.all(STAFF_PAGE ? [loadAppointments(), loadStats(), loadTechs()] : [loadStats()]);
+    await Promise.all(STAFF_PAGE ? [loadAppointments(), loadStats(), loadTechs(), loadDropOffs()] : [loadStats()]);
     hydrateTechIdentity();
     updateRoleDisplay();
 }
@@ -290,7 +292,7 @@ function studentPageHtml(student) {
     const sessions = allTimeLogs.filter(l => l.tech_id === student.id);
     const ticketFolder = appt => `
         <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
-            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> ${statusBadge(appt.status)}</span>
+            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> <span>${priorityBadge(appt)}${statusBadge(appt.status)}</span></span>
             <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
             <span class="folder-meta">${(appt.assigned_tech_ids || []).includes(student.id) ? 'On this ticket now' : 'Handed off'} <strong>Open →</strong></span>
         </button>`;
@@ -389,6 +391,8 @@ async function removeStudent(techId) {
 // pick up teammates (or be reassigned entirely) later from the pool.
 // ============================================================
 function openTechTicketModal() {
+    ticketDropOffId = null;
+    document.getElementById('techTicketFrom').hidden = true;
     if (!currentTechId) { openTechPicker(); return; }
     // The customer watches this screen: nothing else open behind the form.
     document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
@@ -446,15 +450,23 @@ async function submitTechTicket() {
             flag_reason: null,
             assigned_tech_ids: [currentTechId, ...[...document.querySelectorAll('.partner-pick:checked')].map(cb => parseInt(cb.value))],
             created_by: currentTechName,
-            tracking_code: trackingCode
+            tracking_code: trackingCode,
+            ...(ticketDropOffId && { drop_off_id: ticketDropOffId, priority: true })
         }).select().single());
 
-        if (!error || error.code !== '23505') break; // 23505 = unique_violation, try a new code
+        // 23505 = unique_violation: a taken tracking code gets a new try; a request checked in twice doesn't.
+        if (!error || error.code !== '23505' || error.message.includes('drop_off')) break;
     }
 
-    if (error) { console.error('Error creating ticket:', error); alert('Failed to create ticket.'); return; }
+    if (error) {
+        console.error('Error creating ticket:', error);
+        alert(error.message.includes('drop_off') ? 'Someone already checked this customer in.' : 'Failed to create ticket.');
+        return;
+    }
 
     appointments.push(data);
+    ticketDropOffId = null;
+    renderDropOffs();
     populateAppointmentsModal();
     if (currentRole === 'tech') viewMyTickets();
     closeModal('techTicketModal');
@@ -522,6 +534,9 @@ async function trackRepair() {
     }
 
     const meta = trackStatusMeta[data.status] || { label: data.status, color: '#999', text: 'white' };
+    const safeCode = code.replace(/[^A-Z0-9]/g, '');
+    const saved = savedRepairs().some(r => r.code === safeCode);
+    if (saved && data.status === 'completed') markRepairDone(safeCode);
     result.innerHTML = `
         <div class="info-card" style="text-align:left; margin-top:1rem;">
             <h3>${escapeHtml(data.device)}</h3>
@@ -529,10 +544,222 @@ async function trackRepair() {
             <span class="status-badge" style="background:${meta.color}; color:${meta.text}; margin-top:0.5rem;">${meta.label}</span>
             <p style="margin-top:0.8rem; font-size:0.85rem; color:#999;">Submitted ${new Date(data.created_at).toLocaleDateString()}</p>
             ${data.status === 'completed' ? `<p style="margin-top:0.8rem;">Your repair is done. How did we do?
-                <button class="btn btn-approve btn-sm" onclick="openReview('${code.replace(/[^A-Z0-9]/g, '')}')">Leave a review</button></p>` : ''}
+                <button class="btn btn-approve btn-sm" onclick="openReview('${safeCode}')">Leave a review</button></p>` : ''}
+            <label class="remember-repair"><input type="checkbox" ${saved ? 'checked' : ''} onchange="rememberRepair('${safeCode}', this.checked)"> Remember this code on this device</label>
         </div>
     `;
 }
+
+// ============================================================
+// MY REPAIRS — tracking codes a customer chose to remember. They live
+// only in this browser (localStorage), never on our server, and are
+// forgotten 30 days after we first see the repair completed.
+// ============================================================
+const MY_REPAIRS_KEY = 'btMyRepairs';
+const FORGET_AFTER_DONE_MS = 30 * 24 * 60 * 60 * 1000;
+
+function savedRepairs() {
+    try {
+        const list = JSON.parse(localStorage.getItem(MY_REPAIRS_KEY)) || [];
+        return list.filter(r => !r.done || Date.now() - r.done < FORGET_AFTER_DONE_MS);
+    } catch {
+        return [];
+    }
+}
+
+function setSavedRepairs(list) {
+    try { localStorage.setItem(MY_REPAIRS_KEY, JSON.stringify(list)); } catch { /* private mode: nothing kept */ }
+}
+
+function rememberRepair(code, on) {
+    const list = savedRepairs().filter(r => r.code !== code);
+    setSavedRepairs(on ? [...list, { code, done: null }] : list);
+    renderMyRepairs();
+}
+
+function markRepairDone(code) {
+    setSavedRepairs(savedRepairs().map(r => r.code === code && !r.done ? { ...r, done: Date.now() } : r));
+}
+
+// Each remembered code with its device and status; tapping one shows it in full.
+async function renderMyRepairs() {
+    const box = document.getElementById('myRepairs');
+    const list = savedRepairs();
+    setSavedRepairs(list); // drops the expired ones
+    box.hidden = !list.length;
+    if (!list.length) return;
+
+    const rows = await Promise.all(list.map(async ({ code }) => {
+        const { data } = await db.rpc('track_repair', { p_code: code }).maybeSingle();
+        if (!data) return '';
+        if (data.status === 'completed') markRepairDone(code);
+        const meta = trackStatusMeta[data.status] || { label: data.status, color: '#999', text: 'white' };
+        return `<button type="button" class="my-repair" onclick="trackSaved('${code}')">
+            <strong>${code}</strong> <span>${escapeHtml(data.device)}</span>
+            <span class="status-badge" style="background:${meta.color}; color:${meta.text};">${meta.label}</span></button>`;
+    }));
+    box.innerHTML = `<p class="my-repairs-title">Your repairs on this device</p>${rows.join('')}`;
+}
+
+function trackSaved(code) {
+    document.getElementById('trackCodeInput').value = code;
+    trackRepair();
+}
+
+// ============================================================
+// DROP-OFF REQUEST FORM (public) — save a spot for a class day.
+// The 5-per-class limit and every rule live in request_drop_off().
+// ============================================================
+async function openDropOff() {
+    document.getElementById('dropOffForm').hidden = false;
+    document.getElementById('dropOffDone').hidden = true;
+    document.getElementById('dropOffError').hidden = true;
+    openModal('dropOffModal');
+
+    const { data: full } = await db.rpc('full_drop_off_days');
+    const isFull = (date, session) => (full || []).some(f => f.visit_date === date && f.session === session);
+    const options = ['<option value="">Pick a class day</option>'];
+    for (let i = 0; i <= 14; i++) {
+        const day = new Date();
+        day.setDate(day.getDate() + i);
+        if (day.getDay() === 0 || day.getDay() === 6) continue;
+        const date = todayDateStr(day);
+        const name = (i === 0 ? 'Today, ' : i === 1 ? 'Tomorrow, ' : '') + day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        for (const [session, part] of [['AM', 'morning class'], ['PM', 'afternoon class']]) {
+            const taken = isFull(date, session);
+            options.push(`<option value="${date}|${session}" ${taken ? 'disabled' : ''}>${name}, ${part}${taken ? ' (full)' : ''}</option>`);
+        }
+    }
+    document.getElementById('dropOffDay').innerHTML = options.join('');
+}
+
+async function submitDropOff(btn) {
+    const value = id => document.getElementById(id).value.trim();
+    const [visitDate, session] = value('dropOffDay').split('|');
+    const errorBox = document.getElementById('dropOffError');
+    const showError = text => { errorBox.textContent = text; errorBox.hidden = false; errorBox.scrollIntoView({ block: 'center' }); };
+
+    const missing = [[visitDate, 'a day'], [value('dropOffName'), 'your name'], [value('dropOffContact'), 'a contact number'], [value('dropOffIssue'), "what's wrong with it"]]
+        .filter(([v]) => !v).map(([, label]) => label);
+    if (missing.length) {
+        showError(`Please add ${missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing.at(-1)}` : missing[0]}.`);
+        return;
+    }
+
+    btn.disabled = true;
+    const { data: result, error } = await db.rpc('request_drop_off', {
+        p_visit_date: visitDate, p_session: session, p_name: value('dropOffName'), p_contact: value('dropOffContact'),
+        p_class: value('dropOffClass'), p_room: value('dropOffRoom'), p_device: value('dropOffDevice'),
+        p_model: value('dropOffModel'), p_issue: value('dropOffIssue')
+    });
+    btn.disabled = false;
+    if (error) console.error('Error saving drop-off request:', error);
+
+    const problems = {
+        full: 'That class day just filled up. Pick another day.',
+        duplicate: 'You already have a spot saved with this contact number. Just bring your device in that day.',
+        bad_day: 'Pick a school day in the next two weeks.',
+        invalid: 'Check your contact number (at least 7 digits) and keep each box short.'
+    };
+    if (result !== 'ok') {
+        if (result === 'full') await openDropOff(); // grey out the day that just filled
+        showError(problems[result] || 'Something went wrong. Please try again.');
+        return;
+    }
+
+    const picked = document.getElementById('dropOffDay');
+    document.getElementById('dropOffWhen').textContent = picked.options[picked.selectedIndex].text;
+    ['dropOffName', 'dropOffContact', 'dropOffClass', 'dropOffRoom', 'dropOffModel', 'dropOffIssue'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('dropOffForm').hidden = true;
+    document.getElementById('dropOffDone').hidden = false;
+}
+
+// ============================================================
+// DROP-OFF REQUESTS — customers save a spot for a class day on the
+// public page (request_drop_off). Staff see them under Drop-offs; a
+// tech checks one in by starting its ticket, which gets priority. Only
+// the admin can remove one.
+// ============================================================
+async function loadDropOffs() {
+    const { data, error } = await db.from('drop_off_requests').select('*').order('visit_date').order('created_at');
+    if (error) { console.error('Error loading drop-off requests:', error); return; }
+    dropOffs = (data || []).filter(r => r.visit_date >= todayDateStr());
+}
+
+async function openDropOffs() {
+    await loadDropOffs();
+    renderDropOffs();
+    showView('dropOffsView');
+}
+
+// Techs see their own class; the admin sees both.
+const visibleDropOffs = () => dropOffs.filter(r => currentRole === 'admin' || !currentSession || r.session === currentSession);
+const dropOffTicket = r => appointments.find(a => a.drop_off_id === r.id);
+const expectedToday = () => visibleDropOffs().filter(r => r.visit_date === todayDateStr() && !dropOffTicket(r)).length;
+
+function dayLabel(isoDate) {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (isoDate === todayDateStr()) return 'Today';
+    if (isoDate === todayDateStr(tomorrow)) return 'Tomorrow';
+    return new Date(isoDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+function renderDropOffs() {
+    const container = document.getElementById('dropOffsContainer');
+    if (!container) return;
+    const waiting = expectedToday();
+    document.querySelectorAll('.drop-off-count').forEach(el => el.textContent = waiting ? ` (${waiting} today)` : '');
+
+    const list = visibleDropOffs();
+    if (!list.length) {
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:2rem;">No customers have saved a spot yet.</p>';
+        return;
+    }
+    const isAdmin = currentRole === 'admin';
+    const card = r => {
+        const ticket = dropOffTicket(r);
+        const details = [r.class_name, r.room_number && `Room ${r.room_number}`, isAdmin && r.contact_number].filter(Boolean).join(' · ');
+        return `
+        <div class="folder-card drop-off-card">
+            <span class="folder-top"><strong>${escapeHtml(r.name)}</strong>
+                ${ticket ? `<span class="status-badge" style="background:#1e7e34; color:white;">Checked in: Ticket #${ticket.id}</span>`
+                    : isAdmin ? `<span class="status-badge" style="background:var(--navy-900); color:white;">${r.session}</span>` : ''}</span>
+            <span class="folder-issue">${escapeHtml(r.make_model || r.device)}: ${escapeHtml(r.issue)}</span>
+            ${details ? `<span class="folder-meta">${escapeHtml(details)}</span>` : ''}
+            ${!ticket && !isAdmin ? `<span class="ws-actions"><button class="btn btn-start btn-sm" onclick="checkInDropOff(${r.id})">Customer is here</button></span>` : ''}
+            ${isAdmin ? `<span class="ws-actions"><button class="btn btn-danger btn-sm" onclick="removeDropOff(${r.id})">Remove</button></span>` : ''}
+        </div>`;
+    };
+    container.innerHTML = [...new Set(list.map(r => r.visit_date))].map(day => `
+        <h3 class="list-heading">${dayLabel(day)}</h3>
+        <div class="folder-list">${list.filter(r => r.visit_date === day).map(card).join('')}</div>`).join('');
+}
+
+// Opens New Ticket filled in from the request; creating it checks them in.
+function checkInDropOff(id) {
+    const request = dropOffs.find(r => r.id === id);
+    openTechTicketModal();
+    if (!currentTechId || !request) return; // the "Who are you?" picker opened instead
+    Object.entries(TICKET_FIELDS).forEach(([col, field]) => { if (col in request) document.getElementById(field).value = request[col] ?? ''; });
+    ticketDropOffId = id;
+    const note = document.getElementById('techTicketFrom');
+    note.textContent = `Filled in from ${request.name}'s drop-off request. Add the serial tag, then create it. The ticket gets priority.`;
+    note.hidden = false;
+}
+
+async function removeDropOff(id) {
+    if (!confirm('Remove this drop-off request? The customer is not told.')) return;
+    const { error } = await db.from('drop_off_requests').delete().eq('id', id);
+    if (error) { console.error('Error removing drop-off request:', error); alert('Could not remove it.'); return; }
+    dropOffs = dropOffs.filter(r => r.id !== id);
+    renderDropOffs();
+    renderGreeting();
+}
+
+// Tickets from a drop-off request are served and repaired first.
+const priorityBadge = appt => appt.priority && appt.status !== 'completed' ? '<span class="priority-badge">Priority</span> ' : '';
+const priorityFirst = (a, b) => (b.priority === true) - (a.priority === true);
 
 // ============================================================
 // TICKET ASSIGNMENT — one or more students per ticket
@@ -1100,6 +1327,7 @@ function updateRoleDisplay() {
 
     document.querySelectorAll('[data-signed-out]').forEach(el => el.hidden = !!currentRole);
     document.querySelectorAll('[data-signed-in]').forEach(el => el.hidden = !currentRole);
+    if (STAFF_PAGE) renderDropOffs();
     if (STAFF_PAGE && currentRole && !document.querySelector('.staff-view[style*="flex"]')) showHomeView();
 
     calculateTotalRepairs();
@@ -1167,7 +1395,8 @@ function populateAppointmentsModal() {
     const filtered = appointments
         .filter(matches)
         .filter(a => filterStatus === 'all' || a.status === filterStatus)
-        .sort(byDate('created_at'));
+        .sort(byDate('created_at'))
+        .sort(priorityFirst);
 
     let html = '';
     if (duplicateEmails.length > 0) {
@@ -1192,7 +1421,7 @@ function populateAppointmentsModal() {
         const duplicate = appt.email && counts[appt.email.toLowerCase()] > 1;
         return `
         <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
-            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}${duplicate ? ' <span class="dup-badge">duplicate</span>' : ''}</strong> ${statusBadge(appt.status)}</span>
+            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}${duplicate ? ' <span class="dup-badge">duplicate</span>' : ''}</strong> <span>${priorityBadge(appt)}${statusBadge(appt.status)}</span></span>
             <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
             <span class="folder-meta">${names.length ? escapeHtml(names.join(', ')) : 'No students yet'} <strong>Open →</strong></span>
         </button>`;
@@ -1220,7 +1449,7 @@ async function viewMyTickets() {
     await loadMyTimeLogs();
 
     const mine = appointments.filter(a => (a.assigned_tech_ids || []).includes(currentTechId));
-    const active = mine.filter(a => a.status !== 'completed');
+    const active = mine.filter(a => a.status !== 'completed').sort(priorityFirst);
     const completed = mine.filter(a => a.status === 'completed');
 
     const folder = appt => {
@@ -1229,7 +1458,7 @@ async function viewMyTickets() {
             .reduce((sum, l) => sum + hoursBetween(l.start_time, l.end_time), 0);
         return `
         <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
-            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> ${statusBadge(appt.status)}</span>
+            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> <span>${priorityBadge(appt)}${statusBadge(appt.status)}</span></span>
             <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
             <span class="folder-meta">Your time: ${hours.toFixed(2)} hr <strong>Open →</strong></span>
         </button>`;
@@ -1269,6 +1498,12 @@ const GREETING_LINES = {
 };
 const greetingPick = Math.random();
 
+// " 2 customers with a saved spot are coming today." (or nothing)
+function expectedNote() {
+    const n = expectedToday();
+    return n ? ` ${n} customer${n === 1 ? ' with a saved spot is' : 's with a saved spot are'} coming today.` : '';
+}
+
 function renderGreeting() {
     const el = document.getElementById('greeting');
     if (!el || !currentRole) return;
@@ -1283,15 +1518,15 @@ function renderGreeting() {
     if (currentRole === 'tech') {
         const open = appointments.filter(a => a.status !== 'completed' && (a.assigned_tech_ids || []).includes(currentTechId));
         const sentBack = open.filter(a => a.status === 'in_progress' && a.review_note).length;
-        status = !open.length ? 'No open tickets right now.'
-            : `You have ${plural(open.length, 'open ticket')}.` + (sentBack ? ` ${sentBack} came back from the admin with a note.` : '');
+        status = (!open.length ? 'No open tickets right now.'
+            : `You have ${plural(open.length, 'open ticket')}.` + (sentBack ? ` ${sentBack} came back from the admin with a note.` : '')) + expectedNote();
     } else {
         const waiting = appointments.filter(a => a.status === 'review').length;
         const needStudents = appointments.filter(a => a.status === 'pending').length;
         status = [
             waiting && `${plural(waiting, 'repair')} ${waiting === 1 ? 'is' : 'are'} waiting for your check-off.`,
             needStudents && `${plural(needStudents, 'new ticket')} ${needStudents === 1 ? 'needs' : 'need'} students.`
-        ].filter(Boolean).join(' ') || 'Nothing is waiting for you right now.';
+        ].filter(Boolean).concat(expectedNote().trim() || []).join(' ') || 'Nothing is waiting for you right now.';
     }
     document.getElementById('greetingLine').textContent = `${lines[Math.floor(greetingPick * lines.length)]} ${status}`;
 }
@@ -1390,7 +1625,7 @@ function renderTicketWorkspace() {
                 <p class="ws-eyebrow">Ticket #${appt.id} · ${escapeHtml([appt.make_model, appt.device].filter(Boolean).join(' · '))}</p>
                 <h2>${escapeHtml(appt.name)}</h2>
             </div>
-            ${statusBadge(appt.status)}
+            <span>${priorityBadge(appt)}${statusBadge(appt.status)}</span>
         </div>
         <dl class="ws-facts">
             <div><dt>Problem</dt><dd>${escapeHtml(appt.issue)}</dd></div>
@@ -1474,8 +1709,9 @@ async function loadMyTimeLogs() {
     myTimeLogs = data || [];
 }
 
-function todayDateStr() {
-    return new Date().toISOString().slice(0, 10);
+// "YYYY-MM-DD" in local time (toISOString alone is UTC, a day ahead after 8 PM).
+function todayDateStr(day = new Date()) {
+    return new Date(day - day.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
 // start/end come from <input type="time"> as "HH:MM" (24h) — the same
@@ -1912,6 +2148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    if (!STAFF_PAGE) renderMyRepairs();
     if (STAFF_PAGE && !currentRole) openModal('loginModal');
     await loadData();
     if (STAFF_PAGE && currentRole === 'tech' && !currentTechId) openTechPicker();
