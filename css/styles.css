@@ -2247,6 +2247,75 @@ summary:focus-visible {
     }
 }
 
+/* Join today's line */
+.line-intro {
+    color: var(--ink-soft);
+    margin-bottom: .75rem;
+}
+
+.phone-tip {
+    background: #fff8d6;
+    border: 1px solid var(--gold-600);
+    border-radius: var(--radius-sm);
+    padding: .6rem .8rem;
+    margin-bottom: 1rem;
+    font-size: .95rem;
+    color: var(--navy-900);
+}
+
+.class-pick {
+    min-width: 0;
+    border: none;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .6rem;
+    margin-bottom: 1rem;
+}
+
+.class-pick legend {
+    font-weight: 700;
+    margin-bottom: .5rem;
+}
+
+.class-card {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    min-height: 64px;
+    padding: .7rem .9rem;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    cursor: pointer;
+}
+
+.class-card span {
+    display: grid;
+}
+
+.class-card small {
+    color: var(--ink-faint);
+}
+
+.class-card input {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: var(--navy-900);
+}
+
+.class-card:has(input:checked) {
+    border-color: var(--navy-900);
+    background: var(--surface-alt);
+}
+
+.class-card:has(input:disabled) {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+#dropOffForm .btn-go {
+    width: 100%;
+}
+
 .drop-off-done {
     font-size: 1.15rem;
     margin-bottom: .75rem;

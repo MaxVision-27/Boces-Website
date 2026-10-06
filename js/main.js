@@ -19,7 +19,7 @@ let currentTechName = null;
 let currentSession = null; // 'AM' or 'PM' for a tech login (016_am_pm_and_help_desk.sql)
 let myTimeLogs = [];
 let deletedAppointments = [];
-let dropOffs = []; // upcoming drop-off requests (018_drop_off_requests.sql)
+let dropOffs = []; // today's line (018_drop_off_requests.sql, 019_join_todays_line.sql)
 let ticketDropOffId = null; // set while New Ticket is filled in from a request
 // Session token from staff_login(). Sent as x-staff-token on every
 // request so the database's row-level security can tell staff apart
@@ -624,9 +624,12 @@ function trackSaved(code) {
 }
 
 // ============================================================
-// DROP-OFF REQUEST FORM (public) — save a spot for a class day.
-// The 5-per-class limit and every rule live in request_drop_off().
+// JOIN TODAY'S LINE (public) — a same-day spot for the morning or
+// afternoon class. The date, the 5-per-class limit and every rule live
+// in request_drop_off() (019_join_todays_line.sql).
 // ============================================================
+const SESSION_NAMES = { AM: 'morning class', PM: 'afternoon class' };
+
 async function openDropOff() {
     document.getElementById('dropOffForm').hidden = false;
     document.getElementById('dropOffDone').hidden = true;
@@ -634,29 +637,22 @@ async function openDropOff() {
     openModal('dropOffModal');
 
     const { data: full } = await db.rpc('full_drop_off_days');
-    const isFull = (date, session) => (full || []).some(f => f.visit_date === date && f.session === session);
-    const options = ['<option value="">Pick a class day</option>'];
-    for (let i = 0; i <= 14; i++) {
-        const day = new Date();
-        day.setDate(day.getDate() + i);
-        if (day.getDay() === 0 || day.getDay() === 6) continue;
-        const date = todayDateStr(day);
-        const name = (i === 0 ? 'Today, ' : i === 1 ? 'Tomorrow, ' : '') + day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-        for (const [session, part] of [['AM', 'morning class'], ['PM', 'afternoon class']]) {
-            const taken = isFull(date, session);
-            options.push(`<option value="${date}|${session}" ${taken ? 'disabled' : ''}>${name}, ${part}${taken ? ' (full)' : ''}</option>`);
-        }
+    for (const session of ['AM', 'PM']) {
+        const taken = (full || []).some(f => f.visit_date === todayDateStr() && f.session === session);
+        const radio = document.querySelector(`input[name="dropOffSession"][value="${session}"]`);
+        radio.disabled = taken;
+        if (taken) radio.checked = false;
+        document.getElementById(`dropOff${session === 'AM' ? 'Am' : 'Pm'}Note`).textContent = taken ? 'Full today. Just walk in.' : 'Spots open';
     }
-    document.getElementById('dropOffDay').innerHTML = options.join('');
 }
 
 async function submitDropOff(btn) {
     const value = id => document.getElementById(id).value.trim();
-    const [visitDate, session] = value('dropOffDay').split('|');
+    const session = document.querySelector('input[name="dropOffSession"]:checked')?.value;
     const errorBox = document.getElementById('dropOffError');
     const showError = text => { errorBox.textContent = text; errorBox.hidden = false; errorBox.scrollIntoView({ block: 'center' }); };
 
-    const missing = [[visitDate, 'a day'], [value('dropOffName'), 'your name'], [value('dropOffContact'), 'a contact number'], [value('dropOffIssue'), "what's wrong with it"]]
+    const missing = [[session, 'which class'], [value('dropOffName'), 'your name'], [value('dropOffClass'), 'your class'], [value('dropOffRoom'), 'your room number']]
         .filter(([v]) => !v).map(([, label]) => label);
     if (missing.length) {
         showError(`Please add ${missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing.at(-1)}` : missing[0]}.`);
@@ -665,37 +661,35 @@ async function submitDropOff(btn) {
 
     btn.disabled = true;
     const { data: result, error } = await db.rpc('request_drop_off', {
-        p_visit_date: visitDate, p_session: session, p_name: value('dropOffName'), p_contact: value('dropOffContact'),
-        p_class: value('dropOffClass'), p_room: value('dropOffRoom'), p_device: value('dropOffDevice'),
-        p_model: value('dropOffModel'), p_issue: value('dropOffIssue')
+        p_session: session, p_name: value('dropOffName'), p_class: value('dropOffClass'),
+        p_room: value('dropOffRoom'), p_device: value('dropOffDevice')
     });
     btn.disabled = false;
-    if (error) console.error('Error saving drop-off request:', error);
+    if (error) console.error('Error joining the line:', error);
 
     const problems = {
-        full: 'That class day just filled up. Pick another day.',
-        duplicate: 'You already have a spot saved with this contact number. Just bring your device in that day.',
-        bad_day: 'Pick a school day in the next two weeks.',
-        invalid: 'Check your contact number (at least 7 digits) and keep each box short.'
+        full: `The ${SESSION_NAMES[session]} line just filled up. Try the other class, or just walk in.`,
+        duplicate: "You're already in today's line. See you in Room C220!",
+        closed: "We're closed on weekends. Come back on a school day.",
+        invalid: 'Please fill in every box (keep each one short).'
     };
     if (result !== 'ok') {
-        if (result === 'full') await openDropOff(); // grey out the day that just filled
+        if (result === 'full') await openDropOff(); // grey out the class that just filled
         showError(problems[result] || 'Something went wrong. Please try again.');
         return;
     }
 
-    const picked = document.getElementById('dropOffDay');
-    document.getElementById('dropOffWhen').textContent = picked.options[picked.selectedIndex].text;
-    ['dropOffName', 'dropOffContact', 'dropOffClass', 'dropOffRoom', 'dropOffModel', 'dropOffIssue'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('dropOffWhen').textContent = SESSION_NAMES[session];
+    ['dropOffName', 'dropOffClass', 'dropOffRoom'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('dropOffForm').hidden = true;
     document.getElementById('dropOffDone').hidden = false;
 }
 
 // ============================================================
-// DROP-OFF REQUESTS — customers save a spot for a class day on the
-// public page (request_drop_off). Staff see them under Drop-offs; a
-// tech checks one in by starting its ticket, which gets priority. Only
-// the admin can remove one.
+// DROP-OFF REQUESTS — customers join today's line on the public page
+// (request_drop_off). Staff see them under Drop-offs; a tech checks one
+// in by starting its ticket, which gets priority. Only the admin can
+// remove one.
 // ============================================================
 async function loadDropOffs() {
     const { data, error } = await db.from('drop_off_requests').select('*').order('visit_date').order('created_at');
@@ -730,19 +724,19 @@ function renderDropOffs() {
 
     const list = visibleDropOffs();
     if (!list.length) {
-        container.innerHTML = '<p style="text-align:center; color:#999; padding:2rem;">No customers have saved a spot yet.</p>';
+        container.innerHTML = '<p style="text-align:center; color:#999; padding:2rem;">Nobody has joined the line yet.</p>';
         return;
     }
     const isAdmin = currentRole === 'admin';
     const card = r => {
         const ticket = dropOffTicket(r);
-        const details = [r.class_name, r.room_number && `Room ${r.room_number}`, isAdmin && r.contact_number].filter(Boolean).join(' · ');
+        const details = [r.class_name, r.room_number && `Room ${r.room_number}`, r.contact_number].filter(Boolean).join(' · ');
         return `
         <div class="folder-card drop-off-card">
             <span class="folder-top"><strong>${escapeHtml(r.name)}</strong>
                 ${ticket ? `<span class="status-badge" style="background:#1e7e34; color:white;">Checked in: Ticket #${ticket.id}</span>`
                     : isAdmin ? `<span class="status-badge" style="background:var(--navy-900); color:white;">${r.session}</span>` : ''}</span>
-            <span class="folder-issue">${escapeHtml(r.make_model || r.device)}: ${escapeHtml(r.issue)}</span>
+            <span class="folder-issue">${escapeHtml([r.make_model || r.device, r.issue].filter(Boolean).join(': '))}</span>
             ${details ? `<span class="folder-meta">${escapeHtml(details)}</span>` : ''}
             ${!ticket && !isAdmin ? `<span class="ws-actions"><button class="btn btn-start btn-sm" onclick="checkInDropOff(${r.id})">Customer is here</button></span>` : ''}
             ${isAdmin ? `<span class="ws-actions"><button class="btn btn-danger btn-sm" onclick="removeDropOff(${r.id})">Remove</button></span>` : ''}
@@ -761,12 +755,12 @@ function checkInDropOff(id) {
     Object.entries(TICKET_FIELDS).forEach(([col, field]) => { if (col in request) document.getElementById(field).value = request[col] ?? ''; });
     ticketDropOffId = id;
     const note = document.getElementById('techTicketFrom');
-    note.textContent = `Filled in from ${request.name}'s drop-off request. Add the serial tag, then create it. The ticket gets priority.`;
+    note.textContent = `Filled in from ${request.name}'s spot in line. Ask them for a contact number, the make/model, the serial tag and what's wrong, then create it. The ticket gets priority.`;
     note.hidden = false;
 }
 
 async function removeDropOff(id) {
-    if (!confirm('Remove this drop-off request? The customer is not told.')) return;
+    if (!confirm('Take them out of the line? The customer is not told.')) return;
     const { error } = await db.from('drop_off_requests').delete().eq('id', id);
     if (error) { console.error('Error removing drop-off request:', error); alert('Could not remove it.'); return; }
     dropOffs = dropOffs.filter(r => r.id !== id);
@@ -1517,10 +1511,10 @@ const GREETING_LINES = {
 };
 const greetingPick = Math.random();
 
-// " 2 customers with a saved spot are coming today." (or nothing)
+// " 2 customers joined today's line." (or nothing)
 function expectedNote() {
     const n = expectedToday();
-    return n ? ` ${n} customer${n === 1 ? ' with a saved spot is' : 's with a saved spot are'} coming today.` : '';
+    return n ? ` ${n} customer${n === 1 ? '' : 's'} joined today's line.` : '';
 }
 
 function renderGreeting() {

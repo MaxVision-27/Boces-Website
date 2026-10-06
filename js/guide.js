@@ -68,10 +68,10 @@ function enterSandbox(role) {
         make_model, serial_tag: `SN${id}X7`, contact_number: '(516) 555-0100', class_name: 'Culinary Arts', room_number: 'B112', computer_password: null,
         priority: false, drop_off_id: null
     });
-    // A customer who saved a spot for today, in the class being shown.
+    // A customer who joined today's line, in the class being shown.
     const dropOff = session => ({
-        id: 7, created_at: daysAgo(2), visit_date: todayDateStr(), session, name: 'Taylor Brooks (sample)', contact_number: '(516) 555-0142',
-        class_name: 'Cosmetology', room_number: 'A104', device: 'Laptop', make_model: 'Lenovo ThinkPad T14', issue: 'Shuts off after about ten minutes.'
+        id: 7, created_at: daysAgo(0), visit_date: todayDateStr(), session, name: 'Taylor Brooks (sample)', contact_number: null,
+        class_name: 'Cosmetology', room_number: 'A104', device: 'Laptop', make_model: null, issue: null
     });
     const log = (id, ticket_id, tech_id, days, start, end, note, team) => ({
         id, ticket_id, tech_id, work_date: daysAgo(days).slice(0, 10), start_time: start, end_time: end, note,
@@ -337,13 +337,13 @@ const TECH_STEPS = [
         ask: 'What should you do if a customer will not sign?'
     },
     {
-        title: 'Customers who saved a spot',
-        text: "Customers can tell us online which class day they're coming. They show under Drop-offs. Check them in before walk-ins: Customer is here opens New Ticket already filled in, and the ticket gets a Priority badge.",
+        title: "Today's line",
+        text: "Customers can join today's line from their phone before school. They only give their name, class, room and device type, so they show under Drop-offs. Check them in before walk-ins: Customer is here starts New Ticket with that filled in, you ask for the rest, and the ticket gets a Priority badge.",
         setup: () => { closeAllModals(); showView('dropOffsView'); },
         target: () => $g('#dropOffsView'),
         section: true,
-        talk: ['A saved spot is not a ticket. You still make the ticket when they arrive.', 'Priority tickets sit at the top of My Tickets until they are done.'],
-        ask: 'Why check in someone with a saved spot before a walk-in?'
+        talk: ['A spot in line is not a ticket. You still make the ticket when they arrive, and you write the problem down yourself.', 'Priority tickets sit at the top of My Tickets until they are done.'],
+        ask: 'Why do we ask about the problem in person instead of online?'
     },
     {
         title: 'Your tickets',
@@ -739,12 +739,12 @@ const ADMIN_STEPS = [
         ask: 'What should happen if nobody picks up a new ticket?'
     },
     {
-        title: 'Drop-off requests',
-        text: 'Customers can save a spot for a class day, up to 5 per class. Techs check them in first, and those tickets get a Priority badge. Remove a request if the lab is closed that day.',
+        title: "Today's line",
+        text: "Customers can join today's line from their phone, up to 5 per class. It's same-day only, so nobody books days ahead and forgets. Techs check them in first, and those tickets get a Priority badge. Take someone out if the lab is closed.",
         setup: () => { closeAllModals(); showView('dropOffsView'); },
         target: () => $g('#dropOffsView'),
         section: true,
-        talk: ['Requests clear themselves after their day. No-shows cost nothing.'],
+        talk: ['The line clears itself every day. No-shows cost nothing.'],
         ask: 'What should happen on a day with no class?'
     },
     {
