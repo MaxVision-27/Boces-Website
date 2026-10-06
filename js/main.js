@@ -23,17 +23,14 @@ let deletedAppointments = [];
 // request so the database's row-level security can tell staff apart
 // from the public — tickets, students and hours are staff-only.
 let staffToken = null;
+// staff.html holds the tools; index.html is the public site.
+const STAFF_PAGE = document.body.classList.contains('staff-page');
 
 // ============================================================
 // LOAD ALL DATA FROM SUPABASE ON PAGE START
 // ============================================================
 async function loadData() {
-    await Promise.all([
-        loadAppointments(),
-        loadStats(),
-        loadTechs(),
-        renderReviews()
-    ]);
+    await Promise.all(STAFF_PAGE ? [loadAppointments(), loadStats(), loadTechs()] : [loadStats()]);
     hydrateTechIdentity();
     updateRoleDisplay();
 }
@@ -57,7 +54,8 @@ async function loadStats() {
     if (error) { console.error('Error loading stats:', error); return; }
     if (data) {
         totalRepairs = data.total_repairs;
-        document.getElementById('totalRepairs').textContent = totalRepairs;
+        const el = document.getElementById('totalRepairs');
+        if (el) el.textContent = totalRepairs;
     }
 }
 
@@ -71,7 +69,7 @@ async function loadTechs() {
 // (sessionStorage only kept the id). If the roster no longer has that id
 // (teacher removed them), clear the stale identity.
 function hydrateTechIdentity() {
-    if (!currentTechId) return;
+    if (!currentTechId || !STAFF_PAGE) return; // the public page doesn't load the roster
     const tech = classRoster().find(t => t.id === currentTechId);
     if (tech) {
         currentTechName = tech.name;
@@ -173,7 +171,7 @@ async function logout() {
     myTimeLogs = [];
     sessionStorage.removeItem('bocesStaffToken');
     sessionStorage.removeItem('bocesTechId');
-    updateRoleDisplay();
+    location.href = './';
 }
 
 // ============================================================
@@ -390,6 +388,10 @@ async function removeStudent(techId) {
 // ============================================================
 function openTechTicketModal() {
     if (!currentTechId) { openTechPicker(); return; }
+    // The customer watches this screen: nothing else open behind the form.
+    document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+    const password = document.getElementById('techApptPassword');
+    if (password.type !== 'password') togglePasswordShown(password.nextElementSibling);
     document.getElementById('techReceiving').textContent = currentTechName;
     document.getElementById('techTicketError').hidden = true;
     const others = classRoster().filter(t => t.id !== currentTechId);
@@ -461,6 +463,14 @@ async function submitTechTicket() {
     openModal('ticketCreatedModal');
 }
 
+function togglePasswordShown(btn) {
+    const input = btn.previousElementSibling;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Hide' : 'Show';
+    btn.setAttribute('aria-pressed', show);
+}
+
 async function copyText(text, btn) {
     btn.dataset.label ??= btn.textContent;
     try {
@@ -489,32 +499,34 @@ async function trackRepair() {
     const code = input.value.trim().toUpperCase();
 
     if (!code) {
-        result.innerHTML = '<p style="color:#dc3545; margin-top:1rem;">Please enter a tracking code.</p>';
+        result.innerHTML = '<p class="track-msg error">Please enter a tracking code.</p>';
         return;
     }
 
-    result.innerHTML = '<p style="color:#777; margin-top:1rem;">Looking up your repair...</p>';
+    result.innerHTML = '<p class="track-msg">Looking up your repair...</p>';
 
     const { data, error } = await db.rpc('track_repair', { p_code: code }).maybeSingle();
 
     if (error) {
         console.error('Error tracking repair:', error);
-        result.innerHTML = '<p style="color:#dc3545; margin-top:1rem;">Something went wrong. Please try again.</p>';
+        result.innerHTML = '<p class="track-msg error">Something went wrong. Please try again.</p>';
         return;
     }
 
     if (!data) {
-        result.innerHTML = '<p style="color:#dc3545; margin-top:1rem;">No repair found with that code. Double-check it and try again.</p>';
+        result.innerHTML = '<p class="track-msg error">No repair found with that code. Double-check it and try again.</p>';
         return;
     }
 
     const meta = trackStatusMeta[data.status] || { label: data.status, color: '#999', text: 'white' };
     result.innerHTML = `
         <div class="info-card" style="text-align:left; margin-top:1rem;">
-            <h3>${data.device}</h3>
-            <p style="color:#555;"><em>${data.issue}</em></p>
+            <h3>${escapeHtml(data.device)}</h3>
+            <p style="color:#555;"><em>${escapeHtml(data.issue)}</em></p>
             <span class="status-badge" style="background:${meta.color}; color:${meta.text}; margin-top:0.5rem;">${meta.label}</span>
             <p style="margin-top:0.8rem; font-size:0.85rem; color:#999;">Submitted ${new Date(data.created_at).toLocaleDateString()}</p>
+            ${data.status === 'completed' ? `<p style="margin-top:0.8rem;">Your repair is done. How did we do?
+                <button class="btn btn-approve btn-sm" onclick="openReview('${code.replace(/[^A-Z0-9]/g, '')}')">Leave a review</button></p>` : ''}
         </div>
     `;
 }
@@ -660,7 +672,7 @@ async function syncStats() {
 function calculateTotalRepairs() {
     // The public can't read tickets, so for them the count on the page
     // comes from the stats row (loadStats) rather than being recounted.
-    if (!currentRole) return;
+    if (!currentRole || !STAFF_PAGE) return;
     totalRepairs = appointments.filter(a => a.status === 'completed').length;
     const el = document.getElementById('totalRepairs');
     if (el) el.textContent = totalRepairs;
@@ -680,7 +692,6 @@ async function updateStats() {
 
     await db.from('stats').update({ total_repairs: totalRepairs }).eq('id', 1);
 
-    document.getElementById('totalRepairs').textContent = totalRepairs;
     closeModal('updateStatsModal');
     alert('Statistics updated!');
 }
@@ -748,6 +759,12 @@ const reviewTagsByRating = {
         'Very disappointed'
     ]
 };
+
+// From the review buttons; a finished repair's tracking result fills in its code.
+function openReview(code = '') {
+    document.getElementById('reviewCode').value = code;
+    openModal('reviewModal');
+}
 
 function updateReviewTags() {
     const rating = parseInt(document.getElementById('reviewRating').value);
@@ -1052,11 +1069,11 @@ function filterParts(query) {
 // DISPLAY / UI
 // ============================================================
 function updateRoleDisplay() {
-    populateAppointmentsModal();
     const indicator = document.getElementById('roleIndicator');
-    const adminPanel = document.getElementById('adminPanel');
-    const techToolbar = document.getElementById('techToolbar');
-    const navLoginBtn = document.querySelector('.btn-nav-login');
+    // The public page has no panels; dummies keep the code below simple.
+    const adminPanel = document.getElementById('adminPanel') || document.createElement('div');
+    const techToolbar = document.getElementById('techToolbar') || document.createElement('div');
+    if (STAFF_PAGE) populateAppointmentsModal();
 
     if (currentRole === 'admin') {
         indicator.textContent = 'Admin';
@@ -1078,7 +1095,7 @@ function updateRoleDisplay() {
         techToolbar.style.display = 'none';
     }
 
-    if (navLoginBtn) navLoginBtn.style.display = currentRole ? 'none' : 'inline-block';
+    document.querySelectorAll('[data-signed-out]').forEach(el => el.hidden = !!currentRole);
 
     calculateTotalRepairs();
     renderReviews();
@@ -1300,7 +1317,19 @@ function renderTicketWorkspace() {
         </div>`).join('')
         : '<p class="ws-hint" style="margin:0;">No sessions yet. Your first one will show up here.</p>';
 
-    document.getElementById('ticketWorkspaceContainer').innerHTML = `
+    // Re-rendering after a save keeps the same sections open.
+    const container = document.getElementById('ticketWorkspaceContainer');
+    const wasOpen = container.dataset.ticket === String(appt.id)
+        ? new Set([...container.querySelectorAll('details[open] h3')].map(h => h.textContent)) : new Set();
+    container.dataset.ticket = appt.id;
+    // Everything past the next step folds away; open shows a section from the start.
+    const section = (title, body, { count = '', open = false } = {}) => `
+        <details class="ws-card"${open || wasOpen.has(title) ? ' open' : ''}>
+            <summary><h3>${title}</h3>${count ? `<span class="ws-count">${count}</span>` : ''}</summary>
+            <div class="ws-body">${body}</div>
+        </details>`;
+
+    container.innerHTML = `
         <button class="ws-back" onclick="leaveWorkspace()">← ${workspaceFrom.label}</button>
         <div class="ws-header">
             <div>
@@ -1312,29 +1341,18 @@ function renderTicketWorkspace() {
         <dl class="ws-facts">
             <div><dt>Problem</dt><dd>${escapeHtml(appt.issue)}</dd></div>
             <div><dt>Team</dt><dd>${escapeHtml(team.join(', ') || 'Nobody yet')}</dd></div>
-            ${appt.serial_tag ? `<div><dt>Serial tag</dt><dd>${escapeHtml(appt.serial_tag)}</dd></div>` : ''}
-            ${appt.computer_password ? `<div><dt>Computer password</dt><dd>${escapeHtml(appt.computer_password)}</dd></div>` : ''}
-            ${appt.class_name || appt.room_number ? `<div><dt>Class and room</dt><dd>${escapeHtml([appt.class_name, appt.room_number && `Room ${appt.room_number}`].filter(Boolean).join(' · '))}</dd></div>` : ''}
-            ${isAdmin ? `
-            <div><dt>Contact number</dt><dd>${escapeHtml(appt.contact_number || 'None given')}</dd></div>
-            <div><dt>Customer email</dt><dd>${escapeHtml(appt.email || 'None given')}${duplicate ? ' <span class="dup-badge">has other tickets</span>' : ''}</dd></div>
-            <div><dt>Created</dt><dd>${new Date(appt.created_at).toLocaleDateString()}${appt.created_by ? ` by ${escapeHtml(appt.created_by)}` : ''}</dd></div>` : ''}
-            ${appt.tracking_code ? `<div><dt>Tracking code</dt><dd><strong>${appt.tracking_code}</strong>
-                <button class="btn btn-outline btn-chip" onclick="copyText('${appt.tracking_code}', this)">Copy</button></dd></div>` : ''}
         </dl>
         ${nextStep ? `<div class="ws-next">${nextStep}</div>` : ''}
 
-        ${isAdmin && appt.status !== 'completed' ? `
-        <section class="ws-card">
-            <h3>Students on this ticket</h3>
+        ${isAdmin && appt.status !== 'completed' ? section('Students on this ticket', `
             <p class="ws-hint">Tick everyone working on it. If you hand it to new students, change it here. Their time starts a new Hours sheet.</p>
             <div class="ws-actions" style="margin-bottom:1rem;">
                 ${techs.length ? techs.map(t => `
                     <label class="pick-chip"><input type="checkbox" class="assign-tech-${appt.id}" value="${t.id}" ${(appt.assigned_tech_ids || []).includes(t.id) ? 'checked' : ''}> ${escapeHtml(t.name)}</label>`).join('')
                     : '<span class="ws-hint">No students added yet. Add them under Manage Students.</span>'}
             </div>
-            <button class="btn btn-primary" id="saveStudents-${appt.id}" onclick="updateTicketAssignment(${appt.id})">Save Students</button>
-        </section>` : ''}
+            <button class="btn btn-primary" id="saveStudents-${appt.id}" onclick="updateTicketAssignment(${appt.id})">Save Students</button>`,
+            { count: team.length ? `${team.length} on it` : 'Nobody yet', open: appt.status === 'pending' }) : ''}
 
         ${!isAdmin && appt.status !== 'completed' ? `
         <section class="ws-card">
@@ -1352,31 +1370,36 @@ function renderTicketWorkspace() {
             <button class="btn btn-primary" onclick="logTime(${appt.id})">Save Session</button>
         </section>` : ''}
 
-        <section class="ws-card">
-            <h3>Work so far</h3>
+        ${section('Work so far', `
             <p class="ws-hint">Everyone's sessions on this ticket, oldest first.</p>
-            ${sessions}
-        </section>
+            ${sessions}`, { count: `${workspaceLogs.length} session${workspaceLogs.length === 1 ? '' : 's'}` })}
 
-        <section class="ws-card">
-            <h3>Parts</h3>
+        ${section('Parts', `
             <p class="ws-hint">List any part the customer bought for this repair. Leave it blank if the repair didn't need one.</p>
             <label>Parts used <input type="text" id="parts-${appt.id}" value="${escapeHtml(appt.parts_used || '')}" placeholder="Example: Battery for Dell Latitude 5420"></label>
-            <button class="btn btn-outline" onclick="saveTicketParts(${appt.id}, this)">Save Parts</button>
-        </section>
+            <button class="btn btn-outline" onclick="saveTicketParts(${appt.id}, this)">Save Parts</button>`,
+            { count: appt.parts_used ? escapeHtml(appt.parts_used) : 'None yet' })}
 
-        <section class="ws-card">
-            <h3>Paperwork</h3>
+        ${section('Paperwork', `
             <p class="ws-hint">Open a form to check what's on it, then print it.</p>
-            ${paperworkButtons(appt.id)}
-        </section>
+            ${paperworkButtons(appt.id)}`)}
 
-        ${isAdmin ? `
-        <section class="ws-card">
-            <h3>Delete ticket</h3>
+        ${section('Ticket details', `
+            <dl class="ws-facts">
+                ${appt.tracking_code ? `<div><dt>Tracking code</dt><dd><strong>${appt.tracking_code}</strong>
+                    <button class="btn btn-outline btn-chip" onclick="copyText('${appt.tracking_code}', this)">Copy</button></dd></div>` : ''}
+                ${appt.serial_tag ? `<div><dt>Serial tag</dt><dd>${escapeHtml(appt.serial_tag)}</dd></div>` : ''}
+                ${appt.computer_password ? `<div><dt>Computer password</dt><dd>${escapeHtml(appt.computer_password)}</dd></div>` : ''}
+                ${appt.class_name || appt.room_number ? `<div><dt>Class and room</dt><dd>${escapeHtml([appt.class_name, appt.room_number && `Room ${appt.room_number}`].filter(Boolean).join(' · '))}</dd></div>` : ''}
+                ${isAdmin ? `
+                <div><dt>Contact number</dt><dd>${escapeHtml(appt.contact_number || 'None given')}</dd></div>
+                <div><dt>Customer email</dt><dd>${escapeHtml(appt.email || 'None given')}${duplicate ? ' <span class="dup-badge">has other tickets</span>' : ''}</dd></div>
+                <div><dt>Created</dt><dd>${new Date(appt.created_at).toLocaleDateString()}${appt.created_by ? ` by ${escapeHtml(appt.created_by)}` : ''}</dd></div>` : ''}
+            </dl>`, { count: appt.tracking_code || '' })}
+
+        ${isAdmin ? section('Delete ticket', `
             <p class="ws-hint">Takes it out of the pool. You can bring it back from the Deleted filter.</p>
-            <button class="btn btn-danger" onclick="deleteAppointment(${appt.id})">Delete Ticket</button>
-        </section>` : ''}`;
+            <button class="btn btn-danger" onclick="deleteAppointment(${appt.id})">Delete Ticket</button>`) : ''}`;
 }
 
 // ============================================================
@@ -1780,34 +1803,18 @@ window.onclick = function(event) {
     }
 }
 
-function scrollToAbout() {
-    document.getElementById('about').scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// Clicking the role badge opens the Admin panel for Admin, or the
-// tech identity picker for Tech (so a different student can switch in).
+// The role badge leads back to the staff tools from the public page;
+// on the staff page a tech uses it to switch students.
 function onRoleIndicatorClick() {
-    if (currentRole === 'admin') {
-        const panel = document.getElementById('adminPanel');
-        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-    } else if (currentRole === 'tech') {
-        openTechPicker();
-    }
-}
-
-function showTopic(id, btn) {
-    document.querySelectorAll('.about-topic').forEach(section => section.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-
-    document.querySelectorAll('.about-pill').forEach(p => p.classList.remove('active'));
-    if (btn) btn.classList.add('active');
+    if (!STAFF_PAGE) location.href = 'staff.html';
+    else if (currentRole === 'tech') openTechPicker();
 }
 
 // ============================================================
 // START — waits for DOM so window.supabase is guaranteed loaded
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    renderPricing();
+    if (!STAFF_PAGE) renderPricing();
 
     db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         global: {
@@ -1836,5 +1843,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    loadData();
+    if (STAFF_PAGE && !currentRole) openModal('loginModal');
+    await loadData();
+    if (STAFF_PAGE && currentRole === 'tech' && !currentTechId) openTechPicker();
 });
