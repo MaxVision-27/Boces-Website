@@ -58,6 +58,8 @@ async function loadStats() {
         totalRepairs = data.total_repairs;
         const el = document.getElementById('totalRepairs');
         if (el) el.textContent = totalRepairs;
+        // "0 repairs and counting" reads as a warning, so the line waits for the first one.
+        document.getElementById('repairCount')?.toggleAttribute('hidden', !totalRepairs);
     }
 }
 
@@ -533,22 +535,37 @@ async function trackRepair() {
         return;
     }
 
-    const meta = trackStatusMeta[data.status] || { label: data.status, color: '#999', text: 'white' };
     const safeCode = code.replace(/[^A-Z0-9]/g, '');
     const saved = savedRepairs().some(r => r.code === safeCode);
     if (saved && data.status === 'completed') markRepairDone(safeCode);
+    const current = Math.max(0, TRACK_STEPS.findIndex(s => s.status === data.status));
     result.innerHTML = `
-        <div class="info-card" style="text-align:left; margin-top:1rem;">
-            <h3>${escapeHtml(data.device)}</h3>
-            <p style="color:#555;"><em>${escapeHtml(data.issue)}</em></p>
-            <span class="status-badge" style="background:${meta.color}; color:${meta.text}; margin-top:0.5rem;">${meta.label}</span>
-            <p style="margin-top:0.8rem; font-size:0.85rem; color:#999;">Submitted ${new Date(data.created_at).toLocaleDateString()}</p>
-            ${data.status === 'completed' ? `<p style="margin-top:0.8rem;">Your repair is done. How did we do?
-                <button class="btn btn-approve btn-sm" onclick="openReview('${safeCode}')">Leave a review</button></p>` : ''}
+        <div class="tracker">
+            <div class="tracker-head">
+                <h3>${escapeHtml(data.device)}</h3>
+                <span>Dropped off ${new Date(data.created_at).toLocaleDateString()}</span>
+            </div>
+            <ol class="tracker-steps" aria-label="Repair progress">
+                ${TRACK_STEPS.map((step, i) => `<li class="${i < current ? 'done' : i === current ? 'current' : ''}"${i === current ? ' aria-current="step"' : ''}>${step.label}</li>`).join('')}
+            </ol>
+            <p class="tracker-note">${TRACK_STEPS[current].note}</p>
+            <p class="tracker-issue"><span>Problem:</span> ${escapeHtml(data.issue)}</p>
+            ${data.status === 'completed' ? `<button class="btn-solid" onclick="openReview('${safeCode}')">Leave a review</button>` : ''}
             <label class="remember-repair"><input type="checkbox" ${saved ? 'checked' : ''} onchange="rememberRepair('${safeCode}', this.checked)"> Remember this code on this device</label>
         </div>
     `;
 }
+
+// The public tracker, like a food order: one step per ticket status
+// (statuses in 014_admin_checkoff.sql). There's no "waiting for part"
+// status yet, so that wait is part of "Being diagnosed".
+const TRACK_STEPS = [
+    { status: 'pending', label: 'Dropped off', note: "We've got it. A student tech will pick it up soon." },
+    { status: 'assigned', label: 'Being diagnosed', note: "A student tech is figuring out what's wrong. If it needs a part, we'll tell you which one to buy." },
+    { status: 'in_progress', label: 'Repairing', note: 'Tools out. Most repairs take 2–7 school days, plus shipping time for a part.' },
+    { status: 'review', label: 'Final check', note: 'Almost done! A teacher is checking the repair before it goes home.' },
+    { status: 'completed', label: 'Ready for pickup', note: 'All fixed. Pick it up in Room C220, next to Joe\'s Store.' }
+];
 
 // ============================================================
 // MY REPAIRS — tracking codes a customer chose to remember. They live
@@ -1048,7 +1065,9 @@ async function renderReviews() {
     if (error) { console.error('Error loading reviews:', error); return; }
 
     if (!data || data.length === 0) {
-        container.innerHTML = "<p style='text-align:center;color:#777;'>No reviews yet.</p>";
+        container.innerHTML = `<div class="empty-state">
+            <p><strong>Be the first to review!</strong> Got your device back? Tell us how we did. Our techs promise to only blush a little.</p>
+        </div>`;
         return;
     }
 
@@ -2077,16 +2096,45 @@ async function buildHoursSheets(apptId, kind) {
 // ============================================================
 // MODAL HELPERS
 // ============================================================
+// Popups: focus moves in when one opens and back when it closes; Escape
+// closes the top one and Tab stays inside it.
+let modalOpener = null;
+const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const openModals = () => [...document.querySelectorAll('.modal')].filter(m => m.style.display === 'flex');
+
 function openModal(id) {
     if (document.getElementById(id).classList.contains('staff-view')) { showView(id); return; }
-    document.getElementById(id).style.display = 'flex';
+    modalOpener = document.activeElement;
+    const modal = document.getElementById(id);
+    modal.style.display = 'flex';
     if (id === 'updateStatsModal') populateStatsModal();
     if (id === 'reviewModal') updateReviewTags();
+    // Not during the Workflow Guide (its arrow keys ignore typing), and on
+    // touch screens only the close button, so the keyboard doesn't pop up.
+    if (document.getElementById('guideLayer')?.hidden === false) return;
+    const fields = [...modal.querySelectorAll(FOCUSABLE)].filter(el => !el.disabled && el.offsetParent);
+    const touch = matchMedia('(pointer: coarse)').matches;
+    (touch ? fields[0] : fields.find(el => !el.classList.contains('close-btn')) || fields[0])?.focus({ preventScroll: true });
 }
 
 function closeModal(id) {
-    document.getElementById(id).style.display = 'none';
+    const modal = document.getElementById(id);
+    const hadFocus = modal.contains(document.activeElement);
+    modal.style.display = 'none';
+    if (hadFocus) modalOpener?.focus?.({ preventScroll: true });
 }
+
+document.addEventListener('keydown', e => {
+    const top = openModals().at(-1);
+    if (!top) return;
+    if (e.key === 'Escape' && !document.getElementById('guideLayer')?.offsetParent) closeModal(top.id);
+    if (e.key === 'Tab') {
+        const fields = [...top.querySelectorAll(FOCUSABLE)].filter(el => !el.disabled && el.offsetParent);
+        const [first, last] = [fields[0], fields.at(-1)];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+});
 
 // Staff page sections (staff.html): one shows at a time under the tabs,
 // and an open ticket takes the tabs' place.
@@ -2148,7 +2196,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    if (!STAFF_PAGE) renderMyRepairs();
+    if (!STAFF_PAGE) {
+        renderMyRepairs();
+        // "Track repair" anywhere jumps to the box with the keyboard ready.
+        document.querySelectorAll('a[href="#track"]').forEach(a => a.addEventListener('click', () =>
+            setTimeout(() => document.getElementById('trackCodeInput').focus({ preventScroll: true }), 400)));
+    }
     if (STAFF_PAGE && !currentRole) openModal('loginModal');
     await loadData();
     if (STAFF_PAGE && currentRole === 'tech' && !currentTechId) openTechPicker();

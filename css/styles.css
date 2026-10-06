@@ -97,24 +97,18 @@ body {
 }
 
 /* =========================================================
-   HERO SECTION
+   HERO — public page: what we do and the first thing to do
    ========================================================= */
 
 .hero {
     position: relative;
+    overflow: hidden;
+    color: white;
+    padding: 2.5rem 1rem 3rem;
     background:
         radial-gradient(circle at 15% 15%, rgba(255, 215, 0, .12), transparent 45%),
         radial-gradient(circle at 85% 80%, rgba(34, 211, 238, .12), transparent 50%),
         linear-gradient(135deg, var(--navy-950) 0%, var(--navy-900) 45%, var(--navy-700) 100%);
-    color: white;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    padding: 2rem;
-    overflow: hidden;
 }
 
 #heroCanvas {
@@ -124,59 +118,67 @@ body {
     height: 100%;
     z-index: 0;
     pointer-events: none;
+    opacity: .6;
 }
 
-/* Ambient glow behind the logo — always on, so the hero still looks
-   intentional if WebGL is unavailable and the 3D canvas never renders
-   (e.g. hardware acceleration disabled, locked-down school devices). */
-.hero::before {
-    content: '';
-    position: absolute;
-    top: 42%;
-    left: 50%;
-    width: 480px;
-    height: 480px;
-    max-width: 80vw;
-    max-height: 80vw;
-    background: radial-gradient(circle, rgba(255, 215, 0, .2), rgba(34, 211, 238, .1) 45%, transparent 70%);
-    transform: translate(-50%, -50%);
-    border-radius: 50%;
-    z-index: 0;
-    animation: hero-glow-pulse 6s ease-in-out infinite;
-    pointer-events: none;
-}
-
-@keyframes hero-glow-pulse {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: .8; }
-    50% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
-}
-
-.hero > * {
+.hero-inner {
     position: relative;
     z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    gap: 2rem;
+    align-items: center;
 }
 
-.hero img {
-    filter: drop-shadow(0 12px 30px rgba(0, 0, 0, .35));
+.hero-eyebrow {
+    color: var(--gold-500);
+    font-weight: 700;
+    margin-bottom: .5rem;
 }
 
 .hero h1 {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    font-weight: 300;
+    font-size: clamp(2.1rem, 7vw, 3.5rem);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin-bottom: .9rem;
 }
 
-.hero h2 {
-    font-size: clamp(2.2rem, 5vw, 3.4rem);
+.hero-sub {
+    font-size: 1.15rem;
+    color: rgba(255, 255, 255, .85);
+    max-width: 34ch;
     margin-bottom: 1.5rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
 }
 
 .hero-tagline {
-    font-size: 1.2rem;
-    margin-bottom: 2rem;
-    color: rgba(255, 255, 255, .85);
+    margin-top: 1.25rem;
+    color: rgba(255, 255, 255, .65);
+    font-style: italic;
+}
+
+.hero-logo {
+    display: none;
+    justify-self: center;
+    width: 220px;
+    height: auto;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-glow);
+    transform: rotate(3deg);
+}
+
+@media (min-width: 760px) {
+    .hero {
+        padding: 4.5rem 2rem 5rem;
+    }
+
+    .hero-inner {
+        grid-template-columns: 1.4fr 1fr;
+    }
+
+    .hero-logo {
+        display: block;
+    }
 }
 
 /* =========================================================
@@ -327,30 +329,32 @@ body {
 }
 
 /* Fold-away extras under each public section */
-.cost-details {
-    max-width: 900px;
-    margin: 1.25rem auto 0;
+.fold {
+    margin-top: .75rem;
     border-top: 1px solid var(--border);
-    padding-top: 1rem;
+    padding-top: .5rem;
 }
 
-.cost-details summary {
+.fold summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
     cursor: pointer;
     color: var(--navy-700);
     font-weight: 600;
     font-size: 1.05rem;
 }
 
-.cost-details summary:hover {
+.fold summary:hover {
     color: var(--navy-900);
 }
 
-.cost-details .pricing-heading {
+.fold .pricing-heading {
     font-size: 1.25rem;
     margin-top: 2rem;
 }
 
-.cost-details .pricing-note {
+.fold .pricing-note {
     margin-bottom: 1.25rem;
 }
 
@@ -624,7 +628,14 @@ body {
 
 .close-btn {
     float: right;
-    font-size: 1.5rem;
+    min-width: 44px;
+    min-height: 44px;
+    margin: -.6rem -.6rem 0 0;
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    font: inherit;
+    font-size: 1.6rem;
     cursor: pointer;
     color: var(--ink-faint);
     line-height: 1;
@@ -817,22 +828,6 @@ body {
         white-space: nowrap;
     }
 
-    /* Phones: a smaller logo so the tracking card shows without scrolling */
-    .hero {
-        padding-top: 4.5rem;
-    }
-
-    .hero img {
-        max-width: 130px !important;
-    }
-
-    .hero h2 {
-        margin-bottom: .5rem;
-    }
-
-    .hero-tagline {
-        margin-bottom: 1.25rem;
-    }
 
     .site-nav-brand {
         display: none;
@@ -1535,92 +1530,612 @@ body {
 }
 
 /* =========================================================
-   PUBLIC PAGE — tracking card in the hero, reviews, more-about
+   PUBLIC PAGE — app-style home: header, step cards, tracker,
+   bottom bar on phones. One gold button per screen is the main action.
    ========================================================= */
 
-.track-card {
-    width: min(520px, 100%);
-    margin-top: .5rem;
-    padding: 1.5rem;
-    background: rgba(255, 255, 255, .08);
-    border: 2px solid var(--gold-500);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-glow);
-    backdrop-filter: blur(6px);
-    scroll-margin-top: 90px;
+/* hidden always hides, even on elements styled with display */
+[hidden] {
+    display: none !important;
 }
 
-.track-card > h3 {
-    font-size: 1.5rem;
-    color: var(--gold-500);
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+    outline: 3px solid var(--cyan-500);
+    outline-offset: 2px;
 }
 
-.track-card > p {
-    color: rgba(255, 255, 255, .8);
-    margin-bottom: 1rem;
+.skip-link {
+    position: absolute;
+    left: -999px;
+    top: 0;
 }
 
-.track-form {
-    display: flex;
-    gap: .5rem;
-}
-
-.track-form input {
-    flex: 1;
-    min-width: 0;
-    padding: .8rem 1rem;
-    border: none;
+.skip-link:focus {
+    left: 1rem;
+    top: 1rem;
+    z-index: 2000;
+    background: white;
+    color: var(--navy-900);
+    padding: .6rem 1rem;
     border-radius: var(--radius-sm);
+}
+
+/* Buttons: gold = the main action, navy = an action inside a card, outline = quiet */
+.btn-go,
+.btn-solid,
+.btn-quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: .75rem 1.4rem;
+    border-radius: var(--radius-pill);
     font: inherit;
-    font-size: 1.15rem;
     font-weight: 700;
-    letter-spacing: .12em;
-    text-transform: uppercase;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition: transform .15s ease, background-color .2s ease, border-color .2s ease;
 }
 
-.track-form input::placeholder {
-    text-transform: none;
-    letter-spacing: normal;
-    font-weight: 400;
+.btn-go {
+    background: var(--gold-500);
+    border: 2px solid var(--gold-500);
+    color: var(--navy-950);
+    box-shadow: 0 8px 20px rgba(255, 215, 0, .25);
 }
 
-.track-form .btn {
-    padding: .8rem 1.4rem;
+.btn-go:hover {
+    background: #ffe14d;
+    transform: translateY(-1px);
 }
 
-.track-card #trackResult {
-    color: var(--ink);
+.btn-solid {
+    background: var(--navy-900);
+    border: 2px solid var(--navy-900);
+    color: white;
 }
 
-.track-msg {
-    margin-top: 1rem;
-    color: rgba(255, 255, 255, .75);
+.btn-solid:hover {
+    background: var(--navy-700);
+    border-color: var(--navy-700);
 }
 
-.track-msg.error {
-    color: #ffb4b4;
-    font-weight: 600;
+.btn-quiet {
+    background: transparent;
+    border: 2px solid var(--border);
+    color: var(--navy-900);
 }
 
-.track-card .track-review {
-    margin: 1rem 0 0;
-    font-size: .95rem;
+.btn-quiet:hover {
+    border-color: var(--navy-700);
 }
 
-.track-review button {
+.link-button {
     background: none;
     border: none;
-    padding: 0;
+    padding: .6rem 0;
     font: inherit;
     font-weight: 700;
-    color: var(--gold-500);
+    color: var(--navy-700);
     text-decoration: underline;
     text-underline-offset: 3px;
     cursor: pointer;
 }
 
-.reviews-actions {
+/* Header */
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+    background: rgba(0, 18, 37, .92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+
+.app-header-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: .55rem 1rem;
+}
+
+.app-brand {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    color: white;
+    font-weight: 800;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.app-brand img {
+    border-radius: var(--radius-sm);
+    background: white;
+}
+
+.app-links {
+    display: none;
+    gap: 1.5rem;
+    margin-left: 1rem;
+}
+
+.app-links a {
+    color: rgba(255, 255, 255, .8);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.app-links a:hover {
+    color: var(--gold-500);
+}
+
+.app-header-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+}
+
+.pill-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 1rem;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, .12);
+    border: 1px solid rgba(255, 255, 255, .3);
+    color: white;
+    font-weight: 700;
+    font-size: .95rem;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.pill-link:hover {
+    background: rgba(255, 255, 255, .22);
+}
+
+.staff-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 .25rem;
+    color: rgba(255, 255, 255, .6);
+    font-size: .85rem;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.staff-link:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+@media (min-width: 900px) {
+    .app-links {
+        display: flex;
+    }
+}
+
+@media (max-width: 440px) {
+    .app-brand span {
+        display: none;
+    }
+}
+
+/* Sections */
+.app-section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 3rem 1rem;
+    scroll-margin-top: 64px;
+}
+
+.app-section h2 {
+    color: var(--navy-900);
+    font-size: clamp(1.6rem, 5vw, 2.2rem);
+    letter-spacing: -0.01em;
+}
+
+.section-sub {
+    color: var(--ink-soft);
+    font-size: 1.05rem;
+    margin: .35rem 0 1.5rem;
+}
+
+/* The three steps, like items on a menu */
+.step-cards {
+    list-style: none;
+    display: grid;
+    gap: 1rem;
+}
+
+@media (min-width: 760px) {
+    .step-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.step-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    padding: 1.4rem 1.25rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow-sm);
+}
+
+.step-badge {
+    display: grid;
+    place-items: center;
+    width: 3.2rem;
+    height: 3.2rem;
+    border-radius: 50%;
+    background: var(--gold-500);
+    color: var(--navy-950);
+    font-size: 1.7rem;
+    font-weight: 900;
+}
+
+.step-icon {
+    position: absolute;
+    top: 1.4rem;
+    right: 1.25rem;
+    display: grid;
+    place-items: center;
+    width: 3.2rem;
+    height: 3.2rem;
+    border-radius: 14px;
+    background: var(--surface-sunken);
+}
+
+.step-icon svg {
+    width: 1.75rem;
+    height: 1.75rem;
+    fill: none;
+    stroke: var(--navy-700);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.step-card h3 {
+    margin-top: .4rem;
+    color: var(--navy-900);
+    font-size: 1.2rem;
+}
+
+.step-card p {
+    flex: 1;
+    color: var(--ink-soft);
+}
+
+.step-action {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    min-height: 48px;
+    margin-top: .4rem;
+    padding: .7rem 1rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--navy-700);
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.step-action::after {
+    content: '→';
+}
+
+.step-action:hover {
+    background: white;
+    border-color: var(--navy-700);
+}
+
+.save-spot {
+    margin-top: 1.25rem;
     text-align: center;
+    color: var(--ink-soft);
+}
+
+/* Tracking: a secondary card, then an order-style tracker */
+.track-card {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: 6px solid var(--gold-500);
+    border-radius: 20px;
+    box-shadow: var(--shadow-md);
+}
+
+.track-form label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: .4rem;
+}
+
+.track-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+}
+
+.track-row input {
+    flex: 1 1 12rem;
+    min-width: 0;
+    min-height: 52px;
+    padding: .7rem 1rem;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    font: inherit;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.track-row input::placeholder {
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+}
+
+.track-row .btn-solid {
+    flex: 1 1 12rem;
+}
+
+.track-msg {
+    margin-top: 1rem;
+    color: var(--ink-soft);
+}
+
+.track-msg.error {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+.track-review {
+    margin-top: .75rem;
+    color: var(--ink-soft);
+}
+
+.tracker {
+    margin-top: 1.25rem;
+    padding: 1.25rem;
+    background: var(--surface-alt);
+    border-radius: 16px;
+}
+
+.tracker-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: .25rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.tracker-head h3 {
+    color: var(--navy-900);
+    font-size: 1.25rem;
+}
+
+.tracker-head span {
+    color: var(--ink-faint);
+    font-size: .9rem;
+}
+
+/* Phones: a vertical list of dots; wider screens: a row */
+.tracker-steps {
+    list-style: none;
+    display: grid;
+}
+
+.tracker-steps li {
+    position: relative;
+    min-height: 2.2rem;
+    padding: 0 0 .9rem 2.25rem;
+    color: var(--ink-faint);
+    font-weight: 600;
+}
+
+.tracker-steps li::before {
+    content: '';
+    position: absolute;
+    left: .3rem;
+    top: .2rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    background: white;
+    border: 3px solid var(--border);
+    box-sizing: border-box;
+}
+
+.tracker-steps li::after {
+    content: '';
+    position: absolute;
+    left: calc(.3rem + .55rem - 1.5px);
+    top: 1.3rem;
+    bottom: -.2rem;
+    width: 3px;
+    background: var(--border);
+}
+
+.tracker-steps li:last-child {
+    padding-bottom: 0;
+}
+
+.tracker-steps li:last-child::after {
+    display: none;
+}
+
+.tracker-steps li.done {
+    color: var(--ink);
+}
+
+.tracker-steps li.done::before {
+    background: var(--navy-700);
+    border-color: var(--navy-700);
+}
+
+.tracker-steps li.done::after {
+    background: var(--navy-700);
+}
+
+.tracker-steps li.current {
+    color: var(--navy-900);
+    font-weight: 800;
+}
+
+.tracker-steps li.current::before {
+    background: var(--gold-500);
+    border-color: var(--navy-900);
+    box-shadow: 0 0 0 4px rgba(255, 215, 0, .35);
+}
+
+@media (min-width: 600px) {
+    .tracker-steps {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .tracker-steps li {
+        padding: 1.8rem .25rem 0;
+        text-align: center;
+        font-size: .88rem;
+    }
+
+    .tracker-steps li::before {
+        left: 50%;
+        transform: translateX(-50%);
+        top: 0;
+    }
+
+    .tracker-steps li::after {
+        left: calc(50% + .7rem);
+        right: calc(-50% + .7rem);
+        top: calc(.55rem - 1.5px);
+        bottom: auto;
+        width: auto;
+        height: 3px;
+    }
+}
+
+.tracker-note {
+    margin-top: 1rem;
+    font-weight: 600;
+    color: var(--navy-900);
+}
+
+.tracker-issue {
+    margin-top: .4rem;
+    color: var(--ink-soft);
+    font-size: .95rem;
+}
+
+.tracker-issue span {
+    font-weight: 700;
+}
+
+.tracker .btn-solid {
+    margin-top: 1rem;
+}
+
+/* Cost */
+.price-chips {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+    margin-bottom: 1rem;
+}
+
+.price-chips li {
+    padding: .55rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-sm);
+}
+
+.price-chips strong {
+    color: var(--navy-900);
+}
+
+/* Reviews: a swipeable row of cards */
+.reviews-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.reviews-head .section-sub {
+    margin-bottom: 0;
+}
+
+.review-strip {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: min(85%, 320px);
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: .5rem;
+}
+
+.review-strip > * {
+    scroll-snap-align: start;
+}
+
+.review-strip .info-card {
+    padding: 1.25rem;
+}
+
+.review-strip:has(.empty-state) {
+    display: block;
+}
+
+.empty-state {
+    padding: 1.5rem;
+    background: var(--surface-alt);
+    border: 2px dashed var(--border);
+    border-radius: 16px;
+    text-align: center;
+    color: var(--ink-soft);
+}
+
+.empty-state strong {
+    display: block;
+    color: var(--navy-900);
+    font-size: 1.15rem;
+    margin-bottom: .25rem;
+}
+
+.more-about {
+    margin-top: 2rem;
 }
 
 .more-about p {
@@ -1628,29 +2143,108 @@ body {
     margin-top: .75rem;
 }
 
-.visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-}
-
-/* "Tell us you're coming" under How it works */
-.cta-row {
+/* Footer and the phone bottom bar */
+.app-footer {
+    padding: 2rem 1rem 7rem;
     text-align: center;
-    margin-top: 2rem;
-}
-
-.cta-row .btn-primary {
-    background: var(--navy-900);
-    color: white;
-}
-
-.cta-row p {
     color: var(--ink-soft);
-    margin-top: .6rem;
+    border-top: 1px solid var(--border);
+}
+
+.app-footer p:first-child {
+    font-style: italic;
+    color: var(--navy-900);
+    font-weight: 600;
+}
+
+.app-footer a {
+    color: var(--navy-700);
+}
+
+.bottom-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: .6rem;
+    padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, .95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 20px rgba(15, 23, 42, .08);
+}
+
+@media (min-width: 900px) {
+    .bottom-bar {
+        display: none;
+    }
+
+    .app-footer {
+        padding-bottom: 2rem;
+    }
+}
+
+/* Bottom sheets (directions, timing): slide up on phones, centered on wider screens */
+.sheet {
+    align-items: flex-end;
+    padding: 0;
+}
+
+.sheet .modal-content {
+    width: 100%;
+    max-width: 520px;
+    border-radius: 22px 22px 0 0;
+    padding: 1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+    animation: sheet-up .3s var(--ease);
+}
+
+.sheet .step-icon {
+    position: static;
+    margin-bottom: .75rem;
+}
+
+.sheet-list {
+    list-style: none;
+    display: grid;
+    gap: .6rem;
+    margin: 1rem 0 1.25rem;
+}
+
+.sheet-list li {
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.sheet-list li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--gold-600);
+    font-weight: 800;
+}
+
+.sheet-actions {
+    display: grid;
+    gap: .6rem;
+}
+
+@keyframes sheet-up {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+@media (min-width: 600px) {
+    .sheet {
+        align-items: center;
+        padding: 1rem;
+    }
+
+    .sheet .modal-content {
+        border-radius: 22px;
+    }
 }
 
 .drop-off-done {
@@ -1681,7 +2275,7 @@ body {
 }
 
 .my-repairs-title {
-    color: rgba(255, 255, 255, .8);
+    color: var(--ink-soft);
     font-size: .9rem;
     font-weight: 600;
 }
@@ -1692,17 +2286,18 @@ body {
     gap: .6rem;
     width: 100%;
     padding: .55rem .8rem;
-    background: rgba(255, 255, 255, .1);
-    border: 1px solid rgba(255, 255, 255, .25);
-    border-radius: var(--radius-sm);
-    color: white;
+    min-height: 48px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--ink);
     font: inherit;
     text-align: left;
     cursor: pointer;
 }
 
 .my-repair:hover {
-    background: rgba(255, 255, 255, .18);
+    border-color: var(--navy-700);
 }
 
 .my-repair strong {
