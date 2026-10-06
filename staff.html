@@ -125,9 +125,9 @@
 </main>
 
 <!-- Login Modal -->
-<div class="modal" id="loginModal" style="display: none;">
+<div class="modal" id="loginModal" style="display: none;" role="dialog" aria-modal="true">
     <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('loginModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('loginModal')">×</button>
         <h2>Staff Login</h2>
         <div class="form-group">
             <label for="loginRole">Role</label>
@@ -153,9 +153,9 @@
 
 
 <!-- Update Stats Modal -->
-<div class="modal" id="updateStatsModal" style="display: none;">
+<div class="modal" id="updateStatsModal" style="display: none;" role="dialog" aria-modal="true">
     <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('updateStatsModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('updateStatsModal')">×</button>
         <h2>Update Statistics</h2>
         <div class="form-group">
             <label for="totalRepairsInput">Total Repairs Completed</label>
@@ -166,9 +166,9 @@
 </div>
 
 <!-- Paper Preview: see a form exactly as it prints before printing it -->
-<div class="modal" id="paperPreviewModal">
+<div class="modal" id="paperPreviewModal" role="dialog" aria-modal="true">
     <div class="modal-content wide">
-        <span class="close-btn" onclick="closeModal('paperPreviewModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('paperPreviewModal')">×</button>
         <h2 id="paperPreviewTitle"></h2>
         <p class="ws-hint" id="paperPreviewNote"></p>
         <div class="ws-actions" id="paperPreviewActions"></div>
@@ -177,9 +177,9 @@
 </div>
 
 <!-- Tech Forum (js/forum.js): the list view's search and filters stay put while typing -->
-<div class="modal" id="forumModal">
+<div class="modal" id="forumModal" role="dialog" aria-modal="true">
     <div class="modal-content wide">
-        <span class="close-btn" onclick="closeModal('forumModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('forumModal')">×</button>
         <div id="forumListView">
             <h2>Tech Forum</h2>
             <p class="ws-hint">Fixes, videos, and part links from other students. Search here before you ask someone.</p>
@@ -205,9 +205,9 @@
 </div>
 
 <!-- Workflow Guide: pick self-paced or class presentation (js/guide.js) -->
-<div class="modal" id="guideChooserModal">
+<div class="modal" id="guideChooserModal" role="dialog" aria-modal="true">
     <div class="modal-content" style="max-width: 560px;">
-        <span class="close-btn" onclick="closeModal('guideChooserModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('guideChooserModal')">×</button>
         <h2>Workflow Guide</h2>
         <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Walk through the workflow on the real screens. Both modes use practice tickets, so nothing is saved, emailed, or added to anyone's hours.</p>
         <div class="folder-list">
@@ -233,9 +233,9 @@
 
 
 <!-- Tech Identity Picker (shown after Tech login) -->
-<div class="modal" id="techPickerModal">
+<div class="modal" id="techPickerModal" role="dialog" aria-modal="true">
     <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('techPickerModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('techPickerModal')">×</button>
         <h2>Who are you?</h2>
         <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Select your name so your tickets and repairs are tracked under you.</p>
         <div id="techPickerContainer"></div>
@@ -244,9 +244,9 @@
 </div>
 
 <!-- Ticket Created: the tracking code to give the customer -->
-<div class="modal" id="ticketCreatedModal">
+<div class="modal" id="ticketCreatedModal" role="dialog" aria-modal="true">
     <div class="modal-content" style="text-align: center;">
-        <span class="close-btn" onclick="closeModal('ticketCreatedModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('ticketCreatedModal')">×</button>
         <h2>Ticket Created</h2>
         <p style="font-size: 0.9rem; color: #555;">Give the customer this tracking code. They enter it under Track Repair to check on their repair.</p>
         <div class="tracking-code-big" id="createdTrackingCode"></div>
@@ -259,9 +259,9 @@
 </div>
 
 <!-- Tech-created Ticket Modal -->
-<div class="modal" id="techTicketModal">
+<div class="modal" id="techTicketModal" role="dialog" aria-modal="true">
     <div class="modal-content wide">
-        <span class="close-btn" onclick="closeModal('techTicketModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('techTicketModal')">×</button>
         <h2>New Ticket</h2>
         <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Everything the Help Desk Ticket needs. After you create it, print the Help Desk Ticket for the customer to sign.</p>
         <p class="from-request" id="techTicketFrom" hidden></p>

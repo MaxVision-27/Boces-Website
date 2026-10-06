@@ -2,125 +2,201 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=34">
+    <link rel="stylesheet" href="css/styles.css?v=35">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
     <script src="js/effects.js?v=11" defer></script>
-    <script src="js/main.js?v=35" defer></script>
+    <script src="js/main.js?v=36" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
 </head>
 <body>
 
-<canvas id="bgFxCanvas"></canvas>
+<canvas id="bgFxCanvas" aria-hidden="true"></canvas>
 
-<nav class="site-nav" id="siteNav">
-    <div class="site-nav-inner">
-        <span class="site-nav-brand">BarryTech Repair Lab</span>
-        <div class="site-nav-links">
-            <a href="#track">Track</a>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="app-header">
+    <div class="app-header-inner">
+        <a class="app-brand" href="#top">
+            <img src="images/logo.jpg" alt="BOCES Barry Tech logo" width="40" height="38">
+            <span>BarryTech Repair Lab</span>
+        </a>
+        <nav class="app-links" aria-label="Sections">
             <a href="#how">How it works</a>
             <a href="#cost">Cost</a>
             <a href="#reviews">Reviews</a>
-        </div>
-        <div class="site-nav-actions">
+        </nav>
+        <div class="app-header-actions">
+            <a class="pill-link" href="#track">Track repair</a>
             <span class="role-indicator hidden" id="roleIndicator" onclick="onRoleIndicatorClick()" title="Go to the staff tools"></span>
-            <a class="btn-nav-login" href="staff.html" data-signed-out>Staff Login</a>
+            <a class="staff-link" href="staff.html" data-signed-out>Staff Login</a>
         </div>
     </div>
-</nav>
+</header>
 
-<div class="hero">
-    <canvas id="heroCanvas"></canvas>
-    <img src="data:image/jpeg;base64,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" alt="BOCES Barry Tech Logo" style="max-width: 300px; height: auto; margin-bottom: 1rem;">
-    <h2>BarryTech Repair Lab</h2>
-    <p class="hero-tagline">"We Break the Price, Not Your Device"</p>
+<main id="main">
 
-    <!-- Tracking sits in the hero so customers can't miss it -->
-    <section class="track-card" id="track">
-        <h3>Track your repair</h3>
-        <p>Enter the tracking code we gave you when you dropped off your device.</p>
-        <div class="track-form">
-            <label for="trackCodeInput" class="visually-hidden">Tracking code</label>
-            <input type="text" id="trackCodeInput" placeholder="e.g. BT4X92" autocomplete="off" onkeydown="if(event.key==='Enter'){trackRepair();}">
-            <button class="btn btn-primary" onclick="trackRepair()">Look Up</button>
+<section class="hero" id="top">
+    <canvas id="heroCanvas" aria-hidden="true"></canvas>
+    <div class="hero-inner">
+        <div class="hero-copy">
+            <p class="hero-eyebrow">Free repairs by Barry Tech students</p>
+            <h1>Broken device? Let's fix that.</h1>
+            <p class="hero-sub">Bring it to <strong>Room C220</strong>, next to Joe's Store. We find the problem, you buy the part, we fix it for free.</p>
+            <a class="btn-go" href="#how">How to get your device fixed</a>
+            <p class="hero-tagline">"We Break the Price, Not Your Device."</p>
         </div>
-        <div id="trackResult"></div>
-        <div class="my-repairs" id="myRepairs" hidden></div>
-        <p class="track-review">Got your device back? <button type="button" onclick="openReview()">Leave a review</button></p>
-    </section>
-</div>
+        <img class="hero-logo" src="images/logo.jpg" alt="" width="204" height="192">
+    </div>
+</section>
 
-<div class="section" id="how">
-    <h2>How it works</h2>
-    <ol class="pricing-steps">
-        <li>
-            <span class="step-num" aria-hidden="true">1</span>
-            <h5>Bring it to Room C220</h5>
-            <p>We're on the right side of the building, next to Joe's Store. Walk in any class day, or tell us you're coming and get checked in first. A student technician finds the problem and gives you a tracking code.</p>
+<section class="app-section" id="how" aria-labelledby="howTitle">
+    <h2 id="howTitle">How it works</h2>
+    <p class="section-sub">Three steps. No appointment. No labor bill.</p>
+    <ol class="step-cards">
+        <li class="step-card">
+            <span class="step-badge" aria-hidden="true">1</span>
+            <span class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+            <h3>Bring it to Room C220</h3>
+            <p>Next to Joe's Store. Walk in during class. A student tech checks it out.</p>
+            <button type="button" class="step-action" onclick="openModal('directionsSheet')">Show me where C220 is</button>
         </li>
-        <li>
-            <span class="step-num" aria-hidden="true">2</span>
-            <h5>Buy the part, if it needs one</h5>
-            <p>We tell you which part to order. You buy it from any store or website. Some repairs don't need a part at all.</p>
+        <li class="step-card">
+            <span class="step-badge" aria-hidden="true">2</span>
+            <span class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2.2l2.3 10.5h10.3L20 7.5H6.4"/><circle cx="9.5" cy="19" r="1.5"/><circle cx="16.5" cy="19" r="1.5"/></svg></span>
+            <h3>Buy the part, if it needs one</h3>
+            <p>We tell you exactly which part. You buy it from any store or website.</p>
+            <a class="step-action" href="#cost">What parts cost and where to buy</a>
         </li>
-        <li>
-            <span class="step-num" aria-hidden="true">3</span>
-            <h5>We fix it for free</h5>
-            <p>Most repairs take 2–7 school days, plus shipping time for a part. Check on it anytime with your tracking code.</p>
+        <li class="step-card">
+            <span class="step-badge" aria-hidden="true">3</span>
+            <span class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.6 2.6-2.4-.6-.6-2.4z"/></svg></span>
+            <h3>We fix it for free</h3>
+            <p>You pay for the part. We cover the labor and the bragging rights.</p>
+            <button type="button" class="step-action" onclick="openModal('timingSheet')">How long it takes</button>
         </li>
     </ol>
-    <div class="cta-row">
-        <button class="btn btn-primary" onclick="openDropOff()">Tell us you're coming</button>
-        <p>Pick a class day and skip the line. You still bring the device in person.</p>
-    </div>
-    <details class="cost-details more-about">
-        <summary>More about the lab</summary>
-        <p>Students in Barry Tech's Computer Technology program repair computers, laptops, tablets, and phones with professional-grade tools. We also recover lost files and install software.</p>
-        <p>Not sure whether a repair will affect your warranty? We'll go over your coverage with you before we start.</p>
-        <p>Curious about AI? Ask our students how tools like ChatGPT work and how machine learning systems learn.</p>
-    </details>
-</div>
+    <p class="save-spot">Want to skip the line? <button type="button" class="link-button" onclick="openDropOff()">Save a spot for a class day</button></p>
+</section>
 
-<div class="section" id="cost">
-    <h2>What it costs</h2>
-    <p class="pricing-intro">Labor is free. If your device needs a part, you pay the seller for it. Screens run $40–$200, batteries $20–$60, and RAM $20–$80.</p>
-    <details class="cost-details">
+<section class="app-section" id="track" aria-labelledby="trackTitle">
+    <div class="track-card">
+        <h2 id="trackTitle">Already dropped off?</h2>
+        <p class="section-sub">Check your repair status with the tracking code from your Help Desk Ticket.</p>
+        <div class="track-form">
+            <label for="trackCodeInput">Tracking code</label>
+            <div class="track-row">
+                <input type="text" id="trackCodeInput" placeholder="e.g. BT4X92" autocomplete="off" autocapitalize="characters" spellcheck="false" onkeydown="if(event.key==='Enter'){trackRepair();}">
+                <button class="btn-solid" onclick="trackRepair()">Check my repair status</button>
+            </div>
+        </div>
+        <div id="trackResult" aria-live="polite"></div>
+        <div class="my-repairs" id="myRepairs" hidden></div>
+        <p class="track-review">Got your device back? <button type="button" class="link-button" onclick="openReview()">Leave a review</button></p>
+    </div>
+</section>
+
+<section class="app-section" id="cost" aria-labelledby="costTitle">
+    <h2 id="costTitle">What it costs</h2>
+    <p class="section-sub">Labor is free. If your device needs a part, you pay the seller, not us.</p>
+    <ul class="price-chips" aria-label="Typical part prices">
+        <li><strong>Screens</strong> $40–$200</li>
+        <li><strong>Batteries</strong> $20–$60</li>
+        <li><strong>RAM</strong> $20–$80</li>
+    </ul>
+    <details class="fold">
         <summary>Typical part prices by device</summary>
-        <p class="pricing-note">These are what you'd pay a seller for the part. Your cost depends on your device's model and where you buy it. Select a part to read its dictionary entry.</p>
+        <p class="pricing-note">What you'd pay a seller for the part. Your cost depends on your device's model and where you buy it. Tap a part to read about it.</p>
         <div class="device-grid" id="deviceGrid"></div>
     </details>
-    <details class="cost-details" id="partsDetails">
+    <details class="fold" id="partsDetails">
         <summary>Parts dictionary: what each part does and what to search for</summary>
         <div class="form-group parts-search">
             <label for="partsSearch">Search parts</label>
             <input type="search" id="partsSearch" placeholder="Try &quot;battery&quot;, &quot;slow&quot;, or &quot;won't charge&quot;" oninput="filterParts(this.value)" autocomplete="off">
         </div>
-        <p class="parts-empty hidden" id="partsEmpty">No parts match that search. Try one word, like "screen" or "hot".</p>
+        <p class="parts-empty hidden" id="partsEmpty">No parts match that. Try one word, like "screen" or "hot".</p>
         <div class="parts-list" id="partsList"></div>
     </details>
+</section>
+
+<section class="app-section" id="reviews" aria-labelledby="reviewsTitle">
+    <div class="reviews-head">
+        <div>
+            <h2 id="reviewsTitle">Customer reviews</h2>
+            <p class="section-sub" id="repairCount" hidden>Repairs done so far: <strong id="totalRepairs">0</strong>, and counting.</p>
+        </div>
+        <button type="button" class="btn-quiet" onclick="openReview()">Leave a review</button>
+    </div>
+    <div class="review-strip" id="reviewsContainer"></div>
+    <details class="fold more-about">
+        <summary>More about the lab</summary>
+        <p>Students in Barry Tech's Computer Technology program repair computers, laptops, tablets, and phones with professional-grade tools. We also recover lost files and install software.</p>
+        <p>Not sure whether a repair will affect your warranty? We'll go over your coverage with you before we start.</p>
+        <p>Curious about AI? Ask our students how tools like ChatGPT work and how machine learning systems learn.</p>
+    </details>
+</section>
+
+</main>
+
+<footer class="app-footer">
+    <p>"We Break the Price, Not Your Device."</p>
+    <p>Room C220, next to Joe's Store · BOCES Barry Tech · <a href="staff.html">Staff Login</a></p>
+</footer>
+
+<!-- Phones: the two main actions, always in the same spot -->
+<nav class="bottom-bar" aria-label="Quick actions">
+    <a class="btn-go" href="#how">Start here</a>
+    <a class="btn-quiet" href="#track">Track repair</a>
+</nav>
+
+<!-- Step 1: where Room C220 is -->
+<div class="modal sheet" id="directionsSheet" role="dialog" aria-modal="true" aria-labelledby="directionsTitle">
+    <div class="modal-content">
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('directionsSheet')">×</button>
+        <span class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
+        <h2 id="directionsTitle">Finding Room C220</h2>
+        <ul class="sheet-list">
+            <li>We're on the <strong>right side of the building</strong>.</li>
+            <li>Look for <strong>Joe's Store</strong>. Room C220 is right next to it.</li>
+            <li>Come during the morning or afternoon class and ask for a student tech.</li>
+            <li>No appointment needed. Bring the device and its charger.</li>
+        </ul>
+        <div class="sheet-actions">
+            <button type="button" class="btn-solid" onclick="closeModal('directionsSheet'); openDropOff();">Save a spot and skip the line</button>
+            <button type="button" class="btn-quiet" onclick="closeModal('directionsSheet')">Got it</button>
+        </div>
+    </div>
 </div>
 
-<div class="section" id="reviews">
-    <h2>Customer reviews</h2>
-    <p class="pricing-intro">Repairs completed so far: <strong id="totalRepairs">0</strong></p>
-    <div class="reviews-actions">
-        <button class="btn btn-approve" onclick="openReview()">Leave a Review</button>
+<!-- Step 3: how long it takes -->
+<div class="modal sheet" id="timingSheet" role="dialog" aria-modal="true" aria-labelledby="timingTitle">
+    <div class="modal-content">
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('timingSheet')">×</button>
+        <span class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+        <h2 id="timingTitle">How long it takes</h2>
+        <ul class="sheet-list">
+            <li>Most repairs take <strong>2–7 school days</strong>.</li>
+            <li>Needs a part? Add the time it takes to ship to you.</li>
+            <li>Your tracking code shows where your repair is, any time.</li>
+            <li>A teacher checks every repair before it goes home.</li>
+        </ul>
+        <div class="sheet-actions">
+            <a class="btn-solid" href="#track" onclick="closeModal('timingSheet')">Check my repair status</a>
+            <button type="button" class="btn-quiet" onclick="closeModal('timingSheet')">Got it</button>
+        </div>
     </div>
-    <details class="cost-details">
-        <summary>Read what customers said</summary>
-        <div id="reviewsContainer"></div>
-    </details>
 </div>
 
 <!-- Drop-off request: a saved spot for a class day, not a ticket (018_drop_off_requests.sql) -->
-<div class="modal" id="dropOffModal">
+<div class="modal" id="dropOffModal" role="dialog" aria-modal="true">
     <div class="modal-content wide">
-        <span class="close-btn" onclick="closeModal('dropOffModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('dropOffModal')">×</button>
         <h2>Tell us you're coming</h2>
         <div id="dropOffForm">
             <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Pick a class day and we'll check you in before walk-ins. This saves your spot. We make your ticket and tracking code when you bring the device to Room C220.</p>
@@ -176,9 +252,9 @@
 </div>
 
 <!-- Review Modal -->
-<div class="modal" id="reviewModal">
+<div class="modal" id="reviewModal" role="dialog" aria-modal="true">
     <div class="modal-content">
-        <span class="close-btn" onclick="closeModal('reviewModal')">×</span>
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('reviewModal')">×</button>
         <h2>Leave a Review</h2>
         <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Reviews come from customers whose devices we repaired. Each repair can be reviewed once.</p>
 
