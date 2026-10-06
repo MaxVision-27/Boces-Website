@@ -126,6 +126,7 @@ function enterSandbox(role) {
     window.confirm = () => true;
     window.prompt = () => SAMPLE_SEND_BACK_NOTE;
     populateAppointmentsModal();
+    showHomeView(); // the visible section still shows real tickets
 }
 
 const $g = sel => document.querySelector(sel);
@@ -141,6 +142,8 @@ const guideTicketId = () => appointments.at(-1).id;
 
 function closeAllModals() {
     document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+    // Back to the role's first tab (display only, so it can't race a step's own setup).
+    showView(currentRole === 'admin' ? 'ticketPoolModal' : 'myTicketsModal');
 }
 
 // Going Back past a status change puts the practice ticket back in the
@@ -335,7 +338,7 @@ const TECH_STEPS = [
         title: 'Your ticket list',
         text: 'Active tickets are at the top and completed ones below. Each card shows its status and how much time you have logged on it.',
         setup: async () => { if (!isOpen('myTicketsModal')) { closeAllModals(); await viewMyTickets(); } },
-        target: () => $g('#myTicketsModal .modal-content'),
+        target: () => $g('#myTicketsModal'),
         section: true,
         talk: ['This list is your to-do list for the day.'],
         ask: 'How would you decide which ticket to work on first?'
@@ -443,7 +446,7 @@ const TECH_STEPS = [
         title: 'The whole ticket',
         text: "That's a ticket: the problem and team at the top, the next-step box, and logging your sessions. Work so far, Parts, Paperwork, and Ticket details fold away. Click a name to open it.",
         setup: ensureWorkspace,
-        target: () => $g('#ticketWorkspaceModal .modal-content'),
+        target: () => $g('#ticketWorkspaceModal'),
         section: true,
         talk: ['Top to bottom, the page follows the order you work in.'],
         ask: 'Which part of this page will you use every class?'
@@ -556,12 +559,12 @@ const TECH_STEPS = [
     },
     {
         title: 'Tech Tools',
-        text: 'Everything you need lives here: New Ticket, My Tickets, My Hours, the Forum, and this guide.',
+        text: 'This page is Tech Tools. New Ticket, the Forum, and this guide are at the top; your tickets and hours are in the tabs below. Log Out is in the top bar.',
         setup: closeAllModals,
         target: () => $g('#techToolbar'),
         section: true,
         talk: ['If you get lost, come back to Tech Tools.'],
-        ask: 'Which button will you use most?'
+        ask: 'Which part will you use most?'
     },
     {
         title: "That's the whole path",
@@ -585,7 +588,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'Start in the Ticket Pool',
-        text: 'Every ticket lands here. The number on the button is how many repairs are waiting for your check-off.',
+        text: 'Every ticket lands here. The number on the tab is how many repairs are waiting for your check-off.',
         setup: closeAllModals,
         target: () => $g('#adminPanel [onclick*="ticketPoolModal"]'),
         click: true,
@@ -655,7 +658,7 @@ const ADMIN_STEPS = [
         title: 'The whole ticket, from your side',
         text: "The check-off box sits at the top. Below it, click a name to open that section: the students on it, their work, parts, paperwork, ticket details with the customer's contact, and delete.",
         setup: () => ensureWorkspace(CHECK_ID),
-        target: () => $g('#ticketWorkspaceModal .modal-content'),
+        target: () => $g('#ticketWorkspaceModal'),
         section: true,
         talk: ['You see what the students see, plus your controls.'],
         ask: 'What would you check on a ticket before approving it?'
@@ -664,7 +667,7 @@ const ADMIN_STEPS = [
         title: 'The whole Ticket Pool',
         text: 'Search and filters at the top, then every ticket grouped by status. Check-offs come first, then tickets that need students.',
         setup: async () => { await sandboxStatus('pending', NEW_ID, { assigned_tech_ids: [] }); ensurePool(); },
-        target: () => $g('#ticketPoolModal .modal-content'),
+        target: () => $g('#ticketPoolModal'),
         section: true,
         talk: ['Filter by status to focus on one group, or search a customer by name or email.'],
         ask: 'Which group should be empty by the end of each class?'
@@ -710,7 +713,7 @@ const ADMIN_STEPS = [
         title: 'A new ticket, from your side',
         text: 'Details, the next step, the students on it, and delete. Once students are on it, they take it from here.',
         setup: () => ensureWorkspace(NEW_ID),
-        target: () => $g('#ticketWorkspaceModal .modal-content'),
+        target: () => $g('#ticketWorkspaceModal'),
         section: true,
         talk: ['New tickets have no sessions yet, so Work so far is empty.'],
         ask: 'What should happen if nobody picks up a new ticket?'
@@ -735,6 +738,7 @@ const ADMIN_STEPS = [
     {
         title: "Open a student",
         text: "Click Open to see one student's work.",
+        setup: async () => { if (!isOpen('manageStudentsModal')) { closeAllModals(); await openManageStudents(); } showStudent(null); },
         target: () => $g('#manageStudentsContainer [onclick="showStudent(2)"]'),
         click: true,
         talk: ['Great for parent conferences and grading.'],
@@ -752,7 +756,7 @@ const ADMIN_STEPS = [
         title: "A student's whole page",
         text: 'Their hours, their tickets, and every session they logged. Use ← All students to go back to the list.',
         setup: async () => { if (!isOpen('manageStudentsModal')) { closeAllModals(); await openManageStudents(); } showStudent(2); },
-        target: () => $g('#manageStudentsModal .modal-content'),
+        target: () => $g('#manageStudentsModal'),
         section: true,
         talk: ['Handed-off tickets stay on their page, so their work is never lost.'],
         ask: "What would you look for on a student's page before grading?"
@@ -802,12 +806,12 @@ const ADMIN_STEPS = [
     },
     {
         title: 'The Admin Panel',
-        text: 'Everything you need lives here: Manage Students, Update Stats, Ticket Pool, the Forum, this guide, and Logout.',
+        text: 'This page is the Admin Panel. The Forum, Update Stats, and this guide are at the top; the Ticket Pool and Manage Students are tabs. Log Out is in the top bar.',
         setup: closeAllModals,
         target: () => $g('#adminPanel'),
         section: true,
         talk: ['If you get lost, come back to the Admin Panel.'],
-        ask: 'Which button will you use most?'
+        ask: 'Which part will you use most?'
     },
     {
         title: "That's the admin side",
@@ -839,7 +843,7 @@ function startGuide(mode) {
     document.addEventListener('scroll', placeGuide, true);
     // The dimmed layer takes the mouse, so pass the wheel to the outlined popup.
     document.getElementById('guideBlock').addEventListener('wheel', e => {
-        guideTarget?.closest('.modal-content')?.scrollBy(0, e.deltaY);
+        (guideTarget?.closest('.modal-content') || document.scrollingElement).scrollBy(0, e.deltaY);
     }, { passive: true });
     showGuideStep();
 }
@@ -893,7 +897,8 @@ async function showGuideStep() {
     document.documentElement.style.setProperty('--guide-room', `${room - box.offsetHeight - 80}px`);
 
     // Center the target, unless it's tall: then put it at the top so the box fits below.
-    if (guideTarget && !step.section) {
+    // Staff page sections scroll with the page, so those get scrolled to as well.
+    if (guideTarget && (!step.section || !guideTarget.closest('.modal'))) {
         const room = innerHeight - document.getElementById('sandboxBanner').offsetHeight;
         const tall = (room - guideTarget.offsetHeight) / 2 < box.offsetHeight + 44; // box won't fit above or below
         guideTarget.scrollIntoView({ block: tall ? 'start' : 'center', behavior: 'instant' });

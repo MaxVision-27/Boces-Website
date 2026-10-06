@@ -2,13 +2,13 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=30">
+    <link rel="stylesheet" href="css/styles.css?v=32">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=31" defer></script>
+    <script src="js/main.js?v=33" defer></script>
     <script src="js/forum.js?v=4" defer></script>
-    <script src="js/guide.js?v=8" defer></script>
+    <script src="js/guide.js?v=9" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
@@ -25,6 +25,7 @@
         </div>
         <div class="site-nav-actions">
             <span class="role-indicator hidden" id="roleIndicator" onclick="onRoleIndicatorClick()"></span>
+            <button class="btn-nav-login" data-signed-in hidden onclick="logout()">Log Out</button>
         </div>
     </div>
 </nav>
@@ -36,27 +37,83 @@
         <button class="btn btn-primary" onclick="openModal('loginModal')">Log In</button>
     </div>
 
-<!-- Admin Panel -->
-<div class="admin-panel" id="adminPanel" style="display: none;">
-    <h3>Admin Panel</h3>
-    <button class="btn btn-primary" onclick="openModal('ticketPoolModal')">Ticket Pool<span id="checkoffCount"></span></button>
-    <button class="btn btn-outline" onclick="openManageStudents()">Manage Students</button>
-    <button class="btn btn-outline" onclick="openForum()">Forum</button>
-    <button class="btn btn-outline" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
-    <button class="btn btn-outline" onclick="openWorkflowGuide()">Workflow Guide</button>
-    <button class="btn btn-danger panel-logout" onclick="logout()">Log Out</button>
-</div>
+    <!-- Admin Panel: the admin's page header. The tabs switch the sections below. -->
+    <section class="staff-dash" id="adminPanel" style="display: none;">
+        <header class="staff-head">
+            <h1>Admin Panel</h1>
+            <div class="staff-actions">
+                <button class="btn btn-outline" onclick="openForum()">Forum</button>
+                <button class="btn btn-outline" onclick="openModal('updateStatsModal'); populateStatsModal();">Update Stats</button>
+                <button class="btn btn-outline" onclick="openWorkflowGuide()">Workflow Guide</button>
+            </div>
+        </header>
+        <div class="staff-tabs" role="tablist">
+            <button type="button" role="tab" class="staff-tab" data-view="ticketPoolModal" onclick="openModal('ticketPoolModal')">Ticket Pool<span id="checkoffCount"></span></button>
+            <button type="button" role="tab" class="staff-tab" data-view="manageStudentsModal" onclick="openManageStudents(true)">Manage Students</button>
+        </div>
+    </section>
 
-<!-- Tech Toolbar -->
-<div class="admin-panel" id="techToolbar" style="display: none;">
-    <h3>Tech Tools</h3>
-    <button class="btn btn-primary" onclick="openTechTicketModal()">+ New Ticket</button>
-    <button class="btn btn-outline" onclick="viewMyTickets()">My Tickets</button>
-    <button class="btn btn-outline" onclick="openMyHours()">My Hours</button>
-    <button class="btn btn-outline" onclick="openForum()">Forum</button>
-    <button class="btn btn-outline" onclick="openWorkflowGuide()">Workflow Guide</button>
-    <button class="btn btn-danger panel-logout" onclick="logout()">Log Out</button>
-</div>
+    <!-- Tech Tools: the tech's page header -->
+    <section class="staff-dash" id="techToolbar" style="display: none;">
+        <!-- A hello for the student, filled in by renderTechGreeting() -->
+        <div class="tech-greeting">
+            <h2><svg class="greeting-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z"/></svg><span id="techGreeting">Welcome back</span></h2>
+            <p id="techGreetingLine"></p>
+        </div>
+        <header class="staff-head">
+            <h1>Tech Tools</h1>
+            <div class="staff-actions">
+                <button class="btn btn-primary" onclick="openTechTicketModal()">+ New Ticket</button>
+                <button class="btn btn-outline" onclick="openForum()">Forum</button>
+                <button class="btn btn-outline" onclick="openWorkflowGuide()">Workflow Guide</button>
+            </div>
+        </header>
+        <div class="staff-tabs" role="tablist">
+            <button type="button" role="tab" class="staff-tab" data-view="myTicketsModal" onclick="viewMyTickets()">My Tickets</button>
+            <button type="button" role="tab" class="staff-tab" data-view="myHoursModal" onclick="openMyHours()">My Hours</button>
+        </div>
+    </section>
+
+    <!-- Sections on the page (they kept their old popup ids). showView() in
+         main.js shows one at a time; an open ticket replaces the tabs. -->
+    <div class="staff-view" id="ticketPoolModal" style="display: none;">
+        <p class="ws-hint">Every repair ticket lands here. Open one to pick its students, check progress, or print its paperwork.</p>
+        <div class="pool-filters">
+            <input type="search" id="nameSearch" placeholder="Search by name or email" oninput="populateAppointmentsModal()" autocomplete="off">
+            <select id="statusFilter" onchange="onStatusFilterChange()">
+                <option value="all">All tickets</option>
+                <option value="pending">In the Pool</option>
+                <option value="assigned">Assigned</option>
+                <option value="in_progress">In Progress</option>
+                <option value="review">Needs Check-Off</option>
+                <option value="completed">Completed</option>
+                <option value="deleted">Deleted</option>
+            </select>
+            <select id="sortFilter" onchange="populateAppointmentsModal()">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+            </select>
+        </div>
+        <div id="appointmentsContainer"></div>
+    </div>
+
+    <div class="staff-view" id="manageStudentsModal" style="display: none;">
+        <p class="ws-hint">See what each student is working on and how many hours they've logged. New students show up in the "Who are you?" list when they log in as Tech.</p>
+        <div id="manageStudentsContainer"></div>
+    </div>
+
+    <div class="staff-view" id="myTicketsModal" style="display: none;">
+        <p class="ws-hint">Open a ticket to log your work, add parts, and print its paperwork.</p>
+        <div id="myTicketsContainer"></div>
+    </div>
+
+    <div class="staff-view" id="myHoursModal" style="display: none;">
+        <div id="myHoursContainer"></div>
+    </div>
+
+    <div class="staff-view" id="ticketWorkspaceModal" style="display: none;">
+        <div id="ticketWorkspaceContainer"></div>
+    </div>
 </main>
 
 <!-- Login Modal -->
@@ -97,59 +154,6 @@
             <input type="number" id="totalRepairsInput" min="0">
         </div>
         <button class="btn btn-primary" onclick="updateStats()">Save Changes</button>
-    </div>
-</div>
-
-<!-- Ticket Pool Modal -->
-<div class="modal" id="ticketPoolModal">
-    <div class="modal-content" style="max-width: 800px;">
-        <span class="close-btn" onclick="closeModal('ticketPoolModal')">×</span>
-        <h2>Ticket Pool</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Every repair ticket lands here. Open one to pick its students, check progress, or print its paperwork.</p>
-        <div class="pool-filters">
-            <input type="search" id="nameSearch" placeholder="Search by name or email" oninput="populateAppointmentsModal()" autocomplete="off">
-            <select id="statusFilter" onchange="onStatusFilterChange()">
-                <option value="all">All tickets</option>
-                <option value="pending">In the Pool</option>
-                <option value="assigned">Assigned</option>
-                <option value="in_progress">In Progress</option>
-                <option value="review">Needs Check-Off</option>
-                <option value="completed">Completed</option>
-                <option value="deleted">Deleted</option>
-            </select>
-            <select id="sortFilter" onchange="populateAppointmentsModal()">
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-            </select>
-        </div>
-        <div id="appointmentsContainer"></div>
-    </div>
-</div>
-
-<!-- My Tickets Modal (Tech) -->
-<div class="modal" id="myTicketsModal">
-    <div class="modal-content" style="max-width: 700px;">
-        <span class="close-btn" onclick="closeModal('myTicketsModal')">×</span>
-        <h2>My Tickets</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Open a ticket to log your work, add parts, and print its paperwork.</p>
-        <div id="myTicketsContainer"></div>
-    </div>
-</div>
-
-<!-- Ticket Workspace (Tech): one ticket opened up with room to work -->
-<div class="modal" id="ticketWorkspaceModal">
-    <div class="modal-content wide">
-        <span class="close-btn" onclick="closeModal('ticketWorkspaceModal')">×</span>
-        <div id="ticketWorkspaceContainer"></div>
-    </div>
-</div>
-
-<!-- My Hours Modal (Tech) -->
-<div class="modal" id="myHoursModal">
-    <div class="modal-content" style="max-width: 600px;">
-        <span class="close-btn" onclick="closeModal('myHoursModal')">×</span>
-        <h2>My Hours</h2>
-        <div id="myHoursContainer" style="max-height: 500px; overflow-y: auto;"></div>
     </div>
 </div>
 
@@ -243,16 +247,6 @@
             <button class="btn btn-primary" id="printHelpDeskBtn" onclick="closeModal('ticketCreatedModal'); previewHelpDesk(Number(this.dataset.ticket))">Print Help Desk Ticket</button>
         </div>
         <p style="font-size: 0.85rem; color: #555; margin-top: 0.75rem;">Have the customer sign the Help Desk Ticket before they leave the device.</p>
-    </div>
-</div>
-
-<!-- Manage Students Modal (Admin) -->
-<div class="modal" id="manageStudentsModal">
-    <div class="modal-content wide">
-        <span class="close-btn" onclick="closeModal('manageStudentsModal'); showStudent(null);">×</span>
-        <h2>Manage Students</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">See what each student is working on and how many hours they've logged. New students show up in the "Who are you?" list when they log in as Tech.</p>
-        <div id="manageStudentsContainer"></div>
     </div>
 </div>
 
