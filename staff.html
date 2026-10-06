@@ -2,11 +2,11 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=32">
+    <link rel="stylesheet" href="css/styles.css?v=33">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=33" defer></script>
+    <script src="js/main.js?v=34" defer></script>
     <script src="js/forum.js?v=4" defer></script>
     <script src="js/guide.js?v=9" defer></script>
 
@@ -37,6 +37,12 @@
         <button class="btn btn-primary" onclick="openModal('loginModal')">Log In</button>
     </div>
 
+    <!-- A hello for whoever is signed in, filled in by renderGreeting() -->
+    <div class="greeting" data-signed-in hidden>
+        <h2><svg class="greeting-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z"/></svg><span id="greeting">Welcome back</span></h2>
+        <p id="greetingLine"></p>
+    </div>
+
     <!-- Admin Panel: the admin's page header. The tabs switch the sections below. -->
     <section class="staff-dash" id="adminPanel" style="display: none;">
         <header class="staff-head">
@@ -55,11 +61,6 @@
 
     <!-- Tech Tools: the tech's page header -->
     <section class="staff-dash" id="techToolbar" style="display: none;">
-        <!-- A hello for the student, filled in by renderTechGreeting() -->
-        <div class="tech-greeting">
-            <h2><svg class="greeting-spark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 7.9 7.9 2.6-7.9 2.6L12 22.5l-2.6-7.9L1.5 12l7.9-2.6z"/></svg><span id="techGreeting">Welcome back</span></h2>
-            <p id="techGreetingLine"></p>
-        </div>
         <header class="staff-head">
             <h1>Tech Tools</h1>
             <div class="staff-actions">

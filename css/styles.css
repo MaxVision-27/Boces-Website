@@ -1660,8 +1660,8 @@ body {
     margin: 0 auto;
 }
 
-/* Tech Tools greeting: a warm hello before the tools */
-.tech-greeting {
+/* Staff greeting: a warm hello above Tech Tools / Admin Panel */
+.greeting {
     max-width: 640px;
     margin: 1rem auto 2.5rem;
     text-align: center;
@@ -1676,7 +1676,7 @@ body {
     animation: greeting-spark 1.2s var(--ease) both;
 }
 
-.tech-greeting h2 {
+.greeting h2 {
     display: inline-flex;
     align-items: center;
     gap: .45em;
@@ -1687,7 +1687,7 @@ body {
     color: var(--navy-900);
 }
 
-.tech-greeting p {
+.greeting p {
     color: var(--ink-soft);
     font-size: 1.05rem;
     margin-top: .35rem;
