@@ -65,13 +65,19 @@ function enterSandbox(role) {
     const ticket = (id, name, device, issue, status, team, days, make_model) => ({
         id, name, email: '', device, issue, status, tracking_code: `PRAC${id}`, created_at: daysAgo(days),
         assigned_tech_ids: team, creation_tech_ids: team, created_by: 'Sample', parts_used: '', review_note: null,
-        make_model, serial_tag: `SN${id}X7`, contact_number: '(516) 555-0100', class_name: 'Culinary Arts', room_number: 'B112', computer_password: null
+        make_model, serial_tag: `SN${id}X7`, contact_number: '(516) 555-0100', class_name: 'Culinary Arts', room_number: 'B112', computer_password: null,
+        priority: false, drop_off_id: null
+    });
+    // A customer who saved a spot for today, in the class being shown.
+    const dropOff = session => ({
+        id: 7, created_at: daysAgo(2), visit_date: todayDateStr(), session, name: 'Taylor Brooks (sample)', contact_number: '(516) 555-0142',
+        class_name: 'Cosmetology', room_number: 'A104', device: 'Laptop', make_model: 'Lenovo ThinkPad T14', issue: 'Shuts off after about ten minutes.'
     });
     const log = (id, ticket_id, tech_id, days, start, end, note, team) => ({
         id, ticket_id, tech_id, work_date: daysAgo(days).slice(0, 10), start_time: start, end_time: end, note,
         team_tech_ids: team, created_at: daysAgo(days)
     });
-    let tickets, logs;
+    let tickets, logs, requests;
     const posts = [
         {
             id: 3, created_at: daysAgo(6), updated_at: null, tech_id: 2, author_name: 'Jordan (sample)',
@@ -101,6 +107,8 @@ function enterSandbox(role) {
             log(8, 57, 3, 1, '13:15:00', '14:00:00', 'Installed the new panel and tested it. No flicker.', [2, 3]),
             log(9, 58, 1, 1, '13:15:00', '14:00:00', 'Battery health is 61%. Customer is ordering a battery.', [1])
         ];
+        tickets[0].priority = true;
+        requests = [dropOff('PM')];
     } else {
         currentSession ||= 'PM';
         const me = { id: 1, name: currentTechName || 'You', session: currentSession };
@@ -116,16 +124,19 @@ function enterSandbox(role) {
             log(6, 35, 1, 6, '13:15:00', '14:00:00', 'Swapped the keyboard. Tested every key in Notepad.', [1]),
             log(7, 41, 2, 1, '13:15:00', '14:00:00', 'Power supply fan does not spin. Tested with a spare PSU and it boots. Next: customer orders a PSU.', [1, 2])
         ];
+        requests = [dropOff(currentSession)];
     }
 
     appointments = tickets.map(t => ({ ...t }));
     myTimeLogs = [];
-    db = fakeDb({ repair_requests: tickets, time_logs: logs, techs: techs.map(t => ({ ...t })), stats: [], forum_posts: posts });
+    dropOffs = requests.map(r => ({ ...r }));
+    db = fakeDb({ repair_requests: tickets, time_logs: logs, techs: techs.map(t => ({ ...t })), stats: [], forum_posts: posts, drop_off_requests: requests });
     // Native dialogs would stall the tour; the page reload on exit brings them back.
     window.alert = () => {};
     window.confirm = () => true;
     window.prompt = () => SAMPLE_SEND_BACK_NOTE;
     populateAppointmentsModal();
+    renderDropOffs();
     showHomeView(); // the visible section still shows real tickets
 }
 
@@ -324,6 +335,15 @@ const TECH_STEPS = [
         section: true,
         talk: ['Keep the signed copy with the device.'],
         ask: 'What should you do if a customer will not sign?'
+    },
+    {
+        title: 'Customers who saved a spot',
+        text: "Customers can tell us online which class day they're coming. They show under Drop-offs. Check them in before walk-ins: Customer is here opens New Ticket already filled in, and the ticket gets a Priority badge.",
+        setup: () => { closeAllModals(); showView('dropOffsView'); },
+        target: () => $g('#dropOffsView'),
+        section: true,
+        talk: ['A saved spot is not a ticket. You still make the ticket when they arrive.', 'Priority tickets sit at the top of My Tickets until they are done.'],
+        ask: 'Why check in someone with a saved spot before a walk-in?'
     },
     {
         title: 'Your tickets',
@@ -559,7 +579,7 @@ const TECH_STEPS = [
     },
     {
         title: 'Tech Tools',
-        text: 'This page is Tech Tools. New Ticket, the Forum, and this guide are at the top; your tickets and hours are in the tabs below. Log Out is in the top bar.',
+        text: 'This page is Tech Tools. New Ticket, the Forum, and this guide are at the top; your tickets, drop-offs, and hours are in the tabs below. Log Out is in the top bar.',
         setup: closeAllModals,
         target: () => $g('#techToolbar'),
         section: true,
@@ -719,6 +739,15 @@ const ADMIN_STEPS = [
         ask: 'What should happen if nobody picks up a new ticket?'
     },
     {
+        title: 'Drop-off requests',
+        text: 'Customers can save a spot for a class day, up to 5 per class. Techs check them in first, and those tickets get a Priority badge. Remove a request if the lab is closed that day.',
+        setup: () => { closeAllModals(); showView('dropOffsView'); },
+        target: () => $g('#dropOffsView'),
+        section: true,
+        talk: ['Requests clear themselves after their day. No-shows cost nothing.'],
+        ask: 'What should happen on a day with no class?'
+    },
+    {
         title: 'Your students',
         text: 'Manage Students shows every student at a glance.',
         setup: closeAllModals,
@@ -806,7 +835,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'The Admin Panel',
-        text: 'This page is the Admin Panel. The Forum, Update Stats, and this guide are at the top; the Ticket Pool and Manage Students are tabs. Log Out is in the top bar.',
+        text: 'This page is the Admin Panel. The Forum, Update Stats, and this guide are at the top; the Ticket Pool, Drop-offs, and Manage Students are tabs. Log Out is in the top bar.',
         setup: closeAllModals,
         target: () => $g('#adminPanel'),
         section: true,

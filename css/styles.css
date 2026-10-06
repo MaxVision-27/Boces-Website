@@ -1637,6 +1637,108 @@ body {
     white-space: nowrap;
 }
 
+/* "Tell us you're coming" under How it works */
+.cta-row {
+    text-align: center;
+    margin-top: 2rem;
+}
+
+.cta-row .btn-primary {
+    background: var(--navy-900);
+    color: white;
+}
+
+.cta-row p {
+    color: var(--ink-soft);
+    margin-top: .6rem;
+}
+
+.drop-off-done {
+    font-size: 1.15rem;
+    margin-bottom: .75rem;
+}
+
+/* My repairs: codes remembered in this browser, inside the track card */
+.remember-repair {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-top: .9rem;
+    font-size: .9rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+}
+
+.remember-repair input {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.my-repairs {
+    margin-top: 1rem;
+    display: grid;
+    gap: .4rem;
+}
+
+.my-repairs-title {
+    color: rgba(255, 255, 255, .8);
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.my-repair {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    width: 100%;
+    padding: .55rem .8rem;
+    background: rgba(255, 255, 255, .1);
+    border: 1px solid rgba(255, 255, 255, .25);
+    border-radius: var(--radius-sm);
+    color: white;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.my-repair:hover {
+    background: rgba(255, 255, 255, .18);
+}
+
+.my-repair strong {
+    letter-spacing: .08em;
+}
+
+.my-repair .status-badge {
+    margin: 0 0 0 auto;
+}
+
+/* Tickets from a drop-off request: served and repaired first */
+.priority-badge {
+    display: inline-block;
+    padding: .15rem .6rem;
+    border-radius: var(--radius-pill);
+    background: var(--gold-500);
+    color: var(--navy-900);
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+
+.drop-off-card {
+    cursor: default;
+}
+
+.from-request {
+    background: #fff8d6;
+    border: 1px solid var(--gold-600);
+    border-radius: var(--radius-sm);
+    padding: .6rem .8rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: var(--navy-900);
+}
+
 /* =========================================================
    STAFF PAGE (staff.html) — plain background, the panel in the middle
    ========================================================= */
