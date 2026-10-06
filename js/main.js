@@ -200,6 +200,7 @@ function selectTech(techId, showAlert = true) {
 
     closeModal('techPickerModal');
     updateRoleDisplay();
+    if (STAFF_PAGE) viewMyTickets();
     if (showAlert) alert(`Welcome, ${tech.name}!`);
 }
 
@@ -212,7 +213,8 @@ function selectTech(techId, showAlert = true) {
 let allTimeLogs = [];
 let openStudentId = null;
 
-async function openManageStudents() {
+async function openManageStudents(fromTab = false) {
+    if (fromTab) openStudentId = null;
     const { data, error } = await db.from('time_logs')
         .select('*')
         .order('work_date', { ascending: false })
@@ -454,6 +456,7 @@ async function submitTechTicket() {
 
     appointments.push(data);
     populateAppointmentsModal();
+    if (currentRole === 'tech') viewMyTickets();
     closeModal('techTicketModal');
 
     Object.values(TICKET_FIELDS).forEach(id => { if (id !== 'techApptDevice') document.getElementById(id).value = ''; });
@@ -1080,7 +1083,7 @@ function updateRoleDisplay() {
         indicator.style.background = '#ffd700';
         indicator.style.color = '#333';
         indicator.classList.remove('hidden');
-        adminPanel.style.display = 'grid';
+        adminPanel.style.display = 'block';
         techToolbar.style.display = 'none';
     } else if (currentRole === 'tech') {
         indicator.textContent = `${currentSession ? currentSession + ' ' : ''}Tech${currentTechName ? `: ${currentTechName}` : ''}`;
@@ -1088,7 +1091,7 @@ function updateRoleDisplay() {
         indicator.style.color = 'white';
         indicator.classList.remove('hidden');
         adminPanel.style.display = 'none';
-        techToolbar.style.display = 'grid';
+        techToolbar.style.display = 'block';
     } else {
         indicator.classList.add('hidden');
         adminPanel.style.display = 'none';
@@ -1096,6 +1099,8 @@ function updateRoleDisplay() {
     }
 
     document.querySelectorAll('[data-signed-out]').forEach(el => el.hidden = !!currentRole);
+    document.querySelectorAll('[data-signed-in]').forEach(el => el.hidden = !currentRole);
+    if (STAFF_PAGE && currentRole && !document.querySelector('.staff-view[style*="flex"]')) showHomeView();
 
     calculateTotalRepairs();
     renderReviews();
@@ -1240,6 +1245,32 @@ async function viewMyTickets() {
 
     closeModal('ticketWorkspaceModal');
     openModal('myTicketsModal');
+    renderTechGreeting();
+}
+
+// The hello at the top of Tech Tools: the time of day, the student's name,
+// one friendly line (picked once per visit), and where their tickets stand.
+const GREETING_LINES = [
+    'Ready to fix something?',
+    'What are we repairing today?',
+    'Pick up where you left off.',
+    'Stuck on a repair? Someone may have posted the fix in the Forum.',
+    'Log your sessions as you go and your Hours sheet fills itself in.',
+    ...({ 1: ['New week, new repairs.'], 5: ['Last push before the weekend.'] }[new Date().getDay()] || [])
+];
+const greetingLine = GREETING_LINES[Math.floor(Math.random() * GREETING_LINES.length)];
+
+function renderTechGreeting() {
+    const hour = new Date().getHours();
+    const partOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+    document.getElementById('techGreeting').textContent = `Good ${partOfDay}${currentTechName ? `, ${currentTechName}` : ''}`;
+
+    const open = appointments.filter(a => a.status !== 'completed' && (a.assigned_tech_ids || []).includes(currentTechId));
+    const sentBack = open.filter(a => a.status === 'in_progress' && a.review_note).length;
+    const status = !open.length ? 'No open tickets right now.'
+        : `You have ${open.length} open ticket${open.length === 1 ? '' : 's'}.` +
+          (sentBack ? ` ${sentBack} came back from the admin with a note.` : '');
+    document.getElementById('techGreetingLine').textContent = `${greetingLine} ${status}`;
 }
 
 let workspaceTicketId = null;
@@ -1788,6 +1819,7 @@ async function buildHoursSheets(apptId, kind) {
 // MODAL HELPERS
 // ============================================================
 function openModal(id) {
+    if (document.getElementById(id).classList.contains('staff-view')) { showView(id); return; }
     document.getElementById(id).style.display = 'flex';
     if (id === 'updateStatsModal') populateStatsModal();
     if (id === 'reviewModal') updateReviewTags();
@@ -1795,6 +1827,20 @@ function openModal(id) {
 
 function closeModal(id) {
     document.getElementById(id).style.display = 'none';
+}
+
+// Staff page sections (staff.html): one shows at a time under the tabs,
+// and an open ticket takes the tabs' place.
+function showView(id) {
+    document.querySelectorAll('.staff-view').forEach(v => v.style.display = v.id === id ? 'flex' : 'none');
+    document.querySelectorAll('.staff-tab').forEach(t => t.setAttribute('aria-selected', t.dataset.view === id));
+    document.querySelectorAll('.staff-tabs').forEach(t => t.hidden = id === 'ticketWorkspaceModal');
+}
+
+// Where each role lands: a tech's tickets, or the admin's Ticket Pool.
+function showHomeView() {
+    if (currentRole === 'tech') viewMyTickets();
+    else if (currentRole === 'admin') { populateAppointmentsModal(); showView('ticketPoolModal'); }
 }
 
 window.onclick = function(event) {

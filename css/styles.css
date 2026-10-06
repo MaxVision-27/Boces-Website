@@ -219,7 +219,8 @@ body {
      .btn-sm        smaller size, for lists and cards
    ========================================================= */
 .modal-content .btn-primary,
-.admin-panel .btn-primary {
+.staff-view .btn-primary,
+.staff-actions .btn-primary {
     background: var(--navy-900);
     color: white;
     border: 1.5px solid var(--navy-900);
@@ -271,7 +272,8 @@ body {
 }
 
 .modal-content .btn:hover,
-.admin-panel .btn:hover {
+.staff-view .btn:hover,
+.staff-actions .btn:hover {
     transform: none;
     box-shadow: var(--shadow-sm);
 }
@@ -549,6 +551,7 @@ body {
 
 .role-indicator {
     display: inline-block;
+    white-space: nowrap;
     cursor: pointer;
     padding: 6px 14px;
     border-radius: var(--radius-pill);
@@ -612,7 +615,8 @@ body {
     user-select: all;
 }
 
-.modal-content h2 {
+.modal-content h2,
+.staff-view h2 {
     color: var(--navy-900);
     margin-bottom: 1rem;
     font-size: 1.5rem;
@@ -668,45 +672,25 @@ body {
 }
 
 /* =========================================================
-   ADMIN PANEL
+   STAFF ACTIONS — the buttons in the Tech Tools / Admin Panel header
    ========================================================= */
 
-.admin-panel {
-    position: fixed;
-    top: 60px;
-    right: 20px;
-    background: white;
-    padding: 1rem;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    width: 240px;
-    z-index: 1000;
-    display: grid;
+.staff-actions {
+    display: flex;
+    flex-wrap: wrap;
     gap: .5rem;
 }
 
-.admin-panel h3 {
-    color: var(--navy-900);
-    font-size: 1rem;
-    margin-bottom: .25rem !important;
-}
-
-.admin-panel .btn {
-    width: 100%;
-    padding: .6rem .9rem;
-    font-size: .92rem;
+.staff-actions .btn {
+    padding: .7rem 1.2rem;
+    font-size: .95rem;
     text-align: left;
-}
-
-.admin-panel .panel-logout {
-    margin-top: .35rem;
 }
 
 /* Tool buttons: each its own shade of navy. Hovering sweeps a yellow
    gradient in from the right over half the button, fading to transparent
-   at its far end (Log Out sweeps red),
-   leaving the left-aligned white text on navy. */
-.admin-panel .btn.btn {
+   at its far end, leaving the white text on navy. */
+.staff-actions .btn.btn {
     color: white;
     border: 1.5px solid rgba(255, 255, 255, .08);
     background-image: linear-gradient(to left, #ffd700, rgba(255, 215, 0, 0));
@@ -716,19 +700,12 @@ body {
     transition: background-size .35s ease, box-shadow .2s ease;
 }
 
-.admin-panel .btn:nth-of-type(1) { background-color: #001a35; }
-.admin-panel .btn:nth-of-type(2) { background-color: #0a2a52; }
-.admin-panel .btn:nth-of-type(3) { background-color: #12366a; }
-.admin-panel .btn:nth-of-type(4) { background-color: #1b4280; }
-.admin-panel .btn:nth-of-type(5) { background-color: #244d93; }
-.admin-panel .btn:nth-of-type(6) { background-color: #2e58a6; }
+.staff-actions .btn:nth-of-type(1) { background-color: #001a35; }
+.staff-actions .btn:nth-of-type(2) { background-color: #0a2a52; }
+.staff-actions .btn:nth-of-type(3) { background-color: #12366a; }
 
-.admin-panel .btn.btn-danger {
-    background-image: linear-gradient(to left, #e35d5d, rgba(227, 93, 93, 0));
-}
-
-.admin-panel .btn.btn:hover,
-.admin-panel .btn.btn:focus-visible {
+.staff-actions .btn.btn:hover,
+.staff-actions .btn.btn:focus-visible {
     background-size: 50% 100%;
     color: white;
 }
@@ -1552,11 +1529,6 @@ body {
         grid-column: 1 / -1;
     }
 
-    .admin-panel {
-        width: calc(100vw - 40px);
-        right: 20px;
-    }
-
     #bgFxCanvas {
         opacity: .3;
     }
@@ -1678,27 +1650,121 @@ body {
 }
 
 .staff-home {
+    max-width: 960px;
     min-height: 100vh;
-    padding: 6rem 1rem 2rem;
+    margin: 0 auto;
+    padding: 5.5rem 1rem 3rem;
+}
+
+.staff-signed-out {
+    margin: 0 auto;
+}
+
+/* Tech Tools greeting: a warm hello before the tools */
+.tech-greeting {
+    max-width: 640px;
+    margin: 1rem auto 2.5rem;
+    text-align: center;
+    animation: greeting-in .6s var(--ease) both;
+}
+
+.greeting-spark {
+    flex: none;
+    width: .8em;
+    height: .8em;
+    fill: var(--gold-600);
+    animation: greeting-spark 1.2s var(--ease) both;
+}
+
+.tech-greeting h2 {
+    display: inline-flex;
+    align-items: center;
+    gap: .45em;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    font-size: clamp(1.9rem, 5vw, 2.7rem);
+    line-height: 1.15;
+    color: var(--navy-900);
+}
+
+.tech-greeting p {
+    color: var(--ink-soft);
+    font-size: 1.05rem;
+    margin-top: .35rem;
+}
+
+@keyframes greeting-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes greeting-spark {
+    from { opacity: 0; transform: rotate(-90deg) scale(.4); }
+    to { opacity: 1; transform: none; }
+}
+
+/* The page header: "Tech Tools" / "Admin Panel", its buttons, then the tabs */
+.staff-head {
     display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
 }
 
-.staff-page .admin-panel {
-    position: static;
-    width: min(340px, 100%);
+.staff-head h1 {
+    color: var(--navy-900);
+    font-size: clamp(1.8rem, 4vw, 2.4rem);
+    letter-spacing: -0.02em;
+}
+
+.staff-tabs {
+    display: flex;
+    gap: .25rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.staff-tabs[hidden] {
+    display: none;
+}
+
+.staff-tab {
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    padding: .7rem 1.1rem;
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink-soft);
+    cursor: pointer;
+}
+
+.staff-tab:hover {
+    color: var(--navy-900);
+}
+
+.staff-tab[aria-selected="true"] {
+    color: var(--navy-900);
+    border-bottom-color: var(--gold-500);
+}
+
+/* Each section is a white card under the tabs */
+.staff-view {
+    flex-direction: column;
+    background: white;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    box-shadow: var(--shadow-sm);
     padding: 1.5rem;
-    box-shadow: var(--shadow-md);
 }
 
-.staff-page .admin-panel h3 {
-    font-size: 1.25rem;
+#ticketWorkspaceModal {
+    border-radius: var(--radius-md);
 }
 
-.staff-page .admin-panel .btn {
-    padding: .8rem 1.1rem;
-    font-size: 1rem;
+.staff-view .ws-hint:first-child {
+    margin-bottom: 1rem;
 }
 
 .staff-signed-out {
