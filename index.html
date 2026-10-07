@@ -2,14 +2,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=35">
+    <link rel="stylesheet" href="css/styles.css?v=36">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
     <script src="js/effects.js?v=11" defer></script>
-    <script src="js/main.js?v=36" defer></script>
+    <script src="js/main.js?v=37" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -81,7 +81,7 @@
             <button type="button" class="step-action" onclick="openModal('timingSheet')">How long it takes</button>
         </li>
     </ol>
-    <p class="save-spot">Want to skip the line? <button type="button" class="link-button" onclick="openDropOff()">Save a spot for a class day</button></p>
+    <p class="save-spot">Coming in today? <button type="button" class="link-button" onclick="openDropOff()">Join the line from your phone</button> and skip the wait.</p>
 </section>
 
 <section class="app-section" id="track" aria-labelledby="trackTitle">
@@ -168,7 +168,7 @@
             <li>No appointment needed. Bring the device and its charger.</li>
         </ul>
         <div class="sheet-actions">
-            <button type="button" class="btn-solid" onclick="closeModal('directionsSheet'); openDropOff();">Save a spot and skip the line</button>
+            <button type="button" class="btn-solid" onclick="closeModal('directionsSheet'); openDropOff();">Coming today? Join the line</button>
             <button type="button" class="btn-quiet" onclick="closeModal('directionsSheet')">Got it</button>
         </div>
     </div>
@@ -193,36 +193,34 @@
     </div>
 </div>
 
-<!-- Drop-off request: a saved spot for a class day, not a ticket (018_drop_off_requests.sql) -->
-<div class="modal" id="dropOffModal" role="dialog" aria-modal="true">
-    <div class="modal-content wide">
+<!-- Join today's line: a same-day spot, not a ticket (019_join_todays_line.sql) -->
+<div class="modal" id="dropOffModal" role="dialog" aria-modal="true" aria-labelledby="dropOffTitle">
+    <div class="modal-content">
         <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('dropOffModal')">×</button>
-        <h2>Tell us you're coming</h2>
+        <h2 id="dropOffTitle">Join today's line</h2>
         <div id="dropOffForm">
-            <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Pick a class day and we'll check you in before walk-ins. This saves your spot. We make your ticket and tracking code when you bring the device to Room C220.</p>
-            <div class="form-group">
-                <label for="dropOffDay">When are you coming?</label>
-                <select id="dropOffDay"></select>
-            </div>
+            <p class="line-intro">Coming in today? Get in line now and you're checked in before walk-ins. We'll do the rest when you bring your device to Room C220.</p>
+            <p class="phone-tip"><strong>Do this on the bus or before school.</strong> Phones go away once the school day starts (New York's bell-to-bell phone ban).</p>
+            <fieldset class="class-pick">
+                <legend>Which class are you coming during?</legend>
+                <label class="class-card"><input type="radio" name="dropOffSession" value="AM"> <span><strong>Morning class</strong><small id="dropOffAmNote">Spots open</small></span></label>
+                <label class="class-card"><input type="radio" name="dropOffSession" value="PM"> <span><strong>Afternoon class</strong><small id="dropOffPmNote">Spots open</small></span></label>
+            </fieldset>
             <div class="form-row">
                 <div class="form-group">
-                    <label for="dropOffName">Your Name</label>
-                    <input type="text" id="dropOffName" placeholder="Example: Jamie Rivera" autocomplete="name">
+                    <label for="dropOffName">Your name</label>
+                    <input type="text" id="dropOffName" placeholder="Example: Jamie Rivera" autocomplete="name" required>
                 </div>
                 <div class="form-group">
-                    <label for="dropOffContact">Contact Number</label>
-                    <input type="tel" id="dropOffContact" placeholder="Example: (516) 555-0123" autocomplete="tel">
+                    <label for="dropOffClass">Your class</label>
+                    <input type="text" id="dropOffClass" placeholder="Example: Culinary Arts" autocomplete="off" required>
                 </div>
                 <div class="form-group">
-                    <label for="dropOffClass">Class Name (optional)</label>
-                    <input type="text" id="dropOffClass" placeholder="Example: Culinary Arts AM" autocomplete="off">
+                    <label for="dropOffRoom">Your room number</label>
+                    <input type="text" id="dropOffRoom" placeholder="Example: B112" autocomplete="off" required>
                 </div>
                 <div class="form-group">
-                    <label for="dropOffRoom">Room Number (optional)</label>
-                    <input type="text" id="dropOffRoom" placeholder="Example: B112" autocomplete="off">
-                </div>
-                <div class="form-group">
-                    <label for="dropOffDevice">Device Type</label>
+                    <label for="dropOffDevice">What are you bringing?</label>
                     <select id="dropOffDevice">
                         <option>Laptop</option>
                         <option>Desktop</option>
@@ -231,22 +229,14 @@
                         <option>Other</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label for="dropOffModel">Make/Model (optional)</label>
-                    <input type="text" id="dropOffModel" placeholder="Example: Dell Latitude 5420" autocomplete="off">
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="dropOffIssue">What's wrong with it?</label>
-                <textarea id="dropOffIssue" rows="3" placeholder="Example: The screen is cracked and flickers when I open it."></textarea>
             </div>
             <p class="forum-error" id="dropOffError" hidden></p>
-            <button class="btn btn-primary" onclick="submitDropOff(this)">Save My Spot</button>
+            <button class="btn-go" onclick="submitDropOff(this)">Join the line</button>
         </div>
         <div id="dropOffDone" hidden>
-            <p class="drop-off-done">You're on the list for <strong id="dropOffWhen"></strong>.</p>
-            <p style="color: #555; margin-bottom: 1.25rem;">Bring your device to Room C220 and give the tech your name. You'll be checked in first. Can't make it that day? Walk in another day and we'll still help you.</p>
-            <button class="btn btn-primary" onclick="closeModal('dropOffModal')">Done</button>
+            <p class="drop-off-done">You're in line for today's <strong id="dropOffWhen"></strong>.</p>
+            <p class="line-intro">Bring your device to Room C220, next to Joe's Store, and give the tech your name. You'll be checked in first. Plans changed? No problem. Your spot clears itself after today.</p>
+            <button class="btn-solid" onclick="closeModal('dropOffModal')">Done</button>
         </div>
     </div>
 </div>
