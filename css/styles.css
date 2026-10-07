@@ -3,10 +3,22 @@
    ========================================================= */
 
 :root {
-    --navy-950: #00121f;
-    --navy-900: #001f3f;
-    --navy-800: #002a54;
-    --navy-700: #003d7a;
+    /* Theme shades (t-*): Navy by default; staff themes swap them below.
+       The --navy-* names are the brand colors built from them. */
+    --t-950: #00121f;
+    --t-900: #001f3f;
+    --t-800: #002a54;
+    --t-700: #003d7a;
+    --t-500: #4f8fd9;
+    --navy-950: var(--t-950);
+    --navy-900: var(--t-900);
+    --navy-800: var(--t-800);
+    --navy-700: var(--t-700);
+    --brand-text: var(--t-900);
+    --link: var(--t-700);
+    --warn-ink: #a35a00;
+    --danger-ink: #c62828;
+    color-scheme: light;
     --gold-500: #ffd700;
     --gold-600: #e0bd00;
     --blue-500: #4169e1;
@@ -34,6 +46,67 @@
     --shadow-glow: 0 0 0 1px rgba(255, 215, 0, .35), 0 18px 40px rgba(0, 31, 63, .3);
 
     --ease: cubic-bezier(.22, .68, 0, 1.01);
+}
+
+/* Dark mode: follows the system unless staff picked Light or Dark
+   (data-mode on <html>, set from the Appearance popup). */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-mode="light"]) {
+        color-scheme: dark;
+        --surface: #111c2d;
+        --surface-alt: #17243a;
+        --surface-sunken: #0b1422;
+        --ink: #e5ecf6;
+        --ink-soft: #aab7cb;
+        --ink-faint: #7f8da5;
+        --border: #283a55;
+        /* brand backgrounds a step lighter, so buttons stand out from the page */
+        --navy-900: var(--t-700);
+        --navy-800: var(--t-700);
+        --navy-700: var(--t-500);
+        --brand-text: color-mix(in srgb, var(--t-500) 45%, white);
+        --link: color-mix(in srgb, var(--t-500) 70%, white);
+    --warn-ink: #f6b866;
+    --danger-ink: #ff8a80;
+        --shadow-sm: 0 2px 10px rgba(0, 0, 0, .35);
+        --shadow-md: 0 14px 34px rgba(0, 0, 0, .45);
+    }
+}
+
+:root[data-mode="dark"] {
+    color-scheme: dark;
+    --surface: #111c2d;
+    --surface-alt: #17243a;
+    --surface-sunken: #0b1422;
+    --ink: #e5ecf6;
+    --ink-soft: #aab7cb;
+    --ink-faint: #7f8da5;
+    --border: #283a55;
+    /* brand backgrounds a step lighter, so buttons stand out from the page */
+    --navy-900: var(--t-700);
+    --navy-800: var(--t-700);
+    --navy-700: var(--t-500);
+    --brand-text: color-mix(in srgb, var(--t-500) 45%, white);
+    --link: color-mix(in srgb, var(--t-500) 70%, white);
+    --warn-ink: #f6b866;
+    --danger-ink: #ff8a80;
+    --shadow-sm: 0 2px 10px rgba(0, 0, 0, .35);
+    --shadow-md: 0 14px 34px rgba(0, 0, 0, .45);
+}
+
+/* Staff color themes (data-theme on <html>) */
+:root[data-theme="ocean"] { --t-950: #001c22; --t-900: #003a45; --t-800: #00505e; --t-700: #006d7f; --t-500: #2fb3c7; }
+:root[data-theme="forest"] { --t-950: #071a10; --t-900: #0f3a24; --t-800: #155030; --t-700: #1f6b40; --t-500: #4fbf7d; }
+:root[data-theme="sunset"] { --t-950: #2a0d05; --t-900: #6b2310; --t-800: #8a3114; --t-700: #b8461d; --t-500: #f08a4b; }
+:root[data-theme="grape"] { --t-950: #170a24; --t-900: #36175a; --t-800: #482076; --t-700: #5f2c9b; --t-500: #a77be0; }
+
+/* Paper stays paper: previews and printing are always light */
+.paper-sheets,
+#printArea {
+    color-scheme: light;
+    --surface: #ffffff;
+    --ink: #16202f;
+    --border: #e3e8f2;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -92,7 +165,7 @@ body {
     font-size: clamp(1.9rem, 3.2vw, 2.6rem);
     margin-bottom: 2.5rem;
     text-align: center;
-    color: var(--navy-900);
+    color: var(--brand-text);
     letter-spacing: -0.01em;
 }
 
@@ -108,7 +181,7 @@ body {
     background:
         radial-gradient(circle at 15% 15%, rgba(255, 215, 0, .12), transparent 45%),
         radial-gradient(circle at 85% 80%, rgba(34, 211, 238, .12), transparent 50%),
-        linear-gradient(135deg, var(--navy-950) 0%, var(--navy-900) 45%, var(--navy-700) 100%);
+        linear-gradient(135deg, var(--t-950) 0%, var(--t-900) 45%, var(--t-700) 100%);
 }
 
 #heroCanvas {
@@ -229,8 +302,8 @@ body {
 }
 
 .btn.btn-outline {
-    background: white;
-    color: var(--navy-900);
+    background: var(--surface);
+    color: var(--brand-text);
     border: 1.5px solid #b9c6d8;
 }
 
@@ -244,14 +317,14 @@ body {
 .btn.btn-approve { background: #1e7e34; border: 1.5px solid #1e7e34; color: white; }
 
 .btn.btn-warn {
-    background: #fffaf0;
-    color: #a35a00;
+    background: color-mix(in srgb, #e0a040 10%, var(--surface));
+    color: var(--warn-ink);
     border: 1.5px solid #e0a040;
 }
 
 .btn.btn-danger {
-    background: white;
-    color: #c62828;
+    background: var(--surface);
+    color: var(--danger-ink);
     border: 1.5px solid #e5a3a3;
 }
 
@@ -287,8 +360,8 @@ body {
 }
 
 .btn-secondary:hover {
-    background: white;
-    color: var(--navy-900);
+    background: var(--surface);
+    color: var(--brand-text);
 }
 
 /* =========================================================
@@ -319,7 +392,7 @@ body {
 }
 
 .info-card h3 {
-    color: var(--navy-900);
+    color: var(--brand-text);
     margin-bottom: 1rem;
     font-size: 1.2rem;
 }
@@ -340,13 +413,13 @@ body {
     align-items: center;
     min-height: 44px;
     cursor: pointer;
-    color: var(--navy-700);
+    color: var(--link);
     font-weight: 600;
     font-size: 1.05rem;
 }
 
 .fold summary:hover {
-    color: var(--navy-900);
+    color: var(--brand-text);
 }
 
 .fold .pricing-heading {
@@ -359,13 +432,13 @@ body {
 }
 
 .part-link {
-    color: var(--navy-700);
+    color: var(--link);
     font-weight: 600;
     text-underline-offset: 3px;
 }
 
 .part-link:hover {
-    color: var(--navy-900);
+    color: var(--brand-text);
 }
 
 /* =========================================================
@@ -389,7 +462,7 @@ body {
 
 .pricing-heading {
     text-align: center;
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: 1.5rem;
     margin: 4rem 0 .75rem;
     scroll-margin-top: 90px;
@@ -434,7 +507,7 @@ body {
 .pricing-steps h5,
 .device-card h4,
 .part-entry h4 {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: 1.15rem;
     margin-bottom: .5rem;
 }
@@ -513,7 +586,7 @@ body {
 }
 
 .part-entry dt {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-weight: 700;
     font-size: .8rem;
     text-transform: uppercase;
@@ -589,7 +662,7 @@ body {
 }
 
 .modal-content {
-    background: white;
+    background: var(--surface);
     padding: 2rem;
     border-radius: var(--radius-lg);
     max-width: 500px;
@@ -610,7 +683,7 @@ body {
     font-size: 2.2rem;
     font-weight: 700;
     letter-spacing: .2em;
-    color: var(--navy-900);
+    color: var(--brand-text);
     background: var(--surface-alt);
     border: 2px dashed var(--border);
     border-radius: var(--radius-sm);
@@ -621,7 +694,7 @@ body {
 
 .modal-content h2,
 .staff-view h2 {
-    color: var(--navy-900);
+    color: var(--brand-text);
     margin-bottom: 1rem;
     font-size: 1.5rem;
 }
@@ -679,7 +752,7 @@ body {
     outline: none;
     border-color: var(--navy-700);
     box-shadow: 0 0 0 3px rgba(0, 61, 122, .15);
-    background: white;
+    background: var(--surface);
 }
 
 /* =========================================================
@@ -711,9 +784,9 @@ body {
     transition: background-size .35s ease, box-shadow .2s ease;
 }
 
-.staff-actions .btn:nth-of-type(1) { background-color: #001a35; }
-.staff-actions .btn:nth-of-type(2) { background-color: #0a2a52; }
-.staff-actions .btn:nth-of-type(3) { background-color: #12366a; }
+.staff-actions .btn:nth-of-type(1) { background-color: var(--navy-900); }
+.staff-actions .btn:nth-of-type(2) { background-color: color-mix(in srgb, var(--navy-900) 85%, white); }
+.staff-actions .btn:nth-of-type(3) { background-color: color-mix(in srgb, var(--navy-900) 72%, white); }
 
 .staff-actions .btn.btn:hover,
 .staff-actions .btn.btn:focus-visible {
@@ -850,8 +923,8 @@ body {
     padding: 8px 14px;
     border-radius: var(--radius-pill);
     border: 2px solid var(--navy-900);
-    background: white;
-    color: var(--navy-900);
+    background: var(--surface);
+    color: var(--brand-text);
     cursor: pointer;
     font-size: .9rem;
     transition: all .2s ease;
@@ -889,7 +962,7 @@ body {
 
 .tech-pick-btn:hover {
     border-color: var(--cyan-500);
-    background: white;
+    background: var(--surface);
     box-shadow: var(--shadow-sm);
     transform: translateX(3px);
 }
@@ -964,7 +1037,7 @@ body {
 }
 
 .folder-meta strong {
-    color: var(--navy-700);
+    color: var(--link);
 }
 
 .status-badge {
@@ -977,7 +1050,7 @@ body {
 }
 
 .list-heading {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: 1.05rem;
     margin: 1.5rem 0 .75rem;
 }
@@ -987,7 +1060,7 @@ body {
     border: none;
     font: inherit;
     font-weight: 600;
-    color: var(--navy-700);
+    color: var(--link);
     cursor: pointer;
     padding: 0;
     margin-bottom: 1rem;
@@ -1042,7 +1115,7 @@ body {
 }
 
 .ws-card h3 {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: 1.1rem;
     margin-bottom: .25rem;
 }
@@ -1175,7 +1248,7 @@ body {
     border-radius: var(--radius-sm);
     font: inherit;
     font-weight: 400;
-    background: white;
+    background: var(--surface);
 }
 
 /* Staff Login: AM / PM class picker (the picked one stays highlighted) */
@@ -1189,8 +1262,8 @@ body {
     padding: .7rem;
     border: 2px solid var(--border);
     border-radius: var(--radius-sm);
-    background: white;
-    color: var(--navy-900);
+    background: var(--surface);
+    color: var(--brand-text);
     font: inherit;
     font-weight: 700;
     cursor: pointer;
@@ -1239,7 +1312,7 @@ body {
     padding: .3rem .8rem;
     border-radius: var(--radius-pill);
     border: 1px solid var(--border);
-    background: white;
+    background: var(--surface);
     color: var(--ink);
     font: inherit;
     font-size: .85rem;
@@ -1260,7 +1333,7 @@ body {
 
 .forum-body a,
 .forum-links a {
-    color: var(--navy-700);
+    color: var(--link);
     font-weight: 600;
 }
 
@@ -1366,7 +1439,7 @@ body {
     position: fixed;
     pointer-events: auto;
     width: min(360px, calc(100vw - 32px));
-    background: white;
+    background: var(--surface);
     color: var(--ink);
     border: 3px solid var(--gold-500);
     border-radius: var(--radius-md);
@@ -1375,7 +1448,7 @@ body {
 }
 
 #guideBox h3 {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: 1.15rem;
     margin-bottom: .35rem;
 }
@@ -1397,7 +1470,7 @@ body {
 #guideBox .guide-hint {
     font-size: .85rem;
     font-weight: 600;
-    color: var(--navy-700);
+    color: var(--link);
 }
 
 /* Table of contents: in the Workflow Guide popup and inside the guide */
@@ -1433,7 +1506,7 @@ body {
 .guide-toc-item:hover,
 .guide-toc-item.current {
     border-color: var(--navy-700);
-    background: white;
+    background: var(--surface);
 }
 
 .guide-toc-item.current strong::after {
@@ -1469,7 +1542,7 @@ body {
 .guide-nav .guide-exit,
 .guide-nav .guide-back {
     background: var(--surface-alt);
-    color: var(--navy-900);
+    color: var(--brand-text);
     border: 1px solid var(--border);
 }
 
@@ -1540,6 +1613,14 @@ body {
    PUBLIC PAGE — app-style home: header, step cards, tracker,
    bottom bar on phones. One gold button per screen is the main action.
    ========================================================= */
+
+/* Form fields follow the theme (light and dark) */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+    background-color: var(--surface-alt);
+    color: var(--ink);
+}
 
 /* Read by screen readers, not shown */
 .visually-hidden {
@@ -1626,7 +1707,7 @@ summary:focus-visible {
 .btn-quiet {
     background: transparent;
     border: 2px solid var(--border);
-    color: var(--navy-900);
+    color: var(--brand-text);
 }
 
 .btn-quiet:hover {
@@ -1639,7 +1720,7 @@ summary:focus-visible {
     padding: .6rem 0;
     font: inherit;
     font-weight: 700;
-    color: var(--navy-700);
+    color: var(--link);
     text-decoration: underline;
     text-underline-offset: 3px;
     cursor: pointer;
@@ -1758,7 +1839,7 @@ summary:focus-visible {
 }
 
 .app-section h2 {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: clamp(1.6rem, 5vw, 2.2rem);
     letter-spacing: -0.01em;
 }
@@ -1830,7 +1911,7 @@ summary:focus-visible {
 
 .step-card h3 {
     margin-top: .4rem;
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: 1.2rem;
 }
 
@@ -1850,7 +1931,7 @@ summary:focus-visible {
     background: var(--surface-alt);
     border: 1px solid var(--border);
     border-radius: 14px;
-    color: var(--navy-700);
+    color: var(--link);
     font: inherit;
     font-weight: 700;
     text-align: left;
@@ -1863,7 +1944,7 @@ summary:focus-visible {
 }
 
 .step-action:hover {
-    background: white;
+    background: var(--surface);
     border-color: var(--navy-700);
 }
 
@@ -1953,7 +2034,7 @@ summary:focus-visible {
 }
 
 .tracker-head h3 {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: 1.25rem;
 }
 
@@ -1984,7 +2065,7 @@ summary:focus-visible {
     width: 1.1rem;
     height: 1.1rem;
     border-radius: 50%;
-    background: white;
+    background: var(--surface);
     border: 3px solid var(--border);
     box-sizing: border-box;
 }
@@ -2021,7 +2102,7 @@ summary:focus-visible {
 }
 
 .tracker-steps li.current {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-weight: 800;
 }
 
@@ -2061,7 +2142,7 @@ summary:focus-visible {
 .tracker-note {
     margin-top: 1rem;
     font-weight: 600;
-    color: var(--navy-900);
+    color: var(--brand-text);
 }
 
 .tracker-issue {
@@ -2096,7 +2177,7 @@ summary:focus-visible {
 }
 
 .price-chips strong {
-    color: var(--navy-900);
+    color: var(--brand-text);
 }
 
 /* Reviews: a swipeable row of cards */
@@ -2146,7 +2227,7 @@ summary:focus-visible {
 
 .empty-state strong {
     display: block;
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: 1.15rem;
     margin-bottom: .25rem;
 }
@@ -2170,12 +2251,12 @@ summary:focus-visible {
 
 .app-footer p:first-child {
     font-style: italic;
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-weight: 600;
 }
 
 .app-footer a {
-    color: var(--navy-700);
+    color: var(--link);
 }
 
 .bottom-bar {
@@ -2188,7 +2269,7 @@ summary:focus-visible {
     grid-template-columns: 1.3fr 1fr;
     gap: .6rem;
     padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom));
-    background: rgba(255, 255, 255, .95);
+    background: color-mix(in srgb, var(--surface) 95%, transparent);
     backdrop-filter: blur(10px);
     border-top: 1px solid var(--border);
     box-shadow: 0 -6px 20px rgba(15, 23, 42, .08);
@@ -2451,6 +2532,72 @@ summary:focus-visible {
     background: var(--surface-sunken);
 }
 
+/* Staff background styles (data-bg on <html>, from the Appearance popup) */
+[data-bg="gradient"] .staff-page {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--t-500) 22%, var(--surface-sunken)), var(--surface-sunken) 55%) fixed;
+}
+
+[data-bg="pattern"] .staff-page {
+    background:
+        radial-gradient(color-mix(in srgb, var(--t-500) 30%, transparent) 1.2px, transparent 1.6px) 0 0 / 22px 22px,
+        var(--surface-sunken);
+}
+
+/* Appearance popup */
+.look-group {
+    border: none;
+    margin-bottom: 1.1rem;
+}
+
+.look-group legend {
+    font-weight: 700;
+    margin-bottom: .5rem;
+}
+
+.look-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+}
+
+.look-option {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    min-height: 44px;
+    padding: .45rem .85rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.look-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.look-option:has(input:checked) {
+    border-color: var(--brand-text);
+    background: var(--surface-alt);
+}
+
+.look-option:has(input:focus-visible) {
+    outline: 3px solid var(--cyan-500);
+    outline-offset: 2px;
+}
+
+.swatch {
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, .6);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .2);
+}
+
 .staff-page .site-nav {
     background: var(--navy-900);
 }
@@ -2490,7 +2637,7 @@ summary:focus-visible {
     font-weight: 400;
     font-size: clamp(1.9rem, 5vw, 2.7rem);
     line-height: 1.15;
-    color: var(--navy-900);
+    color: var(--brand-text);
 }
 
 .greeting p {
@@ -2520,7 +2667,7 @@ summary:focus-visible {
 }
 
 .staff-head h1 {
-    color: var(--navy-900);
+    color: var(--brand-text);
     font-size: clamp(1.8rem, 4vw, 2.4rem);
     letter-spacing: -0.02em;
 }
@@ -2548,18 +2695,30 @@ summary:focus-visible {
 }
 
 .staff-tab:hover {
-    color: var(--navy-900);
+    color: var(--brand-text);
 }
 
 .staff-tab[aria-selected="true"] {
-    color: var(--navy-900);
+    color: var(--brand-text);
     border-bottom-color: var(--gold-500);
+}
+
+@media (max-width: 480px) {
+    .staff-tabs {
+        overflow-x: auto;
+    }
+
+    .staff-tab {
+        padding: .55rem .45rem;
+        font-size: .88rem;
+        white-space: nowrap;
+    }
 }
 
 /* Each section is a white card under the tabs */
 .staff-view {
     flex-direction: column;
-    background: white;
+    background: var(--surface);
     border-radius: 0 0 var(--radius-md) var(--radius-md);
     box-shadow: var(--shadow-sm);
     padding: 1.5rem;
@@ -2574,7 +2733,7 @@ summary:focus-visible {
 }
 
 .staff-signed-out {
-    background: white;
+    background: var(--surface);
     padding: 2rem;
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md);
@@ -2583,7 +2742,7 @@ summary:focus-visible {
 }
 
 .staff-signed-out h2 {
-    color: var(--navy-900);
+    color: var(--brand-text);
 }
 
 .staff-signed-out p {
