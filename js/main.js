@@ -643,8 +643,9 @@ function trackSaved(code) {
 
 // ============================================================
 // JOIN TODAY'S LINE (public) — a same-day spot for the morning or
-// afternoon class. The date, the 5-per-class limit and every rule live
-// in request_drop_off() (019_join_todays_line.sql).
+// afternoon class, with a line number like a fast food order (021).
+// The date, the number, one spot per name and every other rule live in
+// request_drop_off(); there is no limit on the line.
 // ============================================================
 const SESSION_NAMES = { AM: 'morning class', PM: 'afternoon class' };
 
@@ -653,15 +654,6 @@ async function openDropOff() {
     document.getElementById('dropOffDone').hidden = true;
     document.getElementById('dropOffError').hidden = true;
     openModal('dropOffModal');
-
-    const { data: full } = await db.rpc('full_drop_off_days');
-    for (const session of ['AM', 'PM']) {
-        const taken = (full || []).some(f => f.visit_date === todayDateStr() && f.session === session);
-        const radio = document.querySelector(`input[name="dropOffSession"][value="${session}"]`);
-        radio.disabled = taken;
-        if (taken) radio.checked = false;
-        document.getElementById(`dropOff${session === 'AM' ? 'Am' : 'Pm'}Note`).textContent = taken ? 'Full today. Just walk in.' : 'Spots open';
-    }
 }
 
 async function submitDropOff(btn) {
@@ -678,26 +670,27 @@ async function submitDropOff(btn) {
     }
 
     btn.disabled = true;
-    const { data: result, error } = await db.rpc('request_drop_off', {
+    const { data, error } = await db.rpc('request_drop_off', {
         p_session: session, p_name: value('dropOffName'), p_class: value('dropOffClass'),
         p_room: value('dropOffRoom'), p_device: value('dropOffDevice')
     });
     btn.disabled = false;
     if (error) console.error('Error joining the line:', error);
+    const { result, code } = data?.[0] || {};
 
     const problems = {
-        full: `The ${SESSION_NAMES[session]} line just filled up. Try the other class, or just walk in.`,
-        duplicate: "You're already in today's line. See you in Room C220!",
         closed: "We're closed on weekends. Come back on a school day.",
         invalid: 'Please fill in every box (keep each one short).'
     };
-    if (result !== 'ok') {
-        if (result === 'full') await openDropOff(); // grey out the class that just filled
+    // Joining again with the same name gives back the same number.
+    if (!code || !['ok', 'duplicate'].includes(result)) {
         showError(problems[result] || 'Something went wrong. Please try again.');
         return;
     }
 
-    document.getElementById('dropOffWhen').textContent = SESSION_NAMES[session];
+    document.getElementById('dropOffDoneTitle').innerHTML = result === 'ok'
+        ? `You're in line for today's <strong>${SESSION_NAMES[session]}</strong>.` : "You're already in today's line.";
+    document.getElementById('dropOffCode').textContent = `#${code}`;
     ['dropOffName', 'dropOffClass', 'dropOffRoom'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('dropOffForm').hidden = true;
     document.getElementById('dropOffDone').hidden = false;
@@ -740,9 +733,18 @@ function renderDropOffs() {
     const waiting = expectedToday();
     document.querySelectorAll('.drop-off-count').forEach(el => el.textContent = waiting ? ` (${waiting} today)` : '');
 
-    const list = visibleDropOffs();
+    // Search by the customer's line number, or by their exact full name
+    // (ignoring capitals and extra spaces) if they lost the number, so
+    // "Jamie Rivera" never shows "Jamie Riveras".
+    const sameName = name => name.trim().replace(/\s+/g, ' ').toLowerCase();
+    const search = sameName(document.getElementById('dropOffSearch')?.value || '');
+    const number = search.replace(/^#/, '');
+    const matches = r => /^\d+$/.test(number) ? String(r.line_code) === number : sameName(r.name) === search;
+    const list = visibleDropOffs().filter(r => !search || matches(r));
     if (!list.length) {
-        container.innerHTML = '<p style="text-align:center; color:#999; padding:2rem;">Nobody has joined the line yet.</p>';
+        container.innerHTML = search
+            ? '<p style="text-align:center; color:#999; padding:2rem;">Nobody in today\'s line has that number or exact name. Check it, or ask for their full name.</p>'
+            : '<p style="text-align:center; color:#999; padding:2rem;">Nobody has joined the line yet.</p>';
         return;
     }
     const isAdmin = currentRole === 'admin';
@@ -751,7 +753,7 @@ function renderDropOffs() {
         const details = [r.class_name, r.room_number && `Room ${r.room_number}`, r.contact_number].filter(Boolean).join(' · ');
         return `
         <div class="folder-card drop-off-card">
-            <span class="folder-top"><strong>${escapeHtml(r.name)}</strong>
+            <span class="folder-top"><strong>${r.line_code ? `<span class="line-code">#${r.line_code}</span> ` : ''}${escapeHtml(r.name)}</strong>
                 ${ticket ? `<span class="status-badge" style="background:#1e7e34; color:white;">Checked in: Ticket #${ticket.id}</span>`
                     : isAdmin ? `<span class="status-badge" style="background:var(--navy-900); color:white;">${r.session}</span>` : ''}</span>
             <span class="folder-issue">${escapeHtml([r.make_model || r.device, r.issue].filter(Boolean).join(': '))}</span>

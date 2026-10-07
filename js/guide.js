@@ -72,7 +72,7 @@ function enterSandbox(role) {
     // A customer who joined today's line, in the class being shown.
     const dropOff = session => ({
         id: 7, created_at: daysAgo(0), visit_date: todayDateStr(), session, name: 'Taylor Brooks (sample)', contact_number: null,
-        class_name: 'Cosmetology', room_number: 'A104', device: 'Laptop', make_model: null, issue: null
+        class_name: 'Cosmetology', room_number: 'A104', device: 'Laptop', make_model: null, issue: null, line_code: 101
     });
     const log = (id, ticket_id, tech_id, days, start, end, note, team) => ({
         id, ticket_id, tech_id, work_date: daysAgo(days).slice(0, 10), start_time: start, end_time: end, note,
@@ -125,7 +125,7 @@ function enterSandbox(role) {
             log(6, 35, 1, 6, '13:15:00', '14:00:00', 'Swapped the keyboard. Tested every key in Notepad.', [1]),
             log(7, 41, 2, 1, '13:15:00', '14:00:00', 'Power supply fan does not spin. Tested with a spare PSU and it boots. Next: customer orders a PSU.', [1, 2])
         ];
-        requests = [dropOff(currentSession)];
+        requests = [dropOff(currentSession), { ...dropOff(currentSession), id: 8, name: 'Taylor Brooks Jr (sample)', class_name: 'Welding', room_number: 'A110', device: 'Tablet', line_code: 102 }];
     }
 
     appointments = tickets.map(t => ({ ...t }));
@@ -322,7 +322,7 @@ const TECH_STEPS = [
     {
         chapter: "Check in today's line",
         title: "Today's line",
-        text: "Customers can join today's line from their phone before school. They only give their name, class, room and device type, so they show under Drop-offs. Check them in before walk-ins: Customer is here starts New Ticket with that filled in, you ask for the rest, and the ticket gets a Priority badge.",
+        text: "Customers can join today's line from their phone before school. They only give their name, class, room and device type, and get a line number, like a fast food order. Type the number they show you into the Drop-offs search (or their full name if they lost it). Check them in before walk-ins: Customer is here starts New Ticket with that filled in, you ask for the rest, and the ticket gets a Priority badge.",
         setup: () => { closeAllModals(); showView('dropOffsView'); },
         target: () => $g('#dropOffsView'),
         section: true,
@@ -648,7 +648,7 @@ const ADMIN_STEPS = [
     {
         chapter: "Today's line",
         title: "Today's line",
-        text: "Customers can join today's line from their phone, up to 5 per class. It's same-day only, so nobody books days ahead and forgets. Techs check them in first, and those tickets get a Priority badge. Take someone out if the lab is closed.",
+        text: "Customers can join today's line from their phone. It's same-day only, so nobody books days ahead and forgets. Each customer gets a line number; techs find them by that number, or by full name if it's lost. Techs check them in first, and those tickets get a Priority badge. Take someone out if the lab is closed.",
         setup: () => { closeAllModals(); showView('dropOffsView'); },
         target: () => $g('#dropOffsView'),
         section: true,
