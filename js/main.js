@@ -6,6 +6,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 // db is initialized inside DOMContentLoaded so the CDN is guaranteed to be loaded first
 let db;
+let realDb = null; // set when the Workflow Guide swaps db for its practice fake
 
 // ============================================================
 // STATE
@@ -162,7 +163,8 @@ async function login() {
 }
 
 async function logout() {
-    if (staffToken) await db.rpc('staff_logout');
+    // The real database, even in practice mode, so the session really ends.
+    if (staffToken) await (realDb || db).rpc('staff_logout');
 
     staffToken = null;
     currentSession = null;
@@ -2192,6 +2194,43 @@ window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
     }
+}
+
+// ============================================================
+// STILL THERE? (techs) — like Netflix: after 15 minutes with no clicks,
+// typing, taps, scrolling or mouse movement, ask if they're still there.
+// No answer in 30 seconds signs them out, so a shared class computer
+// isn't left signed in. Times use timestamps, so a hidden tab (whose
+// timers run slowly) still signs out on time when it's checked.
+// ============================================================
+const IDLE_LIMIT_MS = 15 * 60 * 1000;
+const ANSWER_MS = 30 * 1000;
+let lastActive = Date.now();
+let answerBy = null; // set while "Still there?" is showing
+
+['pointerdown', 'pointermove', 'keydown', 'scroll', 'touchstart'].forEach(type =>
+    document.addEventListener(type, () => { lastActive = Date.now(); }, { capture: true, passive: true }));
+
+function checkStillThere() {
+    if (!STAFF_PAGE || currentRole !== 'tech') return;
+    const modal = document.getElementById('stillThereModal');
+    if (answerBy === null) {
+        if (Date.now() - lastActive < IDLE_LIMIT_MS) return;
+        answerBy = Date.now() + ANSWER_MS;
+        openModal('stillThereModal');
+    } else if (modal.style.display !== 'flex') {
+        return stillHere(); // closed with Escape or a click outside: they're here
+    }
+    const left = Math.ceil((answerBy - Date.now()) / 1000);
+    document.getElementById('stillThereCount').textContent = Math.max(0, left);
+    if (left <= 0) { answerBy = null; logout(); }
+}
+setInterval(checkStillThere, 1000);
+
+function stillHere() {
+    answerBy = null;
+    lastActive = Date.now();
+    closeModal('stillThereModal');
 }
 
 // The role badge leads back to the staff tools from the public page;

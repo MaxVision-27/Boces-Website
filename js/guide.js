@@ -131,6 +131,7 @@ function enterSandbox(role) {
     appointments = tickets.map(t => ({ ...t }));
     myTimeLogs = [];
     dropOffs = requests.map(r => ({ ...r }));
+    realDb ??= db; // logout still reaches the real database
     db = fakeDb({ repair_requests: tickets, time_logs: logs, techs: techs.map(t => ({ ...t })), stats: [], forum_posts: posts, drop_off_requests: requests });
     // Native dialogs would stall the tour; the page reload on exit brings them back.
     window.alert = () => {};

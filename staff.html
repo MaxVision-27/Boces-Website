@@ -6,9 +6,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=40" defer></script>
+    <script src="js/main.js?v=41" defer></script>
     <script src="js/forum.js?v=4" defer></script>
-    <script src="js/guide.js?v=14" defer></script>
+    <script src="js/guide.js?v=15" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
@@ -229,6 +229,15 @@
 </div>
 <div id="sandboxBanner" hidden>Practice mode: sample tickets. Nothing here is saved or sent. <button type="button" onclick="exitGuide()">Exit guide</button></div>
 
+
+<!-- Still there? (techs, after 15 minutes away; js/main.js) -->
+<div class="modal" id="stillThereModal" role="alertdialog" aria-modal="true" aria-labelledby="stillThereTitle" aria-describedby="stillThereText">
+    <div class="modal-content" style="text-align: center; max-width: 420px;">
+        <h2 id="stillThereTitle">Still there?</h2>
+        <p id="stillThereText" style="color: #555; margin-bottom: 1.25rem;">You've been away for 15 minutes. To keep your tickets safe, we'll sign you out in <strong id="stillThereCount">30</strong> seconds.</p>
+        <button type="button" class="btn btn-primary" style="width: 100%;" onclick="stillHere()">I'm still here</button>
+    </div>
+</div>
 
 <!-- Tech Identity Picker (shown after Tech login) -->
 <div class="modal" id="techPickerModal" role="dialog" aria-modal="true">
