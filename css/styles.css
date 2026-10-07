@@ -99,6 +99,47 @@
 :root[data-theme="forest"] { --t-950: #071a10; --t-900: #0f3a24; --t-800: #155030; --t-700: #1f6b40; --t-500: #4fbf7d; }
 :root[data-theme="sunset"] { --t-950: #2a0d05; --t-900: #6b2310; --t-800: #8a3114; --t-700: #b8461d; --t-500: #f08a4b; }
 :root[data-theme="grape"] { --t-950: #170a24; --t-900: #36175a; --t-800: #482076; --t-700: #5f2c9b; --t-500: #a77be0; }
+:root[data-theme="crimson"] { --t-950: #24050a; --t-900: #5c0f1c; --t-800: #7a1626; --t-700: #a3203a; --t-500: #ef6b7f; }
+:root[data-theme="rose"] { --t-950: #2a0a1a; --t-900: #6b1d45; --t-800: #86265a; --t-700: #b03478; --t-500: #f07ab5; }
+:root[data-theme="midnight"] { --t-950: #0b0c24; --t-900: #1e1f5e; --t-800: #282a7a; --t-700: #3a3da6; --t-500: #8b8ff0; }
+:root[data-theme="mint"] { --t-950: #04201a; --t-900: #0c4a3d; --t-800: #116150; --t-700: #198069; --t-500: #4fd1b0; }
+:root[data-theme="coffee"] { --t-950: #1e130c; --t-900: #4a2f1d; --t-800: #5e3c25; --t-700: #7c5134; --t-500: #c9946a; }
+:root[data-theme="slate"] { --t-950: #111418; --t-900: #2b323b; --t-800: #39424e; --t-700: #4f5b6b; --t-500: #a3b0c2; }
+
+/* Staff backgrounds, built from the theme color. Each is a variable so the
+   Appearance popup can show the same thing as a little preview. */
+:root {
+    --tint: color-mix(in srgb, var(--t-500) 30%, transparent);
+    --tint-soft: color-mix(in srgb, var(--t-500) 14%, transparent);
+    --bg-plain: var(--surface-sunken);
+    --bg-gradient: linear-gradient(160deg, color-mix(in srgb, var(--t-500) 22%, var(--surface-sunken)), var(--surface-sunken) 55%);
+    --bg-pattern: radial-gradient(var(--tint) 1.2px, transparent 1.6px) 0 0 / 22px 22px, var(--surface-sunken);
+    --bg-grid:
+        linear-gradient(var(--tint-soft) 1px, transparent 1px) 0 0 / 24px 24px,
+        linear-gradient(90deg, var(--tint-soft) 1px, transparent 1px) 0 0 / 24px 24px,
+        var(--surface-sunken);
+    --bg-stripes: repeating-linear-gradient(135deg, var(--tint-soft) 0 12px, transparent 12px 28px), var(--surface-sunken);
+    --bg-circuit:
+        radial-gradient(circle, var(--tint) 2.5px, transparent 3px) 0 0 / 48px 48px,
+        linear-gradient(var(--tint-soft) 1.5px, transparent 1.5px) 0 0 / 48px 48px,
+        linear-gradient(90deg, var(--tint-soft) 1.5px, transparent 1.5px) 0 0 / 48px 48px,
+        var(--surface-sunken);
+    --bg-aurora:
+        radial-gradient(ellipse at 15% 0%, color-mix(in srgb, var(--t-500) 35%, transparent), transparent 55%),
+        radial-gradient(ellipse at 90% 20%, rgba(255, 215, 0, .16), transparent 50%),
+        radial-gradient(ellipse at 50% 100%, rgba(34, 211, 238, .14), transparent 55%),
+        var(--surface-sunken);
+    --bg-bubbles:
+        radial-gradient(circle at 20% 30%, var(--tint-soft) 0 18px, transparent 19px) 0 0 / 140px 140px,
+        radial-gradient(circle at 70% 70%, var(--tint) 0 7px, transparent 8px) 0 0 / 140px 140px,
+        radial-gradient(circle at 80% 15%, var(--tint-soft) 0 30px, transparent 31px) 0 0 / 220px 220px,
+        var(--surface-sunken);
+    --bg-stars:
+        radial-gradient(circle at 15% 25%, var(--tint) 1px, transparent 1.6px) 0 0 / 90px 90px,
+        radial-gradient(circle at 60% 70%, rgba(255, 215, 0, .55) 1.2px, transparent 1.8px) 0 0 / 130px 130px,
+        radial-gradient(circle at 85% 10%, var(--tint) .9px, transparent 1.4px) 0 0 / 70px 70px,
+        linear-gradient(180deg, color-mix(in srgb, var(--t-950) 55%, var(--surface-sunken)), var(--surface-sunken));
+}
 
 /* Paper stays paper: previews and printing are always light */
 .paper-sheets,
@@ -2533,14 +2574,32 @@ summary:focus-visible {
 }
 
 /* Staff background styles (data-bg on <html>, from the Appearance popup) */
-[data-bg="gradient"] .staff-page {
-    background: linear-gradient(160deg, color-mix(in srgb, var(--t-500) 22%, var(--surface-sunken)), var(--surface-sunken) 55%) fixed;
+[data-bg="gradient"] .staff-page { background: var(--bg-gradient); background-attachment: fixed; }
+[data-bg="pattern"] .staff-page { background: var(--bg-pattern); }
+[data-bg="grid"] .staff-page { background: var(--bg-grid); }
+[data-bg="stripes"] .staff-page { background: var(--bg-stripes); }
+[data-bg="circuit"] .staff-page { background: var(--bg-circuit); }
+[data-bg="aurora"] .staff-page { background: var(--bg-aurora); background-attachment: fixed; }
+[data-bg="bubbles"] .staff-page { background: var(--bg-bubbles); }
+[data-bg="stars"] .staff-page { background: var(--bg-stars); background-attachment: fixed; }
+
+/* Background choices are tiles with a preview on top */
+.look-option:has(.bg-swatch) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .3rem;
+    width: calc(33.333% - .34rem);
+    min-width: 88px;
+    padding: .35rem;
+    border-radius: 12px;
+    text-align: center;
+    font-size: .85rem;
 }
 
-[data-bg="pattern"] .staff-page {
-    background:
-        radial-gradient(color-mix(in srgb, var(--t-500) 30%, transparent) 1.2px, transparent 1.6px) 0 0 / 22px 22px,
-        var(--surface-sunken);
+.bg-swatch {
+    height: 48px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
 }
 
 /* Appearance popup */
