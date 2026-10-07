@@ -1082,7 +1082,8 @@ async function submitReview() {
     const { data: result, error } = await db.rpc('submit_review', { p_code: code, p_rating: rating, p_comment: comment });
     if (error) { console.error('Error submitting review:', error); alert('Failed to submit review.'); return; }
     if (result === 'bad_code') { alert("We couldn't find a repair with that tracking code. Check the code and try again."); return; }
-    if (result === 'used') { alert('This repair already has a review. Thank you!'); return; }
+    if (result === 'not_done') { alert("That repair isn't finished yet. You can leave a review once it's ready for pickup."); return; }
+    if (result === 'used') { alert('That tracking code was already used for a review. Each repair can be reviewed once.'); return; }
     if (result !== 'ok') { alert('Failed to submit review.'); return; }
 
     document.getElementById('reviewCode').value = '';
