@@ -1541,6 +1541,16 @@ body {
    bottom bar on phones. One gold button per screen is the main action.
    ========================================================= */
 
+/* Read by screen readers, not shown */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
 /* hidden always hides, even on elements styled with display */
 [hidden] {
     display: none !important;
@@ -2321,6 +2331,29 @@ summary:focus-visible {
 
 #dropOffForm .btn-go {
     width: 100%;
+}
+
+/* Line numbers: like a fast food order */
+.line-number-label {
+    margin-top: .5rem;
+    text-align: center;
+    color: var(--ink-soft);
+    font-weight: 600;
+}
+
+#dropOffCode {
+    text-align: center;
+    font-size: 2.6rem;
+}
+
+.line-code {
+    display: inline-block;
+    padding: .05rem .5rem;
+    margin-right: .25rem;
+    border-radius: var(--radius-sm);
+    background: var(--gold-500);
+    color: var(--navy-950);
+    font-weight: 900;
 }
 
 .drop-off-done {

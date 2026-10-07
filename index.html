@@ -2,14 +2,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=38">
+    <link rel="stylesheet" href="css/styles.css?v=39">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
     <script src="js/effects.js?v=11" defer></script>
-    <script src="js/main.js?v=39" defer></script>
+    <script src="js/main.js?v=40" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -203,8 +203,8 @@
             <p class="phone-tip"><strong>Do this on the bus or before school.</strong> Phones go away once the school day starts (New York's bell-to-bell phone ban).</p>
             <fieldset class="class-pick">
                 <legend>Which class are you coming during?</legend>
-                <label class="class-card"><input type="radio" name="dropOffSession" value="AM"> <span><strong>Morning class</strong><small id="dropOffAmNote">Spots open</small></span></label>
-                <label class="class-card"><input type="radio" name="dropOffSession" value="PM"> <span><strong>Afternoon class</strong><small id="dropOffPmNote">Spots open</small></span></label>
+                <label class="class-card"><input type="radio" name="dropOffSession" value="AM"> <span><strong>Morning class</strong></span></label>
+                <label class="class-card"><input type="radio" name="dropOffSession" value="PM"> <span><strong>Afternoon class</strong></span></label>
             </fieldset>
             <div class="form-row">
                 <div class="form-group">
@@ -234,8 +234,10 @@
             <button class="btn-go" onclick="submitDropOff(this)">Join the line</button>
         </div>
         <div id="dropOffDone" hidden>
-            <p class="drop-off-done">You're in line for today's <strong id="dropOffWhen"></strong>.</p>
-            <p class="line-intro">Bring your device to Room C220 and give the tech your name. You go first. Can't make it? Your spot clears after today.</p>
+            <p class="drop-off-done" id="dropOffDoneTitle"></p>
+            <p class="line-number-label">Your line number</p>
+            <div class="tracking-code-big" id="dropOffCode"></div>
+            <p class="line-intro">Show this number to the tech in Room C220. You go first. Take a screenshot so you don't lose it. Can't make it? Your spot clears after today.</p>
             <button class="btn-solid" onclick="closeModal('dropOffModal')">Done</button>
         </div>
     </div>
