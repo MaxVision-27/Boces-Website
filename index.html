@@ -63,7 +63,7 @@
             <span class="step-badge" aria-hidden="true">1</span>
             <span class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
             <h3>Bring it to Room C220</h3>
-            <p>Next to Joe's Store. Walk in during class. A student tech checks it out.</p>
+            <p>Next to Joe's Store. Walk in during class, and we'll fill out a ticket with you.</p>
             <button type="button" class="step-action" onclick="openModal('directionsSheet')">Show me where C220 is</button>
         </li>
         <li class="step-card">
@@ -162,10 +162,10 @@
         <span class="step-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21z"/><circle cx="12" cy="10" r="2.4"/></svg></span>
         <h2 id="directionsTitle">Finding Room C220</h2>
         <ul class="sheet-list">
-            <li>We're in the <strong>center wing</strong> of the building.</li>
-            <li>Look for <strong>Joe's Store</strong>. Room C220 is right next to it.</li>
-            <li>Come during the morning or afternoon class and ask for a student tech.</li>
-            <li>No appointment needed. Bring the device and its charger.</li>
+            <li>We're in the <strong>center wing</strong>, next to <strong>Joe's Store</strong>.</li>
+            <li>Come during morning or afternoon class.</li>
+            <li>Joined today's line? <strong>You go first.</strong></li>
+            <li>Bring your device and charger. We'll fill out a ticket with you.</li>
         </ul>
         <div class="sheet-actions">
             <button type="button" class="btn-solid" onclick="closeModal('directionsSheet'); openDropOff();">Coming today? Join the line</button>
@@ -199,7 +199,7 @@
         <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('dropOffModal')">×</button>
         <h2 id="dropOffTitle">Join today's line</h2>
         <div id="dropOffForm">
-            <p class="line-intro">Coming in today? Get in line now and you're checked in before walk-ins. We'll do the rest when you bring your device to Room C220.</p>
+            <p class="line-intro">Coming in today? Join now and you go first in Room C220. We'll still fill out a ticket with you there.</p>
             <p class="phone-tip"><strong>Do this on the bus or before school.</strong> Phones go away once the school day starts (New York's bell-to-bell phone ban).</p>
             <fieldset class="class-pick">
                 <legend>Which class are you coming during?</legend>
@@ -235,7 +235,7 @@
         </div>
         <div id="dropOffDone" hidden>
             <p class="drop-off-done">You're in line for today's <strong id="dropOffWhen"></strong>.</p>
-            <p class="line-intro">Bring your device to Room C220, next to Joe's Store, and give the tech your name. You'll be checked in first. Plans changed? No problem. Your spot clears itself after today.</p>
+            <p class="line-intro">Bring your device to Room C220 and give the tech your name. You go first. Can't make it? Your spot clears after today.</p>
             <button class="btn-solid" onclick="closeModal('dropOffModal')">Done</button>
         </div>
     </div>
