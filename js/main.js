@@ -259,7 +259,7 @@ function populateManageStudentsModal() {
 
     const row = t => {
         const tickets = studentTickets(t.id).filter(a => (a.assigned_tech_ids || []).includes(t.id));
-        const active = tickets.filter(a => a.status === 'assigned' || a.status === 'in_progress').length;
+        const active = tickets.filter(a => ['assigned', 'in_progress', 'waiting_part'].includes(a.status)).length;
         const waiting = tickets.filter(a => a.status === 'review').length;
         return `
         <div class="folder-card" style="cursor:default;">
@@ -506,6 +506,7 @@ const trackStatusMeta = {
     pending: { label: 'In the Pool', color: '#ffc107', text: '#333' },
     assigned: { label: 'Assigned', color: '#17a2b8', text: 'white' },
     in_progress: { label: 'In Progress', color: '#0d6efd', text: 'white' },
+    waiting_part: { label: 'Waiting for part', color: '#f0ad4e', text: '#3b2500' },
     review: { label: 'Final Check', staffLabel: 'Needs Check-Off', color: '#6f42c1', text: 'white' },
     completed: { label: 'Completed', color: '#28a745', text: 'white' }
 };
@@ -538,7 +539,8 @@ async function trackRepair() {
     const safeCode = code.replace(/[^A-Z0-9]/g, '');
     const saved = savedRepairs().some(r => r.code === safeCode);
     if (saved && data.status === 'completed') markRepairDone(safeCode);
-    const current = Math.max(0, TRACK_STEPS.findIndex(s => s.status === data.status));
+    // Tickets from before 020 have no history yet: their status is all we know.
+    const { steps, current } = trackerSteps(data.status, data.history?.length ? data.history : [data.status]);
     result.innerHTML = `
         <div class="tracker">
             <div class="tracker-head">
@@ -546,9 +548,9 @@ async function trackRepair() {
                 <span>Dropped off ${new Date(data.created_at).toLocaleDateString()}</span>
             </div>
             <ol class="tracker-steps" aria-label="Repair progress">
-                ${TRACK_STEPS.map((step, i) => `<li class="${i < current ? 'done' : i === current ? 'current' : ''}"${i === current ? ' aria-current="step"' : ''}>${step.label}</li>`).join('')}
+                ${steps.map((label, i) => `<li class="${i < current ? 'done' : i === current ? 'current' : ''}"${i === current ? ' aria-current="step"' : ''}>${label}</li>`).join('')}
             </ol>
-            <p class="tracker-note">${TRACK_STEPS[current].note}</p>
+            <p class="tracker-note">${trackerNote(steps[current], data.part)}</p>
             <p class="tracker-issue"><span>Problem:</span> ${escapeHtml(data.issue)}</p>
             ${data.status === 'completed' ? `<button class="btn-solid" onclick="openReview('${safeCode}')">Leave a review</button>` : ''}
             <label class="remember-repair"><input type="checkbox" ${saved ? 'checked' : ''} onchange="rememberRepair('${safeCode}', this.checked)"> Remember this code on this device</label>
@@ -556,16 +558,32 @@ async function trackRepair() {
     `;
 }
 
-// The public tracker, like a food order: one step per ticket status
-// (statuses in 014_admin_checkoff.sql). There's no "waiting for part"
-// status yet, so that wait is part of "Being diagnosed".
-const TRACK_STEPS = [
-    { status: 'pending', label: 'Dropped off', note: "We've got it. A student tech will pick it up soon." },
-    { status: 'assigned', label: 'Being diagnosed', note: "A student tech is figuring out what's wrong. If it needs a part, we'll tell you which one to buy." },
-    { status: 'in_progress', label: 'Repairing', note: 'Tools out. Most repairs take 2–7 school days, plus shipping time for a part.' },
-    { status: 'review', label: 'Final check', note: 'Almost done! A teacher is checking the repair before it goes home.' },
-    { status: 'completed', label: 'Ready for pickup', note: 'All fixed. Pick it up in Room C220, next to Joe\'s Store.' }
-];
+// The public tracker, like a food order. It follows the ticket's real
+// history (status_history, 020_waiting_for_part.sql): each wait for a part
+// adds "Waiting for part" and another "Repairing"; send-backs stay inside
+// "Repairing". Steps still to come are added after the current one.
+function trackerSteps(status, history) {
+    const steps = ['Dropped off', 'Being diagnosed'];
+    for (const s of history) {
+        if (s === 'in_progress' && steps.at(-1) !== 'Repairing') steps.push('Repairing');
+        if (s === 'waiting_part') steps.push('Waiting for part');
+    }
+    const current = { pending: 0, assigned: 1, in_progress: steps.lastIndexOf('Repairing'), waiting_part: steps.lastIndexOf('Waiting for part') }[status];
+    if (steps.at(-1) !== 'Repairing') steps.push('Repairing');
+    steps.push('Final check', 'Ready for pickup');
+    return { steps, current: current >= 0 ? current : status === 'review' ? steps.length - 2 : status === 'completed' ? steps.length - 1 : 0 };
+}
+
+function trackerNote(step, part) {
+    return {
+        'Dropped off': "We've got it. A student tech will pick it up soon.",
+        'Being diagnosed': "A student tech is figuring out what's wrong. If it needs a part, we'll tell you which one to buy.",
+        'Waiting for part': `We're waiting on ${part ? `the part: ${escapeHtml(part)}` : 'a part'}. Bring it to Room C220 when it arrives, and we'll finish the repair in 1–2 days.`,
+        'Repairing': 'Tools out. Most repairs take 1–2 days once we have everything we need.',
+        'Final check': 'Almost done! A teacher is checking the repair before it goes home.',
+        'Ready for pickup': "All fixed. Pick it up in Room C220, next to Joe's Store."
+    }[step];
+}
 
 // ============================================================
 // MY REPAIRS — tracking codes a customer chose to remember. They live
@@ -813,6 +831,23 @@ async function startProgress(apptId) {
     const appt = appointments.find(a => a.id === apptId);
     appt.status = 'in_progress';
 
+    populateAppointmentsModal();
+    renderTicketWorkspace();
+}
+
+// The customer has to buy a part, before the repair starts or partway
+// through. Their tracker shows each wait and the part's name (020).
+async function waitForPart(apptId) {
+    const appt = appointments.find(a => a.id === apptId);
+    const part = prompt('Which part are we waiting for? The customer sees this on their tracker.\n\nExample: Battery for Dell Latitude 5420', appt.parts_used || '');
+    if (part === null) return;
+    if (!part.trim()) { alert('Write which part, so the customer knows what to buy.'); return; }
+
+    const update = { status: 'waiting_part', parts_used: part.trim() };
+    const { error } = await db.from('repair_requests').update(update).eq('id', apptId);
+    if (error) { console.error('Error marking waiting for part:', error); alert('Could not mark it as waiting for a part.'); return; }
+
+    Object.assign(appt, update);
     populateAppointmentsModal();
     renderTicketWorkspace();
 }
@@ -1440,7 +1475,7 @@ function populateAppointmentsModal() {
         </button>`;
     };
 
-    const groups = [['review', 'Needs your check-off'], ['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['completed', 'Completed']];
+    const groups = [['review', 'Needs your check-off'], ['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['waiting_part', 'Waiting for part'], ['completed', 'Completed']];
     for (const [status, label] of groups) {
         const tickets = filtered.filter(a => a.status === status);
         if (tickets.length) html += `<h3 class="list-heading">${label} (${tickets.length})</h3><div class="folder-list">${tickets.map(folder).join('')}</div>`;
@@ -1531,14 +1566,18 @@ function renderGreeting() {
     if (currentRole === 'tech') {
         const open = appointments.filter(a => a.status !== 'completed' && (a.assigned_tech_ids || []).includes(currentTechId));
         const sentBack = open.filter(a => a.status === 'in_progress' && a.review_note).length;
+        const onParts = open.filter(a => a.status === 'waiting_part').length;
         status = (!open.length ? 'No open tickets right now.'
-            : `You have ${plural(open.length, 'open ticket')}.` + (sentBack ? ` ${sentBack} came back from the admin with a note.` : '')) + expectedNote();
+            : `You have ${plural(open.length, 'open ticket')}.` + (sentBack ? ` ${sentBack} came back from the admin with a note.` : '')
+              + (onParts ? ` ${onParts} ${onParts === 1 ? 'is' : 'are'} waiting for a part.` : '')) + expectedNote();
     } else {
         const waiting = appointments.filter(a => a.status === 'review').length;
         const needStudents = appointments.filter(a => a.status === 'pending').length;
+        const onParts = appointments.filter(a => a.status === 'waiting_part').length;
         status = [
             waiting && `${plural(waiting, 'repair')} ${waiting === 1 ? 'is' : 'are'} waiting for your check-off.`,
-            needStudents && `${plural(needStudents, 'new ticket')} ${needStudents === 1 ? 'needs' : 'need'} students.`
+            needStudents && `${plural(needStudents, 'new ticket')} ${needStudents === 1 ? 'needs' : 'need'} students.`,
+            onParts && `${plural(onParts, 'ticket')} ${onParts === 1 ? 'is' : 'are'} waiting for ${onParts === 1 ? 'a part' : 'parts'}.`
         ].filter(Boolean).concat(expectedNote().trim() || []).join(' ') || 'Nothing is waiting for you right now.';
     }
     document.getElementById('greetingLine').textContent = `${lines[Math.floor(greetingPick * lines.length)]} ${status}`;
@@ -1594,14 +1633,17 @@ function renderTicketWorkspace() {
 
     const complete = `<button class="btn btn-approve" onclick="markCompleted(${appt.id})">Approve &amp; Complete</button>`;
     const sentBack = appt.review_note ? `<span style="flex-basis:100%;"><strong>↩ Sent back by the admin:</strong> ${escapeHtml(appt.review_note)}</span>` : '';
+    const needPart = `<button class="btn btn-warn" onclick="waitForPart(${appt.id})">Waiting for part</button>`;
     const nextStep = {
         pending: '<span>Nobody is on this ticket yet. Pick students below to get it started.</span>',
-        assigned: `<span>Ready to begin? Press Start Repair when you start working on it.</span>
-                   <button class="btn btn-start" onclick="startProgress(${appt.id})">▶ Start Repair</button>`,
+        assigned: `<span>Ready to begin? Press Start Repair when you start working on it. If the customer has to buy a part first, press Waiting for part.</span>
+                   <span class="ws-actions"><button class="btn btn-start" onclick="startProgress(${appt.id})">▶ Start Repair</button>${needPart}</span>`,
         in_progress: sentBack + (isAdmin
-            ? `<span>The students are still working on it. You can check it off yourself once it's done.</span>${complete}`
-            : `<span>Finished and tested? Send it to the admin to check off.</span>
-               <button class="btn btn-review" onclick="requestCheckoff(${appt.id})">Ready for Check-Off</button>`),
+            ? `<span>The students are still working on it. You can check it off yourself once it's done.</span><span class="ws-actions">${complete}${needPart}</span>`
+            : `<span>Finished and tested? Send it to the admin to check off. Need a part to finish? Press Waiting for part.</span>
+               <span class="ws-actions"><button class="btn btn-review" onclick="requestCheckoff(${appt.id})">Ready for Check-Off</button>${needPart}</span>`),
+        waiting_part: `<span>Waiting for the customer's part: <strong>${escapeHtml(appt.parts_used || 'not written down')}</strong>. When they bring it in, press Part arrived and keep repairing.</span>
+                   <button class="btn btn-start" onclick="startProgress(${appt.id})">▶ Part arrived, keep repairing</button>`,
         review: isAdmin
             ? `<span>The students say this repair is done. Check the device, then approve it or send it back with what's left to do.</span>
                <span class="ws-actions">${complete}<button class="btn btn-warn" onclick="sendBack(${appt.id})">↩ Send Back</button></span>`
