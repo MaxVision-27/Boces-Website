@@ -58,6 +58,7 @@ function fakeDb(tables) {
     return { from, rpc: async () => ({ data: null, error: null }) };
 }
 
+const SAMPLE_PART = 'Power supply for Dell OptiPlex 7080';
 const SAMPLE_SEND_BACK_NOTE = 'The screen still flickers when the lid is half open. Check the display cable.';
 
 function enterSandbox(role) {
@@ -134,7 +135,7 @@ function enterSandbox(role) {
     // Native dialogs would stall the tour; the page reload on exit brings them back.
     window.alert = () => {};
     window.confirm = () => true;
-    window.prompt = () => SAMPLE_SEND_BACK_NOTE;
+    window.prompt = msg => msg.startsWith('Which part') ? SAMPLE_PART : SAMPLE_SEND_BACK_NOTE;
     populateAppointmentsModal();
     renderDropOffs();
     return showHomeView(); // the visible section still shows real tickets
@@ -384,6 +385,12 @@ const TECH_STEPS = [
         text: 'If the customer bought a part for this repair, list it here. Leave it blank if it did not need one.',
         setup: ensureWorkspace,
         target: () => wsCard('Parts'),
+    },
+    {
+        title: 'Need a part?',
+        text: "If the customer has to buy a part, before you start or partway through, press Waiting for part and write which part. Their tracker shows Waiting for part with the part's name. When they bring it in, press Part arrived to keep repairing.",
+        setup: async () => { await ensureWorkspace(); await sandboxStatus('in_progress'); },
+        target: () => $g('#ticketWorkspaceContainer .ws-next [onclick^="waitForPart"]')
     },
     {
         title: 'Paperwork',
