@@ -6,9 +6,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=43" defer></script>
+    <script src="js/main.js?v=44" defer></script>
     <script src="js/forum.js?v=4" defer></script>
-    <script src="js/guide.js?v=15" defer></script>
+    <script src="js/guide.js?v=16" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
@@ -230,6 +230,26 @@
 </div>
 <div id="sandboxBanner" hidden>Practice mode: sample tickets. Nothing here is saved or sent. <button type="button" onclick="exitGuide()">Exit guide</button></div>
 
+
+<!-- In-page text box, used instead of prompt() (askText() in js/main.js) -->
+<div class="modal" id="askModal" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+    <div class="modal-content" style="max-width: 460px;">
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('askModal')">×</button>
+        <h2 id="askTitle"></h2>
+        <form onsubmit="answerAsk(true); return false;">
+            <div class="form-group">
+                <label id="askLabel" for="askInput"></label>
+                <input type="text" id="askInput" autocomplete="off">
+                <textarea id="askArea" rows="3" hidden></textarea>
+                <small class="ws-hint" id="askHint"></small>
+            </div>
+            <div class="ws-actions">
+                <button type="submit" class="btn btn-primary" id="askSubmit">Save</button>
+                <button type="button" class="btn btn-outline" onclick="closeModal('askModal')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <!-- Appearance: light/dark, color theme and background (js/main.js) -->
 <div class="modal" id="appearanceModal" role="dialog" aria-modal="true" aria-labelledby="appearanceTitle">

@@ -334,7 +334,7 @@ async function setStudentSession(techId, session) {
 
 async function renameStudent(techId) {
     const tech = techs.find(t => t.id === techId);
-    const name = prompt('New name for this student:', tech.name)?.trim();
+    const name = (await askText({ title: 'Rename student', label: 'New name', value: tech.name }))?.trim();
     if (!name || name === tech.name) return;
 
     const { error } = await db.from('techs').update({ name }).eq('id', techId);
@@ -846,7 +846,10 @@ async function startProgress(apptId) {
 // through. Their tracker shows each wait and the part's name (020).
 async function waitForPart(apptId) {
     const appt = appointments.find(a => a.id === apptId);
-    const part = prompt('Which part are we waiting for? The customer sees this on their tracker.\n\nExample: Battery for Dell Latitude 5420', appt.parts_used || '');
+    const part = await askText({
+        title: 'Waiting for part', label: 'Which part are we waiting for?', hint: 'The customer sees this on their tracker.',
+        value: appt.parts_used || '', placeholder: 'Example: Battery for Dell Latitude 5420', submit: 'Mark Waiting'
+    });
     if (part === null) return;
     if (!part.trim()) { alert('Write which part, so the customer knows what to buy.'); return; }
 
@@ -882,7 +885,10 @@ async function requestCheckoff(apptId) {
 }
 
 async function sendBack(apptId) {
-    const note = prompt('What still needs to be done? The students on this ticket will see this.\n\nExample: The screen still flickers when the lid is half open.');
+    const note = await askText({
+        title: 'Send it back', label: 'What still needs to be done?', hint: 'The students on this ticket will see this.',
+        placeholder: 'Example: The screen still flickers when the lid is half open.', multiline: true, submit: '↩ Send Back'
+    });
     if (note === null) return;
 
     const update = { status: 'in_progress', review_note: note.trim() || null };
@@ -2162,6 +2168,7 @@ function openModal(id) {
 }
 
 function closeModal(id) {
+    if (id === 'askModal' && askResolve) return answerAsk(false); // closed without saving
     const modal = document.getElementById(id);
     const hadFocus = modal.contains(document.activeElement);
     modal.style.display = 'none';
@@ -2195,9 +2202,39 @@ function showHomeView() {
 }
 
 window.onclick = function(event) {
-    if (event.target.classList.contains('modal')) {
-        event.target.style.display = 'none';
-    }
+    if (event.target.classList.contains('modal')) closeModal(event.target.id);
+}
+
+// An in-page stand-in for prompt(). Some browsers block the built-in
+// pop-up (the Claude app's browser, or Chrome after "don't let this page
+// create more dialogs") and prompt() then quietly returns nothing.
+// Resolves with the text, or null if they cancel or close it.
+let askResolve = null;
+
+function askText({ title, label, hint = '', value = '', placeholder = '', multiline = false, submit = 'Save' }) {
+    askResolve?.(null);
+    const field = document.getElementById(multiline ? 'askArea' : 'askInput');
+    document.getElementById('askInput').hidden = multiline;
+    document.getElementById('askArea').hidden = !multiline;
+    document.getElementById('askTitle').textContent = title;
+    document.getElementById('askLabel').textContent = label;
+    document.getElementById('askLabel').htmlFor = field.id;
+    document.getElementById('askHint').textContent = hint;
+    document.getElementById('askSubmit').textContent = submit;
+    Object.assign(field, { value, placeholder });
+    openModal('askModal');
+    field.focus();
+    field.select();
+    return new Promise(resolve => { askResolve = resolve; });
+}
+
+function answerAsk(submitted) {
+    const multiline = document.getElementById('askInput').hidden;
+    const text = document.getElementById(multiline ? 'askArea' : 'askInput').value;
+    const resolve = askResolve;
+    askResolve = null;
+    closeModal('askModal');
+    resolve?.(submitted ? text : null);
 }
 
 // ============================================================
