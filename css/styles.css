@@ -1385,8 +1385,7 @@ body {
     margin-bottom: .6rem;
 }
 
-#guideBox .guide-count,
-#guideBox .guide-keys {
+#guideBox .guide-count {
     font-size: .75rem;
     font-weight: 700;
     text-transform: uppercase;
@@ -1395,28 +1394,57 @@ body {
     margin-bottom: .3rem;
 }
 
-#guideBox .guide-keys {
-    margin: .6rem 0 0;
-    text-align: right;
-}
-
 #guideBox .guide-hint {
     font-size: .85rem;
     font-weight: 600;
     color: var(--navy-700);
 }
 
-.guide-talk {
-    margin: 0 0 .6rem 1.2rem;
-    color: var(--ink);
+/* Table of contents: in the Workflow Guide popup and inside the guide */
+.guide-toc {
+    display: grid;
+    gap: .4rem;
+    margin-bottom: .6rem;
 }
 
-#guideBox .guide-ask {
-    background: #fff8d6;
-    border-left: 4px solid var(--gold-500);
-    border-radius: 6px;
-    padding: .5rem .75rem;
+.guide-toc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    min-height: 44px;
+    padding: .55rem .9rem;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font: inherit;
     color: var(--ink);
+    text-align: left;
+    cursor: pointer;
+}
+
+.guide-toc-item span {
+    color: var(--ink-faint);
+    font-size: .85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.guide-toc-item:hover,
+.guide-toc-item.current {
+    border-color: var(--navy-700);
+    background: white;
+}
+
+.guide-toc-item.current strong::after {
+    content: ' (you are here)';
+    font-weight: 500;
+    color: var(--ink-faint);
+}
+
+#guideBox .guide-toc {
+    max-height: 50vh;
+    overflow-y: auto;
 }
 
 .guide-nav {
@@ -1454,27 +1482,6 @@ body {
 
 .guide-section .modal .modal-content {
     max-height: max(220px, var(--guide-room));
-}
-
-/* Class presentation: big enough to read from the back of the room */
-.guide-present #guideBox {
-    width: min(720px, calc(100vw - 48px));
-    font-size: 1.35rem;
-    padding: 1.5rem 1.75rem;
-}
-
-.guide-present #guideBox h3 {
-    font-size: 2rem;
-}
-
-.guide-present #guideBox .guide-count,
-.guide-present #guideBox .guide-keys {
-    font-size: .95rem;
-}
-
-.guide-present .guide-nav .btn {
-    font-size: 1.1rem;
-    padding: .7rem 1.5rem;
 }
 
 #sandboxBanner {

@@ -2140,8 +2140,8 @@ function showView(id) {
 
 // Where each role lands: a tech's tickets, or the admin's Ticket Pool.
 function showHomeView() {
-    if (currentRole === 'tech') viewMyTickets();
-    else if (currentRole === 'admin') { populateAppointmentsModal(); showView('ticketPoolModal'); }
+    if (currentRole === 'tech') return viewMyTickets();
+    if (currentRole === 'admin') { populateAppointmentsModal(); showView('ticketPoolModal'); }
 }
 
 window.onclick = function(event) {

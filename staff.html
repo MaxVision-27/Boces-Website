@@ -2,13 +2,13 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=36">
+    <link rel="stylesheet" href="css/styles.css?v=37">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=37" defer></script>
+    <script src="js/main.js?v=38" defer></script>
     <script src="js/forum.js?v=4" defer></script>
-    <script src="js/guide.js?v=11" defer></script>
+    <script src="js/guide.js?v=12" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
@@ -205,21 +205,14 @@
 </div>
 
 <!-- Workflow Guide: pick self-paced or class presentation (js/guide.js) -->
-<div class="modal" id="guideChooserModal" role="dialog" aria-modal="true">
+<div class="modal" id="guideChooserModal" role="dialog" aria-modal="true" aria-labelledby="guideChooserTitle">
     <div class="modal-content" style="max-width: 560px;">
         <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('guideChooserModal')">×</button>
-        <h2>Workflow Guide</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Walk through the workflow on the real screens. Both modes use practice tickets, so nothing is saved, emailed, or added to anyone's hours.</p>
-        <div class="folder-list">
-            <button type="button" class="folder-card" onclick="startGuide('self')">
-                <strong>Guide myself</strong>
-                <span class="folder-issue" style="white-space: normal;">Go at your own pace. Click each highlighted button to move on.</span>
-            </button>
-            <button type="button" class="folder-card" onclick="startGuide('present')">
-                <strong>Present to the class</strong>
-                <span class="folder-issue" style="white-space: normal;">Full screen with large text, talking points, and a discussion question on each step. Use the arrow keys.</span>
-            </button>
-        </div>
+        <h2 id="guideChooserTitle">Workflow Guide</h2>
+        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Walk through the workflow on the real screens, at your own pace. It uses practice tickets, so nothing is saved, emailed, or added to anyone's hours.</p>
+        <button type="button" class="btn btn-primary" style="width: 100%; margin-bottom: 1.25rem;" onclick="startGuide(0)">Start from the beginning</button>
+        <h3 class="list-heading" style="margin-top: 0;">Contents: jump to a part</h3>
+        <div class="guide-toc" id="guideContents"></div>
     </div>
 </div>
 
