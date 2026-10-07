@@ -35,6 +35,7 @@ const STAFF_PAGE = document.body.classList.contains('staff-page');
 async function loadData() {
     await Promise.all(STAFF_PAGE ? [loadAppointments(), loadStats(), loadTechs(), loadDropOffs()] : [loadStats()]);
     hydrateTechIdentity();
+    if (STAFF_PAGE && currentRole === 'admin') applyLook(adminLook());
     updateRoleDisplay();
 }
 
@@ -78,6 +79,7 @@ function hydrateTechIdentity() {
     const tech = classRoster().find(t => t.id === currentTechId);
     if (tech) {
         currentTechName = tech.name;
+        applyLook(tech.look);
     } else {
         currentTechId = null;
         currentTechName = null;
@@ -188,7 +190,7 @@ function openTechPicker() {
     const roster = classRoster();
 
     if (roster.length === 0) {
-        container.innerHTML = `<p style="text-align:center;color:#999;">No ${currentSession || ''} students have been added yet. Ask your teacher to add you in Manage Students.</p>`;
+        container.innerHTML = `<p style="text-align:center;color: var(--ink-faint);">No ${currentSession || ''} students have been added yet. Ask your teacher to add you in Manage Students.</p>`;
     } else {
         container.innerHTML = roster.map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${escapeHtml(t.name)}</button>`).join('');
     }
@@ -203,6 +205,7 @@ function selectTech(techId, showAlert = true) {
     currentTechId = tech.id;
     currentTechName = tech.name;
     sessionStorage.setItem('bocesTechId', tech.id);
+    applyLook(tech.look);
 
     closeModal('techPickerModal');
     updateRoleDisplay();
@@ -288,7 +291,7 @@ function populateManageStudentsModal() {
                 <button class="btn btn-primary" onclick="addStudent()">Add</button>
             </div>
         </div>
-        ${techs.length === 0 ? '<p style="text-align:center; color:#999;">No students yet.</p>' : `<div class="folder-list">${techs.map(row).join('')}</div>`}`;
+        ${techs.length === 0 ? '<p style="text-align:center; color: var(--ink-faint);">No students yet.</p>' : `<div class="folder-list">${techs.map(row).join('')}</div>`}`;
 }
 
 function studentPageHtml(student) {
@@ -406,10 +409,10 @@ function openTechTicketModal() {
     document.getElementById('techTicketError').hidden = true;
     const others = classRoster().filter(t => t.id !== currentTechId);
     document.getElementById('techPartnerPicker').innerHTML = others.length ? others.map(t => `
-        <label style="display:inline-flex; align-items:center; gap:4px; background:white; padding:3px 8px; border-radius:10px; border:1px solid #ccc; font-size:0.85rem; font-weight:normal; cursor:pointer;">
+        <label style="display:inline-flex; align-items:center; gap:4px; background: var(--surface); padding:3px 8px; border-radius:10px; border:1px solid #ccc; font-size:0.85rem; font-weight:normal; cursor:pointer;">
             <input type="checkbox" class="partner-pick" value="${t.id}" style="width:auto;">
             ${escapeHtml(t.name)}
-        </label>`).join('') : '<span style="color:#999; font-size:0.85rem;">No other students added yet</span>';
+        </label>`).join('') : '<span style="color: var(--ink-faint); font-size:0.85rem;">No other students added yet</span>';
     openModal('techTicketModal');
 }
 
@@ -745,8 +748,8 @@ function renderDropOffs() {
     const list = visibleDropOffs().filter(r => !search || matches(r));
     if (!list.length) {
         container.innerHTML = search
-            ? '<p style="text-align:center; color:#999; padding:2rem;">Nobody in today\'s line has that number or exact name. Check it, or ask for their full name.</p>'
-            : '<p style="text-align:center; color:#999; padding:2rem;">Nobody has joined the line yet.</p>';
+            ? '<p style="text-align:center; color: var(--ink-faint); padding:2rem;">Nobody in today\'s line has that number or exact name. Check it, or ask for their full name.</p>'
+            : '<p style="text-align:center; color: var(--ink-faint); padding:2rem;">Nobody has joined the line yet.</p>';
         return;
     }
     const isAdmin = currentRole === 'admin';
@@ -1425,7 +1428,7 @@ function populateAppointmentsModal() {
     if (filterStatus === 'deleted') {
         const deleted = deletedAppointments.filter(matches).sort(byDate('deleted_at'));
         container.innerHTML = deleted.length === 0
-            ? '<p style="text-align:center; color:#999;">No deleted tickets.</p>'
+            ? '<p style="text-align:center; color: var(--ink-faint);">No deleted tickets.</p>'
             : `<div class="folder-list">${deleted.map(appt => `
                 <div class="folder-card" style="cursor:default;">
                     <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}</strong> <span class="status-badge" style="background:#dc3545; color:white;">Deleted</span></span>
@@ -1453,7 +1456,7 @@ function populateAppointmentsModal() {
     let html = '';
     if (duplicateEmails.length > 0) {
         html += `
-        <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:8px; padding:0.8rem; margin-bottom:1rem; font-size:0.9rem;">
+        <div style="background:#fff3cd; color:#333; border:1px solid #ffc107; border-radius:8px; padding:0.8rem; margin-bottom:1rem; font-size:0.9rem;">
             <strong>Possible duplicate tickets.</strong> Select an email to see its tickets:<br>
             ${duplicateEmails.map(email => `
                 <button type="button" data-email="${escapeHtml(email)}" onclick="filterByEmail(this.dataset.email)"
@@ -1464,7 +1467,7 @@ function populateAppointmentsModal() {
     }
 
     if (filtered.length === 0) {
-        container.innerHTML = html + '<p style="text-align:center; color:#999;">No tickets match your search.</p>';
+        container.innerHTML = html + '<p style="text-align:center; color: var(--ink-faint);">No tickets match your search.</p>';
         return;
     }
 
@@ -1518,10 +1521,10 @@ async function viewMyTickets() {
 
     const container = document.getElementById('myTicketsContainer');
     if (mine.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#999; padding:2rem;">No tickets assigned to you yet.</p>';
+        container.innerHTML = '<p style="text-align:center; color: var(--ink-faint); padding:2rem;">No tickets assigned to you yet.</p>';
     } else {
         container.innerHTML = `
-            <div class="folder-list">${active.length ? active.map(folder).join('') : '<p style="text-align:center; color:#999;">No active tickets right now.</p>'}</div>
+            <div class="folder-list">${active.length ? active.map(folder).join('') : '<p style="text-align:center; color: var(--ink-faint);">No active tickets right now.</p>'}</div>
             ${completed.length ? `<h3 class="list-heading">Completed</h3><div class="folder-list">${completed.map(folder).join('')}</div>` : ''}`;
     }
 
@@ -1846,7 +1849,7 @@ function renderMyHours() {
     if (!container) return;
 
     if (myTimeLogs.length === 0) {
-        container.innerHTML = '<p style="text-align:center; color:#999; padding:2rem;">No hours logged yet.</p>';
+        container.innerHTML = '<p style="text-align:center; color: var(--ink-faint); padding:2rem;">No hours logged yet.</p>';
         return;
     }
 
@@ -1866,7 +1869,7 @@ function renderMyHours() {
     }).join('');
 
     container.innerHTML = `
-        <p style="font-size:0.9rem; color:#555; margin-bottom:1rem;">Use this to fill in your paper time sheet.</p>
+        <p style="font-size:0.9rem; color: var(--ink-soft); margin-bottom:1rem;">Use this to fill in your paper time sheet.</p>
         <table style="width:100%; border-collapse:collapse;">
             <thead>
                 <tr style="text-align:left; border-bottom:2px solid #001f3f;">
@@ -2194,6 +2197,60 @@ window.onclick = function(event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
     }
+}
+
+// ============================================================
+// APPEARANCE (staff) — light/dark (Auto follows the device), a color
+// theme and a background, set as data-mode / data-theme / data-bg on
+// <html> for styles.css. A student's look is saved with their name
+// (techs.look, 023), so it follows them; the admin's stays in this
+// browser. The public page only follows the device's light/dark.
+// ============================================================
+const LOOK_DEFAULT = { mode: 'auto', theme: 'navy', bg: 'plain' };
+const ADMIN_LOOK_KEY = 'btAdminLook';
+
+function adminLook() {
+    try { return JSON.parse(localStorage.getItem(ADMIN_LOOK_KEY)) || {}; } catch { return {}; }
+}
+
+function currentLook() {
+    const saved = currentRole === 'admin' ? adminLook() : techs.find(t => t.id === currentTechId)?.look;
+    return { ...LOOK_DEFAULT, ...saved };
+}
+
+function applyLook(look) {
+    const root = document.documentElement.dataset;
+    // The defaults leave the attribute off, so the plain CSS applies.
+    for (const [key, value] of Object.entries({ ...LOOK_DEFAULT, ...look })) {
+        if (value === LOOK_DEFAULT[key]) delete root[key]; else root[key] = value;
+    }
+}
+
+function openAppearance() {
+    const look = currentLook();
+    for (const [key, value] of Object.entries(look)) {
+        const radio = document.querySelector(`#lookForm input[name="${key}"][value="${value}"]`);
+        if (radio) radio.checked = true;
+    }
+    document.getElementById('appearanceSaved').textContent = currentRole === 'admin'
+        ? 'Saved on this computer.'
+        : currentTechId ? `Saved with your name, ${currentTechName}, so it follows you to any class computer.` : 'Pick your name first to save it.';
+    openModal('appearanceModal');
+}
+
+// Every change shows right away and is saved.
+async function onLookChange() {
+    const look = Object.fromEntries(new FormData(document.getElementById('lookForm')));
+    applyLook(look);
+    if (currentRole === 'admin') {
+        try { localStorage.setItem(ADMIN_LOOK_KEY, JSON.stringify(look)); } catch { /* private mode: not kept */ }
+        return;
+    }
+    const tech = techs.find(t => t.id === currentTechId);
+    if (!tech) return;
+    tech.look = look;
+    const { error } = await db.from('techs').update({ look }).eq('id', tech.id);
+    if (error) console.error('Error saving appearance:', error);
 }
 
 // ============================================================

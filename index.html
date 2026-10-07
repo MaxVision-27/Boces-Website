@@ -2,14 +2,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=39">
+    <link rel="stylesheet" href="css/styles.css?v=40">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
     <script src="js/effects.js?v=11" defer></script>
-    <script src="js/main.js?v=41" defer></script>
+    <script src="js/main.js?v=42" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -248,7 +248,7 @@
     <div class="modal-content">
         <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('reviewModal')">×</button>
         <h2>Leave a Review</h2>
-        <p style="font-size: 0.9rem; color: #555; margin-bottom: 1rem;">Reviews come from customers whose devices we repaired. Each repair can be reviewed once.</p>
+        <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">Reviews come from customers whose devices we repaired. Each repair can be reviewed once.</p>
 
         <div class="form-group">
             <label for="reviewCode">Tracking Code</label>
@@ -267,7 +267,7 @@
         </div>
 
         <div class="form-group">
-            <label>What did you think? <small style="color:#888;">(select all that apply)</small></label>
+            <label>What did you think? <small style="color: var(--ink-faint);">(select all that apply)</small></label>
             <div id="reviewTags" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
         </div>
 
