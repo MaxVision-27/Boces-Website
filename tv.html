@@ -74,19 +74,19 @@
         .tv-code { color: var(--gold); font-weight: 700; }
         .tv-flag { margin-left: auto; color: var(--amber); font-size: .62em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
         .tv-empty, .tv-more { color: var(--faint); font-size: .9em; }
+        .tv-waiting { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .5em; padding: 2em 16px; border-top: 1px solid var(--line); text-align: center; }
+        .tv-waiting strong { font-size: 3.6em; font-weight: 300; line-height: 1.1; letter-spacing: -.01em; }
+        .tv-waiting span { color: var(--dim); font-size: 1.3em; }
 
         .tv-login { width: min(24em, calc(100% - 32px)); margin: 12vh auto; padding: 1.6em; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font-size: clamp(16px, 1.1vw, 28px); }
         .tv-login h2 { font-size: 1.3em; }
         .tv-login p { margin-top: .3em; color: var(--dim); }
         .tv-login label { display: block; margin: 1.1em 0 .45em; color: var(--dim); font-size: .8em; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
-        .tv-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: .5em; }
-        .tv-toggle button, .tv-login input {
+        .tv-login input {
             width: 100%; padding: .7em; background: rgba(10, 14, 19, .6); border: 1px solid var(--line); border-radius: 3px;
             color: var(--ink); font: inherit; font-weight: 600;
         }
-        .tv-toggle button { cursor: pointer; }
-        .tv-toggle button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
-        .tv-login input:focus, .tv-toggle button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+        .tv-login input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
         .tv-error { min-height: 1.4em; margin-top: .8em; color: #f87171; font-size: .9em; }
         .tv-submit { width: 100%; margin-top: .4em; padding: .75em; background: var(--ink); color: var(--bg); border: 0; border-radius: 3px; font: inherit; font-weight: 700; cursor: pointer; }
 
@@ -110,12 +110,7 @@
 
 <form class="tv-login" id="tvLogin" hidden onsubmit="event.preventDefault(); signIn();">
     <h2>TV board</h2>
-    <p>Shows the class's tickets and today's line. It can't change anything.</p>
-    <label id="tvClassLabel">Class</label>
-    <div class="tv-toggle" role="group" aria-labelledby="tvClassLabel">
-        <button type="button" class="class-option" aria-pressed="false" data-class="am" onclick="pickClass(this)">AM</button>
-        <button type="button" class="class-option" aria-pressed="false" data-class="pm" onclick="pickClass(this)">PM</button>
-    </div>
+    <p>Shows the tickets and today's line, switching between AM and PM on its own. It can't change anything.</p>
     <label for="tvPassword">TV password</label>
     <input type="password" id="tvPassword" autocomplete="current-password">
     <p class="tv-error" id="tvError" role="alert"></p>
@@ -134,12 +129,17 @@
         </div>
     </div>
     <div class="tv-columns" id="tvColumns"></div>
+    <div class="tv-waiting" id="tvWaiting" hidden>
+        <strong id="tvWaitingFor"></strong>
+        <span id="tvWaitingAt"></span>
+    </div>
 </main>
 
 <script>
 // The classroom TV board: a view-only login (025_tv_board.sql) that only
 // reads display_board(), refreshed every 30 seconds. It stays signed in
-// on this TV (90 days) so nobody has to type the password each morning.
+// on this TV (90 days) so nobody has to type the password each morning,
+// and follows the class schedule on its own (026_tv_follows_schedule.sql).
 const SUPABASE_URL = 'https://qfvzgmkfkxvvcmixcmzy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdnpnbWtma3h2dmNtaXhjbXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMTQ3NjMsImV4cCI6MjA4OTc5MDc2M30.AKluwHFXo9mrWrhUuoxNquJvzQo_E6nHWH9Sfj_eEEo';
 const TOKEN_KEY = 'btTvToken';
@@ -154,8 +154,15 @@ const COLUMNS = [
     { title: 'Ready for pickup', statuses: ['completed'], accent: '#22c55e' }
 ];
 
+// Class times on the TV's clock. Between them the board waits for the next class.
+const CLASSES = [
+    { name: 'AM', arrives: '7:45', leaves: '10:20' },
+    { name: 'PM', arrives: '11:45', leaves: '14:20' }
+];
+
 let token = null;
 let lastBoard = null;
+let shownClass = null; // e.g. 'AM live', to notice when the schedule moves on
 try { token = localStorage.getItem(TOKEN_KEY); } catch { /* blocked storage: sign in each time */ }
 
 const esc = text => String(text ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
@@ -182,18 +189,23 @@ function showLogin() {
     document.getElementById('tvLogin').hidden = false;
 }
 
-function pickClass(btn) {
-    document.querySelectorAll('.class-option').forEach(b => b.setAttribute('aria-pressed', b === btn));
+const minutes = time => { const [h, m] = time.split(':'); return h * 60 + Number(m); };
+const time12h = time => new Date(2000, 0, 1, ...time.split(':')).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+// The class here now ({ live: true }), or the next one to arrive. After
+// PM leaves (and on weekends) that's tomorrow's AM.
+function classNow(now = new Date()) {
+    const m = now.getHours() * 60 + now.getMinutes();
+    const here = CLASSES.find(c => m >= minutes(c.arrives) && m < minutes(c.leaves));
+    return here ? { ...here, live: true } : { ...(CLASSES.find(c => m < minutes(c.arrives)) || CLASSES[0]), live: false };
 }
 
 async function signIn() {
-    const cls = document.querySelector('.class-option[aria-pressed="true"]')?.dataset.class;
     const password = document.getElementById('tvPassword').value;
     const error = document.getElementById('tvError');
-    if (!cls) return error.textContent = 'Pick AM or PM.';
     if (!password) return error.textContent = 'Enter the TV password.';
     try {
-        const newToken = await rpc('staff_login', { p_role: `tv_${cls}`, p_password: password });
+        const newToken = await rpc('staff_login', { p_role: 'tv', p_password: password });
         if (!newToken) return error.textContent = 'Wrong password.';
         setToken(newToken);
     } catch {
@@ -240,8 +252,18 @@ function fitColumns() {
 
 function render(board) {
     lastBoard = board;
-    document.getElementById('tvClass').textContent = board.class ? `· ${board.class} class` : '';
+    const cls = classNow();
+    document.getElementById('tvClass').textContent = cls.live ? `· ${cls.name} class` : '';
     document.getElementById('tvRepaired').textContent = board.repaired;
+    document.getElementById('tvBoard').hidden = false;
+    document.getElementById('tvSignOut').hidden = false;
+    document.getElementById('tvColumns').hidden = !cls.live;
+    document.getElementById('tvWaiting').hidden = cls.live;
+    if (!cls.live) {
+        document.getElementById('tvWaitingFor').textContent = `Waiting for ${cls.name} to arrive`;
+        document.getElementById('tvWaitingAt').textContent = `${cls.name} class starts at ${time12h(cls.arrives)}`;
+        return;
+    }
     // Each column's count sits on top, so the counts read as one strip.
     document.getElementById('tvColumns').innerHTML = COLUMNS.map(c => {
         const cards = columnCards(c, board);
@@ -249,8 +271,6 @@ function render(board) {
             <header><span class="tv-count">${cards.length}</span><span class="tv-label">${c.title}</span></header>
             ${cards.join('') || '<p class="tv-empty">None</p>'}<p class="tv-more" hidden></p></section>`;
     }).join('');
-    document.getElementById('tvBoard').hidden = false;
-    document.getElementById('tvSignOut').hidden = false;
     fitColumns();
 }
 
@@ -258,7 +278,9 @@ async function refresh() {
     if (!token) return showLogin();
     const status = document.getElementById('tvStatus');
     try {
-        const board = await rpc('display_board');
+        const cls = classNow();
+        shownClass = `${cls.name} ${cls.live}`;
+        const board = await rpc('display_board', { p_class: cls.name });
         if (!board) return showLogin(); // the session ran out
         render(board);
         status.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
@@ -273,6 +295,9 @@ function tick() {
     const now = new Date();
     document.getElementById('tvClock').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     document.getElementById('tvDate').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+    // A class just arrived or left: switch now instead of at the next refresh.
+    const cls = classNow(now);
+    if (shownClass && shownClass !== `${cls.name} ${cls.live}`) refresh();
 }
 
 window.addEventListener('resize', () => lastBoard && render(lastBoard));
