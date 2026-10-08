@@ -6,70 +6,134 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
     <title>TV Board - BarryTech Repair Lab</title>
-    <link rel="stylesheet" href="css/styles.css?v=41">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap">
     <style>
-        /* Sized for a classroom TV: everything scales with the screen width. */
-        body { background: var(--surface-sunken); font-size: clamp(15px, 1.05vw, 30px); min-height: 100vh; }
-        .tv-head { display: flex; align-items: center; gap: 1em; padding: .6em 1.2em; background: var(--navy-900); color: white; }
-        .tv-head h1 { font-size: 1.5em; flex: 1; }
-        .tv-bar { display: flex; justify-content: space-between; align-items: baseline; gap: 1em; padding: .6em 1.2em 0; font-size: 1.6em; font-weight: 700; }
-        .tv-bar span { font-variant-numeric: tabular-nums; }
-        .tv-signout { background: none; border: 1px solid rgba(255, 255, 255, .4); color: white; border-radius: var(--radius-sm); padding: .3em .8em; font: inherit; font-size: .8em; cursor: pointer; }
-        .tv-login { max-width: 24rem; margin: 4rem auto; padding: 1.5rem; background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
-        .tv-login h2 { margin-bottom: .5rem; color: var(--brand-text); }
-        .tv-login p { color: var(--ink-soft); margin-bottom: 1rem; }
-        .tv-login .btn { width: 100%; background: var(--navy-900); color: white; }
-        .tv-error { color: var(--danger-ink); min-height: 1.65em; }
-        .tv-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: .8em; padding: .8em 1.2em 0; }
-        .tv-stat { background: var(--surface); border-radius: var(--radius-md); padding: .4em .8em; border-top: .3em solid var(--accent); }
-        .tv-stat strong { display: block; font-size: 2.2em; line-height: 1.2; }
-        .tv-stat span { color: var(--ink-soft); }
-        .tv-columns { display: grid; grid-template-columns: repeat(6, 1fr); gap: .8em; padding: .8em 1.2em; }
-        .tv-column h2 { font-size: 1.1em; padding: .3em 0; border-bottom: .2em solid var(--accent); margin-bottom: .5em; }
-        .tv-card { background: var(--surface); border-radius: var(--radius-sm); padding: .5em .7em; margin-bottom: .5em; box-shadow: var(--shadow-sm); }
-        .tv-card b { display: block; font-size: 1.15em; }
-        .tv-card small { display: block; color: var(--ink-soft); font-size: .9em; }
-        .tv-empty, .tv-more { color: var(--ink-faint); }
-        .tv-status { padding: 0 1.2em 1em; color: var(--ink-faint); font-size: .85em; }
+        /* A flat, dark board for the classroom TV, like a departures screen.
+           Everything scales with the screen width; on a wide screen it
+           fills the height exactly, and each column shows what fits. */
+        :root {
+            color-scheme: dark;
+            --bg: #0a0e13;
+            --panel: rgba(22, 31, 43, .82);
+            --line: #1f2a36;
+            --ink: #e8eef4;
+            --dim: #8b98a7;
+            --faint: #5c6876;
+            --gold: #f5c542;
+            --amber: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        [hidden] { display: none !important; }
+        body {
+            display: flex; flex-direction: column; min-height: 100vh;
+            color: var(--ink);
+            /* Soft navy and teal glows; quiet enough that the cards stay the focus. */
+            background:
+                radial-gradient(ellipse 70% 60% at 0% 0%, rgba(37, 99, 235, .28), transparent),
+                radial-gradient(ellipse 60% 60% at 100% 100%, rgba(20, 184, 166, .18), transparent),
+                linear-gradient(160deg, #0c1322, var(--bg) 55%, #091318);
+            background-attachment: fixed;
+            font: clamp(14px, 1vw, 30px)/1.35 Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+            font-variant-numeric: tabular-nums;
+        }
+        .tv-top {
+            display: flex; align-items: center; gap: 1.2em; padding: .75em 1.5em;
+            border-bottom: 1px solid var(--line);
+            font-size: .85em; letter-spacing: .1em; text-transform: uppercase; color: var(--dim);
+        }
+        .tv-top h1 { flex: 1; font-size: 1em; font-weight: 700; color: var(--ink); }
+        .tv-top h1 span { color: var(--gold); }
+        .tv-status.stale { color: var(--amber); }
+        .tv-signout {
+            background: none; border: 1px solid var(--line); border-radius: 3px; padding: .35em .9em;
+            color: var(--dim); font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer;
+        }
+        .tv-signout:hover { color: var(--ink); border-color: var(--dim); }
+
+        #tvBoard { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .tv-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 1em; padding: 1.1em 1.5em 1.2em; }
+        .tv-big { display: block; font-size: 4.4em; font-weight: 300; line-height: 1; letter-spacing: -.02em; }
+        .tv-sub { display: block; margin-top: .35em; color: var(--dim); font-size: 1.05em; }
+        .tv-repaired { text-align: right; }
+        .tv-repaired .tv-sub { text-transform: uppercase; letter-spacing: .1em; font-size: .85em; }
+
+        .tv-columns {
+            flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr);
+            border-top: 1px solid var(--line);
+        }
+        .tv-column { display: flex; flex-direction: column; gap: .45em; min-height: 0; overflow: hidden; padding: 1em; }
+        .tv-column + .tv-column { border-left: 1px solid var(--line); }
+        .tv-column header { margin-bottom: .45em; padding-top: .6em; border-top: 3px solid var(--accent); }
+        .tv-count { display: block; font-size: 2.6em; font-weight: 600; line-height: 1.05; }
+        .tv-label { color: var(--dim); font-size: .8em; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+        .tv-card { flex: none; padding: .55em .8em; background: var(--panel); border-left: 3px solid var(--accent); border-radius: 2px; }
+        .tv-card b { display: flex; align-items: baseline; gap: .45em; font-size: 1.15em; font-weight: 600; }
+        .tv-card small { display: block; margin-top: .1em; color: var(--dim); font-size: .9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .tv-code { color: var(--gold); font-weight: 700; }
+        .tv-flag { margin-left: auto; color: var(--amber); font-size: .62em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+        .tv-empty, .tv-more { color: var(--faint); font-size: .9em; }
+
+        .tv-login { width: min(24em, calc(100% - 32px)); margin: 12vh auto; padding: 1.6em; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font-size: clamp(16px, 1.1vw, 28px); }
+        .tv-login h2 { font-size: 1.3em; }
+        .tv-login p { margin-top: .3em; color: var(--dim); }
+        .tv-login label { display: block; margin: 1.1em 0 .45em; color: var(--dim); font-size: .8em; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+        .tv-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: .5em; }
+        .tv-toggle button, .tv-login input {
+            width: 100%; padding: .7em; background: rgba(10, 14, 19, .6); border: 1px solid var(--line); border-radius: 3px;
+            color: var(--ink); font: inherit; font-weight: 600;
+        }
+        .tv-toggle button { cursor: pointer; }
+        .tv-toggle button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold); }
+        .tv-login input:focus, .tv-toggle button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+        .tv-error { min-height: 1.4em; margin-top: .8em; color: #f87171; font-size: .9em; }
+        .tv-submit { width: 100%; margin-top: .4em; padding: .75em; background: var(--ink); color: var(--bg); border: 0; border-radius: 3px; font: inherit; font-weight: 700; cursor: pointer; }
+
+        @media (min-width: 901px) { body { height: 100vh; } }
         @media (max-width: 900px) {
-            .tv-stats { grid-template-columns: repeat(3, 1fr); padding-inline: 16px; }
-            .tv-columns { grid-template-columns: 1fr; padding-inline: 16px; }
+            .tv-top, .tv-hero { padding-inline: 16px; }
+            .tv-big { font-size: 3em; }
+            .tv-columns { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; }
+            .tv-column { padding-inline: 16px; }
+            .tv-column + .tv-column { border-left: 0; border-top: 1px solid var(--line); }
         }
     </style>
 </head>
 <body>
 
-<header class="tv-head">
+<header class="tv-top">
     <h1>BarryTech Repair Lab <span id="tvClass"></span></h1>
+    <span class="tv-status" id="tvStatus"></span>
     <button class="tv-signout" id="tvSignOut" hidden onclick="signOut()">Sign out</button>
 </header>
 
 <form class="tv-login" id="tvLogin" hidden onsubmit="event.preventDefault(); signIn();">
     <h2>TV board</h2>
     <p>Shows the class's tickets and today's line. It can't change anything.</p>
-    <div class="form-group">
-        <label>Class</label>
-        <div class="class-toggle" role="group" aria-label="Class">
-            <button type="button" class="class-option" aria-pressed="false" data-class="am" onclick="pickClass(this)">AM</button>
-            <button type="button" class="class-option" aria-pressed="false" data-class="pm" onclick="pickClass(this)">PM</button>
-        </div>
+    <label id="tvClassLabel">Class</label>
+    <div class="tv-toggle" role="group" aria-labelledby="tvClassLabel">
+        <button type="button" class="class-option" aria-pressed="false" data-class="am" onclick="pickClass(this)">AM</button>
+        <button type="button" class="class-option" aria-pressed="false" data-class="pm" onclick="pickClass(this)">PM</button>
     </div>
-    <div class="form-group">
-        <label for="tvPassword">TV password</label>
-        <input type="password" id="tvPassword" autocomplete="current-password">
-    </div>
+    <label for="tvPassword">TV password</label>
+    <input type="password" id="tvPassword" autocomplete="current-password">
     <p class="tv-error" id="tvError" role="alert"></p>
-    <button class="btn" type="submit">Show the board</button>
+    <button class="tv-submit" type="submit">Show the board</button>
 </form>
 
 <main id="tvBoard" hidden>
-    <div class="tv-bar">
-        <span id="tvClock"></span>
-        <span id="tvRepaired"></span>
+    <div class="tv-hero">
+        <div>
+            <span class="tv-big" id="tvClock"></span>
+            <span class="tv-sub" id="tvDate"></span>
+        </div>
+        <div class="tv-repaired">
+            <span class="tv-big" id="tvRepaired"></span>
+            <span class="tv-sub">Devices repaired</span>
+        </div>
     </div>
-    <div class="tv-stats" id="tvStats"></div>
     <div class="tv-columns" id="tvColumns"></div>
-    <p class="tv-status" id="tvStatus"></p>
 </main>
 
 <script>
@@ -79,19 +143,19 @@
 const SUPABASE_URL = 'https://qfvzgmkfkxvvcmixcmzy.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdnpnbWtma3h2dmNtaXhjbXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMTQ3NjMsImV4cCI6MjA4OTc5MDc2M30.AKluwHFXo9mrWrhUuoxNquJvzQo_E6nHWH9Sfj_eEEo';
 const TOKEN_KEY = 'btTvToken';
-const MAX_CARDS = 6; // what fits a 1080p TV
 
 // Columns left to right, with the ticket statuses each one holds.
 const COLUMNS = [
-    { title: "Today's line", accent: '#ffd700' },
-    { title: 'Not started', statuses: ['pending', 'assigned'], accent: '#17a2b8' },
-    { title: 'Repairing', statuses: ['in_progress'], accent: '#0d6efd' },
-    { title: 'Waiting for part', statuses: ['waiting_part'], accent: '#f0ad4e' },
-    { title: 'Final check', statuses: ['review'], accent: '#6f42c1' },
-    { title: 'Ready for pickup', statuses: ['completed'], accent: '#28a745' }
+    { title: "Today's line", accent: '#f5c542' },
+    { title: 'Not started', statuses: ['pending', 'assigned'], accent: '#94a3b8' },
+    { title: 'Repairing', statuses: ['in_progress'], accent: '#3b82f6' },
+    { title: 'Waiting for part', statuses: ['waiting_part'], accent: '#f59e0b' },
+    { title: 'Final check', statuses: ['review'], accent: '#a78bfa' },
+    { title: 'Ready for pickup', statuses: ['completed'], accent: '#22c55e' }
 ];
 
 let token = null;
+let lastBoard = null;
 try { token = localStorage.getItem(TOKEN_KEY); } catch { /* blocked storage: sign in each time */ }
 
 const esc = text => String(text ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
@@ -114,6 +178,7 @@ function showLogin() {
     document.getElementById('tvBoard').hidden = true;
     document.getElementById('tvSignOut').hidden = true;
     document.getElementById('tvClass').textContent = '';
+    document.getElementById('tvStatus').textContent = '';
     document.getElementById('tvLogin').hidden = false;
 }
 
@@ -145,32 +210,48 @@ async function signOut() {
     showLogin();
 }
 
-function card(title, lines) {
-    return `<div class="tv-card"><b>${title}</b><small>${lines.filter(Boolean).join(' · ')}</small></div>`;
+function card(title, details) {
+    return `<div class="tv-card"><b>${title}</b><small>${details.filter(Boolean).join(' · ')}</small></div>`;
 }
 
 function columnCards(column, board) {
     if (!column.statuses) {
-        return board.line.map(r => card(`${r.code ? `<span class="line-code">#${r.code}</span>` : ''}${esc(r.name)}`, [esc(r.device)]));
+        return board.line.map(r => card(`${r.code ? `<span class="tv-code">#${r.code}</span>` : ''}${esc(r.name)}`, [esc(r.device)]));
     }
     return board.tickets.filter(t => column.statuses.includes(t.status)).map(t => card(
-        `${t.priority && t.status !== 'completed' ? '<span class="priority-badge">Priority</span> ' : ''}${esc(t.name)}`,
+        `${esc(t.name)}${t.priority && t.status !== 'completed' ? '<span class="tv-flag">Priority</span>' : ''}`,
         [esc(t.device), t.status === 'completed' ? '' : t.techs?.length ? esc(t.techs.join(', ')) : 'Needs a tech']));
 }
 
+// Drop cards from the bottom of a full column until it fits, and say how
+// many are hidden. (Stacked on a phone, nothing overflows.)
+function fitColumns() {
+    document.querySelectorAll('.tv-column').forEach(col => {
+        const cards = [...col.querySelectorAll('.tv-card')];
+        const more = col.querySelector('.tv-more');
+        let hidden = 0;
+        while (col.scrollHeight > col.clientHeight && cards.length) {
+            cards.pop().remove();
+            more.hidden = false;
+            more.textContent = `+${++hidden} more`;
+        }
+    });
+}
+
 function render(board) {
-    const lists = COLUMNS.map(c => columnCards(c, board));
+    lastBoard = board;
     document.getElementById('tvClass').textContent = board.class ? `· ${board.class} class` : '';
-    document.getElementById('tvRepaired').textContent = `Devices repaired: ${board.repaired}`;
-    document.getElementById('tvStats').innerHTML = COLUMNS.map((c, i) =>
-        `<div class="tv-stat" style="--accent:${c.accent}"><strong>${lists[i].length}</strong><span>${c.title}</span></div>`).join('');
-    document.getElementById('tvColumns').innerHTML = COLUMNS.map((c, i) => {
-        const cards = lists[i];
-        const more = cards.length > MAX_CARDS ? `<p class="tv-more">+${cards.length - MAX_CARDS} more</p>` : '';
-        return `<section class="tv-column" style="--accent:${c.accent}"><h2>${c.title}</h2>${cards.slice(0, MAX_CARDS).join('') || '<p class="tv-empty">None</p>'}${more}</section>`;
+    document.getElementById('tvRepaired').textContent = board.repaired;
+    // Each column's count sits on top, so the counts read as one strip.
+    document.getElementById('tvColumns').innerHTML = COLUMNS.map(c => {
+        const cards = columnCards(c, board);
+        return `<section class="tv-column" style="--accent:${c.accent}">
+            <header><span class="tv-count">${cards.length}</span><span class="tv-label">${c.title}</span></header>
+            ${cards.join('') || '<p class="tv-empty">None</p>'}<p class="tv-more" hidden></p></section>`;
     }).join('');
     document.getElementById('tvBoard').hidden = false;
     document.getElementById('tvSignOut').hidden = false;
+    fitColumns();
 }
 
 async function refresh() {
@@ -181,14 +262,20 @@ async function refresh() {
         if (!board) return showLogin(); // the session ran out
         render(board);
         status.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+        status.classList.remove('stale');
     } catch {
-        status.textContent = "Can't reach the server. Showing the last update; trying again.";
+        status.textContent = 'Offline · showing the last update';
+        status.classList.add('stale');
     }
 }
 
 function tick() {
-    document.getElementById('tvClock').textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const now = new Date();
+    document.getElementById('tvClock').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    document.getElementById('tvDate').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 }
+
+window.addEventListener('resize', () => lastBoard && render(lastBoard));
 
 // Keep the TV's screen from sleeping while the board is open (where supported).
 const keepAwake = () => navigator.wakeLock?.request('screen').catch(() => {});
