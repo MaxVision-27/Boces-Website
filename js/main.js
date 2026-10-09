@@ -1643,6 +1643,10 @@ function renderTicketWorkspace() {
     const isAdmin = currentRole === 'admin';
     const techName = id => techs.find(t => t.id === id)?.name || 'Unknown';
     const team = (appt.assigned_tech_ids || []).map(techName);
+    // The admin picks from every student. A PM tech picks from the PM class,
+    // plus whoever is on it now (so they can be taken off).
+    const canPickStudents = isAdmin || currentSession === 'PM';
+    const pickable = isAdmin ? techs : techs.filter(t => classRoster().includes(t) || (appt.assigned_tech_ids || []).includes(t.id));
     const duplicate = appt.email && emailCounts()[appt.email.toLowerCase()] > 1;
 
     const complete = `<button class="btn btn-approve" onclick="markCompleted(${appt.id})">Approve &amp; Complete</button>`;
@@ -1702,10 +1706,12 @@ function renderTicketWorkspace() {
         </dl>
         ${nextStep ? `<div class="ws-next">${nextStep}</div>` : ''}
 
-        ${isAdmin && appt.status !== 'completed' ? section('Students on this ticket', `
-            <p class="ws-hint">Tick everyone working on it. If you hand it to new students, change it here. Their time starts a new Hours sheet.</p>
+        ${canPickStudents && appt.status !== 'completed' ? section('Students on this ticket', `
+            <p class="ws-hint">${isAdmin
+                ? 'Tick everyone working on it. If you hand it to new students, change it here. Their time starts a new Hours sheet.'
+                : 'Tick the PM students working on it. Untick anyone who is done with it, even whoever started it. Their logged hours stay on the ticket.'}</p>
             <div class="ws-actions" style="margin-bottom:1rem;">
-                ${techs.length ? techs.map(t => `
+                ${pickable.length ? pickable.map(t => `
                     <label class="pick-chip"><input type="checkbox" class="assign-tech-${appt.id}" value="${t.id}" ${(appt.assigned_tech_ids || []).includes(t.id) ? 'checked' : ''}> ${escapeHtml(t.name)}</label>`).join('')
                     : '<span class="ws-hint">No students added yet. Add them under Manage Students.</span>'}
             </div>
