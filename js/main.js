@@ -90,8 +90,12 @@ function hydrateTechIdentity() {
 // The students in the logged-in tech's class (students with no class set
 // show in both, so nobody disappears before an admin sorts them).
 function classRoster() {
-    return techs.filter(t => !currentSession || !t.session || t.session === currentSession);
+    return activeTechs().filter(t => !currentSession || !t.session || t.session === currentSession);
 }
+
+// Removed students stay in techs so their names still show on old
+// tickets, hours and paperwork; lists and logins only show these.
+const activeTechs = () => techs.filter(t => !t.removed_at);
 
 // ============================================================
 // LOGIN — admin, or a tech from the AM or PM class. Each has its own
@@ -291,7 +295,7 @@ function populateManageStudentsModal() {
                 <button class="btn btn-primary" onclick="addStudent()">Add</button>
             </div>
         </div>
-        ${techs.length === 0 ? '<p style="text-align:center; color: var(--ink-faint);">No students yet.</p>' : `<div class="folder-list">${techs.map(row).join('')}</div>`}`;
+        ${activeTechs().length === 0 ? '<p style="text-align:center; color: var(--ink-faint);">No students yet.</p>' : `<div class="folder-list">${activeTechs().map(row).join('')}</div>`}`;
 }
 
 function studentPageHtml(student) {
@@ -362,18 +366,21 @@ async function addStudent() {
     populateManageStudentsModal();
 }
 
+// Removing hides the student (027) rather than deleting them, so their
+// logged hours and their name on paperwork stay.
 async function removeStudent(techId) {
-    if (!confirm('Remove this student? They will be unassigned from any tickets.')) return;
+    if (!confirm('Remove this student? They come off their open tickets. Their logged hours and finished tickets stay.')) return;
 
-    const { error } = await db.from('techs').delete().eq('id', techId);
-    if (error) { console.error('Error removing student:', error); return; }
+    const removed_at = new Date().toISOString();
+    const { error } = await db.from('techs').update({ removed_at }).eq('id', techId);
+    if (error) { console.error('Error removing student:', error); alert('Failed to remove student.'); return; }
 
-    techs = techs.filter(t => t.id !== techId);
+    techs.find(t => t.id === techId).removed_at = removed_at;
 
-    // Strip them out of any ticket they were assigned to — assigned_tech_ids
-    // is a plain array column, not a foreign key, so this has to happen
-    // from the app rather than a DB cascade.
-    const affected = appointments.filter(a => (a.assigned_tech_ids || []).includes(techId));
+    // Take them off open tickets (assigned_tech_ids is a plain array, so
+    // the app does it). Tickets waiting for check-off or completed keep
+    // them: the work is done and the paperwork needs their name.
+    const affected = appointments.filter(a => (a.assigned_tech_ids || []).includes(techId) && !['review', 'completed'].includes(a.status));
     for (const appt of affected) {
         const newIds = appt.assigned_tech_ids.filter(id => id !== techId);
         const newStatus = newIds.length === 0 ? 'pending' : appt.status;
@@ -1643,10 +1650,11 @@ function renderTicketWorkspace() {
     const isAdmin = currentRole === 'admin';
     const techName = id => techs.find(t => t.id === id)?.name || 'Unknown';
     const team = (appt.assigned_tech_ids || []).map(techName);
-    // The admin picks from every student. A PM tech picks from the PM class,
-    // plus whoever is on it now (so they can be taken off).
+    // The admin picks from every student, a PM tech from the PM class; both
+    // also see whoever is on it now (so they can be taken off, and saving
+    // doesn't drop a removed student from a finished ticket).
     const canPickStudents = isAdmin || currentSession === 'PM';
-    const pickable = isAdmin ? techs : techs.filter(t => classRoster().includes(t) || (appt.assigned_tech_ids || []).includes(t.id));
+    const pickable = techs.filter(t => (isAdmin ? !t.removed_at : classRoster().includes(t)) || (appt.assigned_tech_ids || []).includes(t.id));
     const duplicate = appt.email && emailCounts()[appt.email.toLowerCase()] > 1;
 
     const complete = `<button class="btn btn-approve" onclick="markCompleted(${appt.id})">Approve &amp; Complete</button>`;
