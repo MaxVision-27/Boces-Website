@@ -2934,6 +2934,209 @@ details.ws-card > summary:hover {
     font-size: 9.5pt;
 }
 
+/* Prism Bench Invoice (invoiceHtml() in main.js) */
+.invoice {
+    --inv-ink: #3a1a9e;
+    --inv-line: #1f8a5b;
+    --inv-box: #f4f2fd;
+    --inv-cell: #e9f4ee;
+    color: var(--inv-ink);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 10.5pt;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+}
+
+.inv-brand {
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+}
+
+.inv-brand img {
+    width: 1.3in;
+    height: 1.3in;
+}
+
+.inv-brand h1 {
+    font-size: 36pt;
+    line-height: 1;
+    color: #1d0d6b;
+}
+
+.inv-brand p {
+    margin-top: .35rem;
+    font-size: 12pt;
+    color: #1d0d6b;
+}
+
+.invoice .inv-title {
+    margin: .9rem 0 .5rem;
+    padding-bottom: .5rem;
+    border-bottom: 1.5px solid var(--inv-line);
+    text-align: center;
+    font-size: 42pt;
+    font-weight: 300;
+    letter-spacing: .04em;
+    color: var(--inv-ink);
+}
+
+.inv-boxes {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: .9rem;
+    margin-top: .9rem;
+}
+
+.inv-box {
+    padding: .6rem .8rem;
+    background: var(--inv-box);
+    border: 1.5px solid var(--inv-ink);
+    border-radius: 10px;
+}
+
+.inv-box p {
+    display: flex;
+    gap: .5rem;
+    margin: .3rem 0;
+}
+
+.inv-box span,
+.inv-to div {
+    flex: 1;
+    border-bottom: 1px solid var(--inv-ink);
+    color: #000;
+}
+
+.inv-to {
+    display: flex;
+    gap: .5rem;
+}
+
+.inv-to div {
+    display: grid;
+    border: 0;
+}
+
+.inv-to span {
+    min-height: 1.5em;
+}
+
+.invoice table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.inv-terms {
+    margin-top: 1rem;
+}
+
+.inv-terms th,
+.inv-lines th,
+.inv-totals th {
+    font-weight: 700;
+    font-size: 9.5pt;
+}
+
+.inv-terms th {
+    padding-bottom: .25rem;
+}
+
+.inv-terms td,
+.inv-lines td,
+.inv-lines th,
+.inv-totals td {
+    border: 1px solid var(--inv-line);
+    padding: .35rem .5rem;
+    color: #000;
+}
+
+.inv-terms td,
+.inv-lines th,
+.inv-totals td {
+    background: var(--inv-cell);
+}
+
+.inv-lines {
+    margin-top: 1rem;
+}
+
+.inv-lines th {
+    color: var(--inv-ink);
+}
+
+.inv-lines td {
+    height: .33in;
+}
+
+.inv-lines td:first-child,
+.inv-lines th:first-child {
+    width: 9%;
+    text-align: center;
+}
+
+.inv-lines td:nth-child(3),
+.inv-lines td:nth-child(4) {
+    width: 14%;
+    text-align: right;
+}
+
+.inv-totals {
+    width: auto !important;
+    margin: .3rem 0 0 auto;
+}
+
+.inv-totals th {
+    padding: .3rem .7rem;
+    text-align: right;
+}
+
+.inv-totals td {
+    width: 1.4in;
+    text-align: right;
+}
+
+.inv-pay {
+    margin-top: .9rem;
+    text-align: center;
+}
+
+.inv-footer {
+    margin-top: .6rem;
+    padding-top: .4rem;
+    border-top: 1px solid var(--inv-ink);
+    text-align: center;
+    font-size: 8pt;
+}
+
+/* The Invoice section on a ticket */
+.invoice-editor {
+    width: 100%;
+    margin-top: 1rem;
+    border-collapse: collapse;
+    font-size: .9rem;
+}
+
+.invoice-editor td {
+    padding: .4rem;
+    border-top: 1px solid var(--border);
+    vertical-align: top;
+}
+
+.invoice-editor td:first-child {
+    white-space: nowrap;
+}
+
+.invoice-editor td:nth-child(3),
+.invoice-editor td:nth-child(4) {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.invoice-sum td {
+    border-top-width: 2px;
+}
+
 .circled {
     border: 1.5px solid #000;
     border-radius: 50%;
