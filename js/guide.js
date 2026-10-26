@@ -359,7 +359,7 @@ const TECH_STEPS = [
     },
     {
         title: 'Log a work session',
-        text: 'Every time you work on it, log the date, when you started and stopped, and what you did. We filled in an example. This fills in the Service Log and your Hours sheet.',
+        text: 'Every time you work on it, log the date, when you started and stopped, and what you did. We filled in an example. This fills in the Service Log.',
         setup: async () => {
             await ensureWorkspace();
             const id = guideTicketId();
@@ -436,7 +436,7 @@ const TECH_STEPS = [
     {
         chapter: "Your hours",
         title: 'Your hours',
-        text: 'My Hours lists every session you logged, with your total. Use it to check your Hours sheets.',
+        text: 'My Hours lists every session you logged, with your total. Use it to keep track of your time.',
         setup: closeAllModals,
         target: () => $g('#techToolbar [onclick^="openMyHours"]'),
     },
@@ -591,7 +591,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'Paperwork',
-        text: 'Open the Help Desk Ticket, Service Log, and Hours sheets from here. Each one shows a preview of the real form before you print it.',
+        text: 'Open the Help Desk Ticket, Service Log, and Invoice from here. Each one shows a preview of the real form before you print it.',
         setup: async () => { await ensureWorkspace(CHECK_ID); await sandboxStatus('completed', CHECK_ID, { review_note: null }); },
         target: () => wsCard('Paperwork'),
     },
@@ -619,7 +619,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'Pick the students',
-        text: 'Tick everyone who will work on it. If you hand it to new students later, change it here. Their time starts a new Hours sheet.',
+        text: 'Tick everyone who will work on it. If you hand it to new students later, change it here.',
         setup: async () => {
             await ensureWorkspace(NEW_ID);
             const box = $g(`.assign-tech-${NEW_ID}[value="3"]`);
