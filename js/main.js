@@ -435,7 +435,7 @@ function generateTrackingCode() {
 // The New Ticket form mirrors the school's Help Desk Ticket
 // (forms/help-desk-template.docx), which prints from these fields.
 const TICKET_FIELDS = {
-    name: 'techApptName', contact_number: 'techApptContact', class_name: 'techApptClass', room_number: 'techApptRoom',
+    name: 'techApptName', contact_number: 'techApptContact', class_name: 'techApptClass', teacher_name: 'techApptTeacher', room_number: 'techApptRoom',
     device: 'techApptDevice', make_model: 'techApptModel', serial_tag: 'techApptSerial',
     computer_password: 'techApptPassword', issue: 'techApptIssue', email: 'techApptEmail'
 };
@@ -1765,6 +1765,7 @@ function renderTicketWorkspace() {
                 ${appt.serial_tag ? `<div><dt>Serial tag</dt><dd>${escapeHtml(appt.serial_tag)}</dd></div>` : ''}
                 ${appt.computer_password ? `<div><dt>Computer password</dt><dd>${escapeHtml(appt.computer_password)}</dd></div>` : ''}
                 ${appt.class_name || appt.room_number ? `<div><dt>Class and room</dt><dd>${escapeHtml([appt.class_name, appt.room_number && `Room ${appt.room_number}`].filter(Boolean).join(' · '))}</dd></div>` : ''}
+                ${appt.teacher_name ? `<div><dt>Teacher</dt><dd>${escapeHtml(appt.teacher_name)}</dd></div>` : ''}
                 ${isAdmin ? `
                 <div><dt>Contact number</dt><dd>${escapeHtml(appt.contact_number || 'None given')}</dd></div>
                 <div><dt>Customer email</dt><dd>${escapeHtml(appt.email || 'None given')}${duplicate ? ' <span class="dup-badge">has other tickets</span>' : ''}</dd></div>
@@ -2073,7 +2074,7 @@ function invoiceHtml(appt) {
     const totals = invoiceTotals(lines);
     const day = new Date(appt.status === 'completed' && appt.completed_at ? appt.completed_at : Date.now());
     const names = (appt.assigned_tech_ids || []).map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
-    const to = [appt.name, appt.class_name, appt.room_number && `Room ${appt.room_number}`, appt.contact_number].filter(Boolean);
+    const to = [appt.name, appt.class_name, appt.teacher_name, appt.room_number && `Room ${appt.room_number}`, appt.contact_number].filter(Boolean);
     const rows = lines.map(l => `<tr><td>${l.qty}</td><td>${escapeHtml(l.description)}</td><td>${hoursLabel(l.hours)}</td><td>${money(l.total)}</td></tr>`);
     while (rows.length < 9) rows.push('<tr><td></td><td></td><td></td><td></td></tr>');
 

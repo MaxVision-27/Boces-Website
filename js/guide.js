@@ -66,7 +66,7 @@ function enterSandbox(role) {
     const ticket = (id, name, device, issue, status, team, days, make_model) => ({
         id, name, email: '', device, issue, status, tracking_code: `PRAC${id}`, created_at: daysAgo(days),
         assigned_tech_ids: team, creation_tech_ids: team, created_by: 'Sample', parts_used: '', review_note: null,
-        make_model, serial_tag: `SN${id}X7`, contact_number: '(516) 555-0100', class_name: 'Culinary Arts', room_number: 'B112', computer_password: null,
+        make_model, serial_tag: `SN${id}X7`, contact_number: '(516) 555-0100', class_name: 'Culinary Arts', teacher_name: 'Ms. Lopez', room_number: 'B112', computer_password: null,
         priority: false, drop_off_id: null
     });
     // A customer who joined today's line, in the class being shown.
@@ -175,7 +175,7 @@ async function sandboxStatus(status, id = guideTicketId(), extra = {}) {
 function fillNewTicket() {
     if (!isOpen('techTicketModal')) { closeAllModals(); openTechTicketModal(); }
     const example = {
-        techApptName: 'Jamie Rivera', techApptContact: '(516) 555-0123', techApptClass: 'Culinary Arts AM', techApptRoom: 'B112',
+        techApptName: 'Jamie Rivera', techApptContact: '(516) 555-0123', techApptClass: 'Culinary Arts AM', techApptTeacher: 'Ms. Lopez', techApptRoom: 'B112',
         techApptModel: 'Dell Latitude 5420', techApptSerial: '7XK3LM2',
         techApptIssue: 'Screen is cracked in the top left corner and flickers when opened.'
     };
