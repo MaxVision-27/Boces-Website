@@ -380,10 +380,10 @@ async function removeStudent(techId) {
     // Take them off open tickets (assigned_tech_ids is a plain array, so
     // the app does it). Tickets waiting for check-off or completed keep
     // them: the work is done and the paperwork needs their name.
-    const affected = appointments.filter(a => (a.assigned_tech_ids || []).includes(techId) && !['review', 'completed'].includes(a.status));
+    const affected = appointments.filter(a => (a.assigned_tech_ids || []).includes(techId) && !['review', 'completed', 'picked_up'].includes(a.status));
     for (const appt of affected) {
         const newIds = appt.assigned_tech_ids.filter(id => id !== techId);
-        const newStatus = newIds.length === 0 ? 'pending' : appt.status;
+        const newStatus = newIds.length === 0 && appt.status === 'assigned' ? 'pending' : appt.status;
         await db.from('repair_requests').update({ assigned_tech_ids: newIds, status: newStatus }).eq('id', appt.id);
         appt.assigned_tech_ids = newIds;
         appt.status = newStatus;
@@ -489,6 +489,7 @@ async function submitTechTicket() {
 
     document.getElementById('createdTrackingCode').textContent = data.tracking_code;
     document.getElementById('printHelpDeskBtn').dataset.ticket = data.id;
+    document.getElementById('printSlipBtn').dataset.ticket = data.id;
     openModal('ticketCreatedModal');
 }
 
@@ -520,8 +521,11 @@ const trackStatusMeta = {
     in_progress: { label: 'In Progress', color: '#0d6efd', text: 'white' },
     waiting_part: { label: 'Waiting for part', color: '#f0ad4e', text: '#3b2500' },
     review: { label: 'Final Check', staffLabel: 'Needs Check-Off', color: '#6f42c1', text: 'white' },
-    completed: { label: 'Completed', color: '#28a745', text: 'white' }
+    completed: { label: 'Completed', staffLabel: 'Ready for Pickup', color: '#28a745', text: 'white' },
+    picked_up: { label: 'Picked up', color: '#64748b', text: 'white' }
 };
+// Done = checked off. Picked up (031) comes after: the customer took it home.
+const isDone = status => status === 'completed' || status === 'picked_up';
 
 async function trackRepair() {
     const input = document.getElementById('trackCodeInput');
@@ -550,7 +554,7 @@ async function trackRepair() {
 
     const safeCode = code.replace(/[^A-Z0-9]/g, '');
     const saved = savedRepairs().some(r => r.code === safeCode);
-    if (saved && data.status === 'completed') markRepairDone(safeCode);
+    if (saved && isDone(data.status)) markRepairDone(safeCode);
     // Tickets from before 020 have no history yet: their status is all we know.
     const { steps, current } = trackerSteps(data.status, data.history?.length ? data.history : [data.status]);
     result.innerHTML = `
@@ -563,8 +567,7 @@ async function trackRepair() {
                 ${steps.map((label, i) => `<li class="${i < current ? 'done' : i === current ? 'current' : ''}"${i === current ? ' aria-current="step"' : ''}>${label}</li>`).join('')}
             </ol>
             <p class="tracker-note">${trackerNote(steps[current], data.part)}</p>
-            <p class="tracker-issue"><span>Problem:</span> ${escapeHtml(data.issue)}</p>
-            ${data.status === 'completed' ? `<button class="btn-solid" onclick="openReview('${safeCode}')">Leave a review</button>` : ''}
+            ${isDone(data.status) ? `<button class="btn-solid" onclick="openReview('${safeCode}')">Leave a review</button>` : ''}
             <label class="remember-repair"><input type="checkbox" ${saved ? 'checked' : ''} onchange="rememberRepair('${safeCode}', this.checked)"> Remember this code on this device</label>
         </div>
     `;
@@ -583,7 +586,8 @@ function trackerSteps(status, history) {
     const current = { pending: 0, assigned: 1, in_progress: steps.lastIndexOf('Repairing'), waiting_part: steps.lastIndexOf('Waiting for part') }[status];
     if (steps.at(-1) !== 'Repairing') steps.push('Repairing');
     steps.push('Final check', 'Ready for pickup');
-    return { steps, current: current >= 0 ? current : status === 'review' ? steps.length - 2 : status === 'completed' ? steps.length - 1 : 0 };
+    if (status === 'picked_up') steps.push('Picked up');
+    return { steps, current: current >= 0 ? current : status === 'review' ? steps.length - 2 : isDone(status) ? steps.length - 1 : 0 };
 }
 
 function trackerNote(step, part) {
@@ -593,7 +597,8 @@ function trackerNote(step, part) {
         'Waiting for part': `We're waiting on ${part ? `the part: ${escapeHtml(part)}` : 'a part'}. Bring it to Room C220 when it arrives, and we'll finish the repair in 1–2 days.`,
         'Repairing': 'Tools out. Most repairs take 1–2 days once we have everything we need.',
         'Final check': 'Almost done! A teacher is checking the repair before it goes home.',
-        'Ready for pickup': "All fixed. Pick it up in Room C220, next to Joe's Store."
+        'Ready for pickup': "All fixed. Pick it up in Room C220 (center wing, next to Joe's Store) during class: 7:45–10:20 AM or 11:45 AM–2:20 PM.",
+        'Picked up': 'You picked it up. Thanks for coming to the Barry Tech Repair Lab!'
     }[step];
 }
 
@@ -639,7 +644,7 @@ async function renderMyRepairs() {
     const rows = await Promise.all(list.map(async ({ code }) => {
         const { data } = await db.rpc('track_repair', { p_code: code }).maybeSingle();
         if (!data) return '';
-        if (data.status === 'completed') markRepairDone(code);
+        if (isDone(data.status)) markRepairDone(code);
         const meta = trackStatusMeta[data.status] || { label: data.status, color: '#999', text: 'white' };
         return `<button type="button" class="my-repair" onclick="trackSaved('${code}')">
             <strong>${code}</strong> <span>${escapeHtml(data.device)}</span>
@@ -666,6 +671,14 @@ async function openDropOff() {
     document.getElementById('dropOffDone').hidden = true;
     document.getElementById('dropOffError').hidden = true;
     openModal('dropOffModal');
+    // Hide a class nobody is in yet (031), so nobody walks into an empty room.
+    const { data: open } = await db.rpc('open_classes');
+    if (!open) return;
+    document.querySelectorAll('input[name="dropOffSession"]').forEach(radio => {
+        radio.closest('.class-card').hidden = !open.includes(radio.value);
+        if (!open.includes(radio.value)) radio.checked = false;
+    });
+    if (open.length === 1) document.querySelector(`input[name="dropOffSession"][value="${open[0]}"]`).checked = true;
 }
 
 async function submitDropOff(btn) {
@@ -692,6 +705,8 @@ async function submitDropOff(btn) {
 
     const problems = {
         closed: "We're closed on weekends. Come back on a school day.",
+        too_late: 'The line for that class is closed right now. It opens at 6:00 AM on school days and closes when the class ends (morning class 10:20 AM, afternoon class 2:20 PM).',
+        no_class: "Nobody is in that class yet. Pick the other class.",
         invalid: 'Please fill in every box (keep each one short).'
     };
     // Joining again with the same name gives back the same number.
@@ -801,8 +816,21 @@ async function removeDropOff(id) {
 }
 
 // Tickets from a drop-off request are served and repaired first.
-const priorityBadge = appt => appt.priority && appt.status !== 'completed' ? '<span class="priority-badge">Priority</span> ' : '';
+const priorityBadge = appt => appt.priority && !isDone(appt.status) ? '<span class="priority-badge">Priority</span> ' : '';
 const priorityFirst = (a, b) => (b.priority === true) - (a.priority === true);
+
+// Saves changes to one ticket. If the database refuses it, or the save
+// changes no row (its rules can block a write without an error), the
+// student is told instead of the page acting as if it saved.
+async function saveTicket(apptId, changes, what) {
+    const { data, error } = await db.from('repair_requests').update(changes).eq('id', apptId).select('id');
+    if (error || !data?.length) {
+        console.error(`Error saving ${what}:`, error);
+        alert(`Couldn't save ${what}. ${error?.message?.startsWith('Only an admin') ? error.message : 'Check the internet connection and try again. If it keeps happening, log out and back in.'}`);
+        return false;
+    }
+    return true;
+}
 
 // ============================================================
 // TICKET ASSIGNMENT — one or more students per ticket
@@ -812,19 +840,16 @@ async function updateTicketAssignment(apptId) {
     const techIds = [...checkboxes].map(cb => parseInt(cb.value));
     const appt = appointments.find(a => a.id === apptId);
 
+    // Nobody on it sends it back to the pool only if work hasn't started;
+    // a repair in progress or waiting for check-off keeps its place.
     let newStatus = appt.status;
-    if (techIds.length === 0) {
+    if (techIds.length === 0 && appt.status === 'assigned') {
         newStatus = 'pending';
-    } else if (appt.status === 'pending') {
+    } else if (techIds.length && appt.status === 'pending') {
         newStatus = 'assigned';
     }
 
-    const { error } = await db.from('repair_requests').update({
-        assigned_tech_ids: techIds,
-        status: newStatus
-    }).eq('id', apptId);
-
-    if (error) { console.error('Error updating assignment:', error); return; }
+    if (!await saveTicket(apptId, { assigned_tech_ids: techIds, status: newStatus }, 'the students')) return;
 
     appt.assigned_tech_ids = techIds;
     appt.status = newStatus;
@@ -839,8 +864,7 @@ async function updateTicketAssignment(apptId) {
 }
 
 async function startProgress(apptId) {
-    const { error } = await db.from('repair_requests').update({ status: 'in_progress' }).eq('id', apptId);
-    if (error) { console.error('Error starting progress:', error); return; }
+    if (!await saveTicket(apptId, { status: 'in_progress' }, 'the repair status')) return;
 
     const appt = appointments.find(a => a.id === apptId);
     appt.status = 'in_progress';
@@ -861,8 +885,7 @@ async function waitForPart(apptId) {
     if (!part.trim()) { alert('Write which part, so the customer knows what to buy.'); return; }
 
     const update = { status: 'waiting_part', parts_used: part.trim() };
-    const { error } = await db.from('repair_requests').update(update).eq('id', apptId);
-    if (error) { console.error('Error marking waiting for part:', error); alert('Could not mark it as waiting for a part.'); return; }
+    if (!await saveTicket(apptId, update, 'Waiting for part')) return;
 
     Object.assign(appt, update);
     populateAppointmentsModal();
@@ -872,8 +895,7 @@ async function waitForPart(apptId) {
 async function saveTicketParts(apptId, btn) {
     const partsUsed = document.getElementById(`parts-${apptId}`).value.trim();
 
-    const { error } = await db.from('repair_requests').update({ parts_used: partsUsed }).eq('id', apptId);
-    if (error) { console.error('Error saving parts:', error); alert('Failed to save parts.'); return; }
+    if (!await saveTicket(apptId, { parts_used: partsUsed }, 'the parts')) return;
 
     appointments.find(a => a.id === apptId).parts_used = partsUsed;
     btn.textContent = 'Saved';
@@ -883,8 +905,7 @@ async function saveTicketParts(apptId, btn) {
 // Students send a finished repair to the admin; only the admin completes
 // it (enforced in the database, 014_admin_checkoff.sql).
 async function requestCheckoff(apptId) {
-    const { error } = await db.from('repair_requests').update({ status: 'review', review_note: null }).eq('id', apptId);
-    if (error) { console.error('Error requesting check-off:', error); alert('Could not send it for check-off.'); return; }
+    if (!await saveTicket(apptId, { status: 'review', review_note: null }, 'Ready for Check-Off')) return;
 
     Object.assign(appointments.find(a => a.id === apptId), { status: 'review', review_note: null });
     populateAppointmentsModal();
@@ -899,8 +920,7 @@ async function sendBack(apptId) {
     if (note === null) return;
 
     const update = { status: 'in_progress', review_note: note.trim() || null };
-    const { error } = await db.from('repair_requests').update(update).eq('id', apptId);
-    if (error) { console.error('Error sending back:', error); alert('Could not send it back.'); return; }
+    if (!await saveTicket(apptId, update, 'Send Back')) return;
 
     Object.assign(appointments.find(a => a.id === apptId), update);
     populateAppointmentsModal();
@@ -908,8 +928,7 @@ async function sendBack(apptId) {
 }
 
 async function markCompleted(apptId) {
-    const { error } = await db.from('repair_requests').update({ status: 'completed', review_note: null }).eq('id', apptId);
-    if (error) { console.error('Error marking complete:', error); alert('Could not mark it completed. Only an admin can check off a repair.'); return; }
+    if (!await saveTicket(apptId, { status: 'completed', review_note: null }, 'the check-off')) return;
 
     const appt = appointments.find(a => a.id === apptId);
     Object.assign(appt, { status: 'completed', review_note: null });
@@ -920,6 +939,23 @@ async function markCompleted(apptId) {
     alert('Repair marked as completed!');
 }
 
+// The customer took it home. Only the admin records it (031).
+async function markPickedUp(apptId) {
+    if (!await saveTicket(apptId, { status: 'picked_up' }, 'Picked Up')) return;
+    appointments.find(a => a.id === apptId).status = 'picked_up';
+    populateAppointmentsModal();
+    renderTicketWorkspace();
+}
+
+// Where the device is kept, so anyone can find it.
+async function saveShelf(apptId, btn) {
+    const shelf = document.getElementById(`shelf-${apptId}`).value.trim() || null;
+    if (!await saveTicket(apptId, { shelf }, 'where it\'s kept')) return;
+    appointments.find(a => a.id === apptId).shelf = shelf;
+    btn.textContent = 'Saved';
+    setTimeout(() => renderTicketWorkspace(), 1200);
+}
+
 // Soft-delete: the row (and its tracking code) stays in the database
 // with deleted_at set, just hidden from the active pool, so a mistaken
 // click can be undone from the "Deleted" filter instead of losing the
@@ -927,8 +963,7 @@ async function markCompleted(apptId) {
 async function deleteAppointment(apptId) {
     if (!confirm('Delete this ticket? It leaves the pool but can be restored from the "Deleted" filter.')) return;
 
-    const { error } = await db.from('repair_requests').update({ deleted_at: new Date().toISOString() }).eq('id', apptId);
-    if (error) { console.error('Error deleting:', error); return; }
+    if (!await saveTicket(apptId, { deleted_at: new Date().toISOString() }, 'the delete')) return;
 
     appointments = appointments.filter(a => a.id !== apptId);
     await syncStats();
@@ -938,7 +973,7 @@ async function deleteAppointment(apptId) {
 
 async function restoreAppointment(apptId) {
     const { data, error } = await db.from('repair_requests').update({ deleted_at: null }).eq('id', apptId).select().single();
-    if (error) { console.error('Error restoring ticket:', error); return; }
+    if (error) { console.error('Error restoring ticket:', error); alert("Couldn't restore the ticket. Try again."); return; }
 
     deletedAppointments = deletedAppointments.filter(a => a.id !== apptId);
     appointments.push(data);
@@ -949,8 +984,9 @@ async function restoreAppointment(apptId) {
 async function permanentlyDeleteAppointment(apptId) {
     if (!confirm('Permanently delete this ticket? This cannot be undone.')) return;
 
-    const { error } = await db.from('repair_requests').delete().eq('id', apptId);
-    if (error) { console.error('Error permanently deleting:', error); return; }
+    const { data, error } = await db.from('repair_requests').delete().eq('id', apptId).select('id');
+    if (error?.code === '23503') { alert('Students logged work on this ticket, so it stays in Deleted to keep their hours.'); return; }
+    if (error || !data?.length) { console.error('Error permanently deleting:', error); alert("Couldn't delete the ticket. Try again."); return; }
 
     deletedAppointments = deletedAppointments.filter(a => a.id !== apptId);
     populateAppointmentsModal();
@@ -969,13 +1005,13 @@ function calculateTotalRepairs() {
     // The public can't read tickets, so for them the count on the page
     // comes from the stats row (loadStats) rather than being recounted.
     if (!currentRole || !STAFF_PAGE) return;
-    totalRepairs = appointments.filter(a => a.status === 'completed').length;
+    totalRepairs = appointments.filter(a => isDone(a.status)).length;
     const el = document.getElementById('totalRepairs');
     if (el) el.textContent = totalRepairs;
 }
 
 function populateStatsModal() {
-    const calculatedTotal = appointments.filter(a => a.status === 'completed').length;
+    const calculatedTotal = appointments.filter(a => isDone(a.status)).length;
     const input = document.getElementById('totalRepairsInput');
     input.value = totalRepairs;
     input.placeholder = `Auto-calculated: ${calculatedTotal}`;
@@ -983,7 +1019,7 @@ function populateStatsModal() {
 
 async function updateStats() {
     const manualTotal = parseInt(document.getElementById('totalRepairsInput').value);
-    const calculatedTotal = appointments.filter(a => a.status === 'completed').length;
+    const calculatedTotal = appointments.filter(a => isDone(a.status)).length;
     totalRepairs = (!isNaN(manualTotal) && manualTotal !== calculatedTotal) ? manualTotal : calculatedTotal;
 
     await db.from('stats').update({ total_repairs: totalRepairs }).eq('id', 1);
@@ -1496,7 +1532,7 @@ function populateAppointmentsModal() {
         </button>`;
     };
 
-    const groups = [['review', 'Needs your check-off'], ['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['waiting_part', 'Waiting for part'], ['completed', 'Completed']];
+    const groups = [['review', 'Needs your check-off'], ['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['waiting_part', 'Waiting for part'], ['completed', 'Ready for pickup'], ['picked_up', 'Picked up']];
     for (const [status, label] of groups) {
         const tickets = filtered.filter(a => a.status === status);
         if (tickets.length) html += `<h3 class="list-heading">${label} (${tickets.length})</h3><div class="folder-list">${tickets.map(folder).join('')}</div>`;
@@ -1518,8 +1554,8 @@ async function viewMyTickets() {
     await loadMyTimeLogs();
 
     const mine = appointments.filter(a => (a.assigned_tech_ids || []).includes(currentTechId));
-    const active = mine.filter(a => a.status !== 'completed').sort(priorityFirst);
-    const completed = mine.filter(a => a.status === 'completed');
+    const active = mine.filter(a => !isDone(a.status)).sort(priorityFirst);
+    const completed = mine.filter(a => isDone(a.status));
 
     const folder = appt => {
         const hours = myTimeLogs
@@ -1585,7 +1621,7 @@ function renderGreeting() {
     const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
     let status;
     if (currentRole === 'tech') {
-        const open = appointments.filter(a => a.status !== 'completed' && (a.assigned_tech_ids || []).includes(currentTechId));
+        const open = appointments.filter(a => !isDone(a.status) && (a.assigned_tech_ids || []).includes(currentTechId));
         const sentBack = open.filter(a => a.status === 'in_progress' && a.review_note).length;
         const onParts = open.filter(a => a.status === 'waiting_part').length;
         status = (!open.length ? 'No open tickets right now.'
@@ -1654,6 +1690,7 @@ function renderTicketWorkspace() {
     // also see whoever is on it now (so they can be taken off, and saving
     // doesn't drop a removed student from a finished ticket).
     const canPickStudents = isAdmin || currentSession === 'PM';
+    const logTimes = defaultLogTimes();
     const pickable = techs.filter(t => (isAdmin ? !t.removed_at : classRoster().includes(t)) || (appt.assigned_tech_ids || []).includes(t.id));
     const duplicate = appt.email && emailCounts()[appt.email.toLowerCase()] > 1;
 
@@ -1674,14 +1711,18 @@ function renderTicketWorkspace() {
             ? `<span>The students say this repair is done. Check the device, then approve it or send it back with what's left to do.</span>
                <span class="ws-actions">${complete}<button class="btn btn-warn" onclick="sendBack(${appt.id})">↩ Send Back</button></span>`
             : '<span>Waiting for the admin to check it off. If they send it back, their note will show here.</span>',
-        completed: '<span>This repair is complete. You can still print its paperwork below.</span>'
+        completed: isAdmin
+            ? `<span>Ready for pickup${appt.shelf ? ` (kept at <strong>${escapeHtml(appt.shelf)}</strong>)` : ''}. When the customer takes it home, press Picked Up.</span>
+               <button class="btn btn-approve" onclick="markPickedUp(${appt.id})">Picked Up</button>`
+            : `<span>Ready for pickup${appt.shelf ? ` (kept at <strong>${escapeHtml(appt.shelf)}</strong>)` : ''}. The admin marks it Picked Up when the customer takes it home.</span>`,
+        picked_up: '<span>The customer picked it up. You can still print its paperwork below.</span>'
     }[appt.status] || '';
 
     const sessions = workspaceLogs.length ? workspaceLogs.map(l => `
         <div class="session">
             <div class="session-top">
                 <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</strong>
-                ${isAdmin || l.tech_id === currentTechId ? `<button class="link-danger" onclick="deleteTimeLog(${l.id})">Delete</button>` : ''}
+                ${isAdmin || (l.tech_id === currentTechId && l.work_date === todayDateStr()) ? `<button class="link-danger" onclick="deleteTimeLog(${l.id})">Delete</button>` : ''}
             </div>
             <p><strong>${escapeHtml(techName(l.tech_id))}:</strong> ${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
         </div>`).join('')
@@ -1711,10 +1752,11 @@ function renderTicketWorkspace() {
         <dl class="ws-facts">
             <div><dt>Problem</dt><dd>${escapeHtml(appt.issue)}</dd></div>
             <div><dt>Team</dt><dd>${escapeHtml(team.join(', ') || 'Nobody yet')}</dd></div>
+            ${appt.shelf ? `<div><dt>Kept at</dt><dd>${escapeHtml(appt.shelf)}</dd></div>` : ''}
         </dl>
         ${nextStep ? `<div class="ws-next">${nextStep}</div>` : ''}
 
-        ${canPickStudents && appt.status !== 'completed' ? section('Students on this ticket', `
+        ${canPickStudents && !isDone(appt.status) ? section('Students on this ticket', `
             <p class="ws-hint">${isAdmin
                 ? 'Tick everyone working on it. If you hand it to new students, change it here.'
                 : 'Tick the PM students working on it. Untick anyone who is done with it, even whoever started it. Their logged hours stay on the ticket.'}</p>
@@ -1726,16 +1768,15 @@ function renderTicketWorkspace() {
             <button class="btn btn-primary" id="saveStudents-${appt.id}" onclick="updateTicketAssignment(${appt.id})">Save Students</button>`,
             { count: team.length ? `${team.length} on it` : 'Nobody yet', open: appt.status === 'pending' }) : ''}
 
-        ${!isAdmin && appt.status !== 'completed' ? `
+        ${!isAdmin && !isDone(appt.status) ? `
         <section class="ws-card">
             <h3>Log a work session</h3>
             <p class="ws-hint">Fill this in every time you work on the device. It goes on the Service Log.</p>
             <div class="ws-fields">
-                <label>Date <input type="date" id="logDate-${appt.id}" value="${todayDateStr()}"></label>
-                <label>Start time <select id="logStart-${appt.id}">${QUARTER_HOUR_OPTIONS}</select></label>
-                <label>End time <select id="logEnd-${appt.id}">${QUARTER_HOUR_OPTIONS}</select></label>
+                <label>Start time <select id="logStart-${appt.id}">${quarterHourOptions(logTimes[0])}</select></label>
+                <label>End time <select id="logEnd-${appt.id}">${quarterHourOptions(logTimes[1])}</select></label>
             </div>
-            <p class="ws-hint">Example: you worked from 1:15 to 2:00 in the afternoon, so pick 1:15 PM and 2:00 PM.</p>
+            <p class="ws-hint">Log today's work during class. Example: you worked from ${currentSession === 'AM' ? '8:15 to 9:00, so pick 8:15 AM and 9:00 AM' : '1:15 to 2:00, so pick 1:15 PM and 2:00 PM'}. Forgot to log a day? Tell your teacher.</p>
             <label>What did you do?
                 <textarea id="logNote-${appt.id}" rows="3" placeholder="Example: Took off the back panel and tested the battery. It only holds 40% charge. Next: the customer orders a new battery."></textarea>
             </label>
@@ -1751,6 +1792,12 @@ function renderTicketWorkspace() {
             <label>Parts used <input type="text" id="parts-${appt.id}" value="${escapeHtml(appt.parts_used || '')}" placeholder="Example: Battery for Dell Latitude 5420"></label>
             <button class="btn btn-outline" onclick="saveTicketParts(${appt.id}, this)">Save Parts</button>`,
             { count: appt.parts_used ? escapeHtml(appt.parts_used) : 'None yet' })}
+
+        ${appt.status !== 'picked_up' ? section('Where it\'s kept', `
+            <p class="ws-hint">Write the shelf or bin the device is on, so anyone can find it, even when you're not here.</p>
+            <label>Shelf or bin <input type="text" id="shelf-${appt.id}" maxlength="40" value="${escapeHtml(appt.shelf || '')}" placeholder="Example: Shelf B, bin 3"></label>
+            <button class="btn btn-outline" onclick="saveShelf(${appt.id}, this)">Save</button>`,
+            { count: appt.shelf ? escapeHtml(appt.shelf) : 'Not set', open: appt.status === 'completed' && !appt.shelf }) : ''}
 
         ${section('Invoice', invoiceEditorHtml(appt), { count: invoiceOf(appt).tasks.length + invoiceOf(appt).parts.length ? `$${money(invoiceTotals(invoiceLines(appt)).total)}` : 'Nothing yet' })}
 
@@ -1807,13 +1854,37 @@ function hoursBetween(startTime, endTime) {
     return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
 }
 
-// Sessions are logged in quarter hours (017 enforces it): 6:00 AM to 6:00 PM.
-const QUARTER_HOUR_OPTIONS = '<option value="">Choose a time</option>' +
-    Array.from({ length: 49 }, (_, i) => {
-        const minutes = 6 * 60 + i * 15;
-        const value = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-        return `<option value="${value}">${formatTime12h(value)}</option>`;
-    }).join('');
+// Sessions are logged today, in quarter hours, inside the student's class
+// with a little room either side of the bell. The database checks the same
+// (017, 030), plus that a session doesn't end in the future or overlap.
+const CLASS_HOURS = { AM: ['07:30', '10:30'], PM: ['11:30', '14:30'] };
+
+const BELL = { AM: '07:45', PM: '11:45' };
+const toMinutes = time => time.split(':').reduce((h, m) => h * 60 + Number(m));
+const toHHMM = minutes => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+function quarterHourOptions(selected = '') {
+    const [from, to] = (CLASS_HOURS[currentSession] || ['06:00', '18:00']).map(toMinutes);
+    return '<option value="">Choose a time</option>' +
+        Array.from({ length: (to - from) / 15 + 1 }, (_, i) => {
+            const value = toHHMM(from + i * 15);
+            return `<option value="${value}"${value === selected ? ' selected' : ''}>${formatTime12h(value)}</option>`;
+        }).join('');
+}
+
+// The usual session: from the bell (or where your last session today
+// ended) to now, rounded down to the quarter hour. Outside class, the
+// end is left for the student to pick.
+function defaultLogTimes() {
+    if (!CLASS_HOURS[currentSession]) return ['', ''];
+    const today = todayDateStr();
+    const ends = [...myTimeLogs, ...workspaceLogs]
+        .filter(l => l.tech_id === currentTechId && l.work_date === today).map(l => l.end_time.slice(0, 5)).sort();
+    const start = ends.at(-1) || BELL[currentSession];
+    const now = new Date();
+    const end = toHHMM(now.getHours() * 60 + Math.floor(now.getMinutes() / 15) * 15);
+    return [start, toMinutes(end) > toMinutes(start) && toMinutes(end) <= toMinutes(CLASS_HOURS[currentSession][1]) ? end : ''];
+}
 
 function formatTime12h(timeStr) {
     const [h, m] = timeStr.split(':').map(Number);
@@ -1823,14 +1894,12 @@ function formatTime12h(timeStr) {
 }
 
 async function logTime(ticketId) {
-    const dateField = document.getElementById(`logDate-${ticketId}`);
     const startField = document.getElementById(`logStart-${ticketId}`);
     const endField = document.getElementById(`logEnd-${ticketId}`);
-    const workDate = dateField.value;
+    const workDate = todayDateStr();
     const startTime = startField.value;
     const endTime = endField.value;
 
-    if (!workDate) { alert('Please pick the date you worked on this.'); return; }
     if (!startTime || !endTime) { alert('Please enter the time you started and finished.'); return; }
     if (hoursBetween(startTime, endTime) <= 0) { alert('End time must be after start time.'); return; }
 
@@ -1843,7 +1912,8 @@ async function logTime(ticketId) {
         note: document.getElementById(`logNote-${ticketId}`).value.trim() || null
     });
 
-    if (error) { console.error('Error logging time:', error); alert('Failed to log time.'); return; }
+    // 030's checks (today only, during class, not overlapping) explain themselves.
+    if (error) { console.error('Error logging time:', error); alert(error.code === 'P0001' ? error.message : 'Failed to log time.'); return; }
 
     await openTicketWorkspace(ticketId);
 }
@@ -1852,7 +1922,7 @@ async function deleteTimeLog(logId) {
     if (!confirm('Delete this time entry?')) return;
 
     const { error } = await db.from('time_logs').delete().eq('id', logId);
-    if (error) { console.error('Error deleting time log:', error); return; }
+    if (error) { console.error('Error deleting time log:', error); alert(error.code === 'P0001' ? error.message : "Couldn't delete it. Try again."); return; }
 
     myTimeLogs = myTimeLogs.filter(l => l.id !== logId);
     workspaceLogs = workspaceLogs.filter(l => l.id !== logId);
@@ -1995,8 +2065,7 @@ function invoiceTotals(lines) {
 async function saveInvoice(apptId, change) {
     const appt = appointments.find(a => a.id === apptId);
     const invoice = { ...invoiceOf(appt), ...change };
-    const { error } = await db.from('repair_requests').update({ invoice }).eq('id', apptId);
-    if (error) { console.error('Error saving invoice:', error); alert('Could not save the invoice.'); return; }
+    if (!await saveTicket(apptId, { invoice }, 'the invoice')) return;
     appt.invoice = invoice;
     renderTicketWorkspace();
 }
@@ -2067,11 +2136,46 @@ function previewInvoice(apptId) {
     fitPaperPreview();
 }
 
+// ============================================================
+// CUSTOMER SLIP — a half page the customer keeps: ticket number,
+// tracking code and a QR code that opens their tracker
+// (btrepairlabs.com/?code=…). Phones go away during school, so this
+// paper is how most customers will check on a repair.
+// ============================================================
+const trackLink = code => `https://btrepairlabs.com/?code=${encodeURIComponent(code)}`;
+
+function previewCustomerSlip(apptId) {
+    const appt = appointments.find(a => a.id === apptId);
+    const sheets = openPaperPreview(`Customer Slip · Ticket #${appt.id}`,
+        'Give this to the customer when they drop off the device. The QR code opens their repair tracker.', PRINT_BUTTON);
+    sheets.innerHTML = customerSlipHtml(appt);
+    fitPaperPreview();
+}
+
+function customerSlipHtml(appt) {
+    const qr = qrcode(0, 'M');
+    qr.addData(trackLink(appt.tracking_code));
+    qr.make();
+    return `
+    <div class="print-sheet customer-slip">
+        <div class="slip-text">
+            <p class="slip-eyebrow">BarryTech Repair Lab · Room C220</p>
+            <h1>Keep this paper</h1>
+            <p>Ticket <strong>#${appt.id}</strong> · ${escapeHtml([appt.make_model, appt.device].filter(Boolean).join(' · '))}</p>
+            <p class="slip-label">Tracking code</p>
+            <p class="slip-code">${escapeHtml(appt.tracking_code)}</p>
+            <p>Scan the code, or go to <strong>btrepairlabs.com</strong> and enter it under Track Repair, to see where your repair is.</p>
+            <p>Pick it up in Room C220 (center wing, next to Joe's Store) during class: 7:45–10:20 AM or 11:45 AM–2:20 PM. Bring this slip.</p>
+        </div>
+        <div class="slip-qr">${qr.createSvgTag({ cellSize: 5, margin: 0, scalable: true })}</div>
+    </div>`;
+}
+
 function invoiceHtml(appt) {
     const invoice = invoiceOf(appt);
     const lines = invoiceLines(appt);
     const totals = invoiceTotals(lines);
-    const day = new Date(appt.status === 'completed' && appt.completed_at ? appt.completed_at : Date.now());
+    const day = new Date(isDone(appt.status) && appt.completed_at ? appt.completed_at : Date.now());
     const names = (appt.assigned_tech_ids || []).map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
     const to = [appt.name, appt.class_name, appt.room_number && `Room ${appt.room_number}`, appt.contact_number].filter(Boolean);
     const rows = lines.map(l => `<tr><td>${l.qty}</td><td>${escapeHtml(l.description)}</td><td>${hoursLabel(l.hours)}</td><td>${money(l.total)}</td></tr>`);
@@ -2135,6 +2239,7 @@ function escapeHtml(text) {
 function paperworkButtons(apptId) {
     return `
         <div class="ws-actions" style="margin:0.4rem 0;">
+            <button class="btn btn-outline btn-sm" onclick="previewCustomerSlip(${apptId})">Customer Slip</button>
             <button class="btn btn-outline btn-sm" onclick="previewHelpDesk(${apptId})">Help Desk Ticket</button>
             <button class="btn btn-outline btn-sm" onclick="previewServiceLog(${apptId})">Service Log</button>
             <button class="btn btn-outline btn-sm" onclick="previewInvoice(${apptId})">Invoice</button>
@@ -2410,7 +2515,7 @@ async function onLookChange() {
 }
 
 // ============================================================
-// STILL THERE? (techs) — like Netflix: after 15 minutes with no clicks,
+// STILL THERE? (techs and the admin) — like Netflix: after 15 minutes with no clicks,
 // typing, taps, scrolling or mouse movement, ask if they're still there.
 // No answer in 30 seconds signs them out, so a shared class computer
 // isn't left signed in. Times use timestamps, so a hidden tab (whose
@@ -2425,7 +2530,7 @@ let answerBy = null; // set while "Still there?" is showing
     document.addEventListener(type, () => { lastActive = Date.now(); }, { capture: true, passive: true }));
 
 function checkStillThere() {
-    if (!STAFF_PAGE || currentRole !== 'tech') return;
+    if (!STAFF_PAGE || !currentRole) return;
     const modal = document.getElementById('stillThereModal');
     if (answerBy === null) {
         if (Date.now() - lastActive < IDLE_LIMIT_MS) return;
@@ -2491,6 +2596,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // "Track repair" anywhere jumps to the box with the keyboard ready.
         document.querySelectorAll('a[href="#track"]').forEach(a => a.addEventListener('click', () =>
             setTimeout(() => document.getElementById('trackCodeInput').focus({ preventScroll: true }), 400)));
+        // The QR code on the customer slip opens btrepairlabs.com/?code=… straight to their repair.
+        const linkedCode = new URLSearchParams(location.search).get('code');
+        if (linkedCode) {
+            document.getElementById('trackCodeInput').value = linkedCode;
+            document.getElementById('track').scrollIntoView();
+            trackRepair();
+        }
     }
     if (STAFF_PAGE && !currentRole) openModal('loginModal');
     await loadData();

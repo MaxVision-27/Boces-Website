@@ -2,13 +2,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=43">
+    <link rel="stylesheet" href="css/styles.css?v=45">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=48" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous" defer></script>
+    <script src="js/main.js?v=50" defer></script>
     <script src="js/forum.js?v=4" defer></script>
-    <script src="js/guide.js?v=17" defer></script>
+    <script src="js/guide.js?v=18" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
@@ -91,7 +92,8 @@
                 <option value="in_progress">In Progress</option>
                 <option value="waiting_part">Waiting for Part</option>
                 <option value="review">Needs Check-Off</option>
-                <option value="completed">Completed</option>
+                <option value="completed">Ready for Pickup</option>
+                <option value="picked_up">Picked Up</option>
                 <option value="deleted">Deleted</option>
             </select>
             <select id="sortFilter" onchange="populateAppointmentsModal()">
@@ -295,9 +297,10 @@
         <div class="tracking-code-big" id="createdTrackingCode"></div>
         <div class="ws-actions" style="justify-content: center;">
             <button class="btn btn-outline" onclick="copyText(document.getElementById('createdTrackingCode').textContent, this)">Copy Code</button>
+            <button class="btn btn-outline" id="printSlipBtn" onclick="closeModal('ticketCreatedModal'); previewCustomerSlip(Number(this.dataset.ticket))">Print Customer Slip</button>
             <button class="btn btn-primary" id="printHelpDeskBtn" onclick="closeModal('ticketCreatedModal'); previewHelpDesk(Number(this.dataset.ticket))">Print Help Desk Ticket</button>
         </div>
-        <p style="font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.75rem;">Have the customer sign the Help Desk Ticket before they leave the device.</p>
+        <p style="font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.75rem;">Have the customer sign the Help Desk Ticket before they leave the device, and give them the Customer Slip to keep.</p>
     </div>
 </div>
 
