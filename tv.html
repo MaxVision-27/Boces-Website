@@ -230,8 +230,9 @@ function columnCards(column, board) {
     if (!column.statuses) {
         return board.line.map(r => card(`${r.code ? `<span class="tv-code">#${r.code}</span>` : ''}${esc(r.name)}`, [esc(r.device)]));
     }
+    // Ready for pickup shows the ticket number from the customer's slip, not their name.
     return board.tickets.filter(t => column.statuses.includes(t.status)).map(t => card(
-        `${esc(t.name)}${t.priority && t.status !== 'completed' ? '<span class="tv-flag">Priority</span>' : ''}`,
+        t.status === 'completed' && t.id ? `Ticket #${t.id}` : `${esc(t.name)}${t.priority ? '<span class="tv-flag">Priority</span>' : ''}`,
         [esc(t.device), t.status === 'completed' ? '' : t.techs?.length ? esc(t.techs.join(', ')) : 'Needs a tech']));
 }
 
