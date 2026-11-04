@@ -186,6 +186,7 @@ declare
     v_now timestamp := now() at time zone 'America/New_York';
     v_today date := v_now::date;
     v_name text := regexp_replace(trim(coalesce(p_name, '')), '\s+', ' ', 'g');
+    v_closes time := case p_session when 'AM' then '10:20'::time else '14:20'::time end;
     v_code int;
 begin
     if extract(isodow from v_today) > 5 then
@@ -197,7 +198,7 @@ begin
         return query select 'invalid'::text, null::int;
         return;
     end if;
-    if v_now::time < '06:00' or v_now::time > case p_session when 'AM' then '10:20'::time else '14:20'::time end then
+    if v_now::time < '06:00' or v_now::time > v_closes then
         return query select 'too_late'::text, null::int;
         return;
     end if;
