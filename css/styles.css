@@ -2186,16 +2186,6 @@ summary:focus-visible {
     color: var(--brand-text);
 }
 
-.tracker-issue {
-    margin-top: .4rem;
-    color: var(--ink-soft);
-    font-size: .95rem;
-}
-
-.tracker-issue span {
-    font-weight: 700;
-}
-
 .tracker .btn-solid {
     margin-top: 1rem;
 }
@@ -3107,6 +3097,55 @@ details.ws-card > summary:hover {
     border-top: 1px solid var(--inv-ink);
     text-align: center;
     font-size: 8pt;
+}
+
+/* Customer Slip (customerSlipHtml() in main.js): half a page the customer keeps */
+.customer-slip {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    max-height: 5.5in;
+    padding-bottom: .75rem;
+    border-bottom: 1.5px dashed #888;
+}
+
+.slip-text {
+    flex: 1;
+}
+
+.customer-slip h1 {
+    font-size: 20pt;
+    margin: .1rem 0 .4rem;
+}
+
+.customer-slip p {
+    margin: .35rem 0;
+}
+
+.slip-eyebrow,
+.slip-label {
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+
+.slip-code {
+    font-family: 'Courier New', monospace;
+    font-size: 26pt;
+    font-weight: 700;
+    letter-spacing: .12em;
+}
+
+.slip-qr {
+    width: 1.9in;
+    flex: none;
+}
+
+.slip-qr svg {
+    display: block;
+    width: 100%;
+    height: auto;
 }
 
 /* The Invoice section on a ticket */
