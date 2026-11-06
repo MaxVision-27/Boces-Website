@@ -665,7 +665,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'Hours and tickets for each student',
-        text: 'Each card shows the student\'s class (AM or PM), hours logged, active tickets, and any waiting for your check-off. Open, Rename, Move to the other class, or Remove a student here.',
+        text: 'Each card shows the student\'s class (AM or PM), hours logged, active tickets, and any waiting for your check-off. Set each student\'s login (their @nasboces.org email and a password only you can change), or Open, Rename, Move to the other class, or Remove a student here.',
         setup: async () => { if (!isOpen('manageStudentsModal')) { closeAllModals(); openStudentId = null; await openManageStudents(); } else { showStudent(null); } },
         target: () => $g('#manageStudentsContainer .folder-card'),
     },
