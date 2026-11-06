@@ -1722,7 +1722,7 @@ function renderTicketWorkspace() {
         <div class="session">
             <div class="session-top">
                 <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</strong>
-                ${isAdmin || (l.tech_id === currentTechId && l.work_date === todayDateStr()) ? `<button class="link-danger" onclick="deleteTimeLog(${l.id})">Delete</button>` : ''}
+                ${!isAdmin && l.tech_id === currentTechId ? `<button class="btn btn-outline btn-chip" onclick="editTimeLogNote(${l.id})">Edit note</button>` : ''}
             </div>
             <p><strong>${escapeHtml(techName(l.tech_id))}:</strong> ${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
         </div>`).join('')
@@ -1856,9 +1856,9 @@ function hoursBetween(startTime, endTime) {
 }
 
 // Sessions are logged today, in quarter hours, inside the student's class
-// with a little room either side of the bell. The database checks the same
-// (017, 030), plus that a session doesn't end in the future or overlap.
-const CLASS_HOURS = { AM: ['07:30', '10:30'], PM: ['11:30', '14:30'] };
+// (AM 7:30–10:30, PM 11:30–2:15). The database checks the same (017, 032),
+// plus that a session doesn't end in the future. Sessions may overlap.
+const CLASS_HOURS = { AM: ['07:30', '10:30'], PM: ['11:30', '14:15'] }; // nothing past 2:15 PM
 
 const BELL = { AM: '07:45', PM: '11:45' };
 const toMinutes = time => time.split(':').reduce((h, m) => h * 60 + Number(m));
@@ -1919,17 +1919,24 @@ async function logTime(ticketId) {
     await openTicketWorkspace(ticketId);
 }
 
-async function deleteTimeLog(logId) {
-    if (!confirm('Delete this time entry?')) return;
+// Sessions aren't deleted (032): the student who logged one can fix its
+// note. The date and times stay as logged; the admin can fix those.
+async function editTimeLogNote(logId) {
+    const log = workspaceLogs.find(l => l.id === logId);
+    const note = await askText({
+        title: 'Edit your note', label: 'What did you do?', value: log.note || '', multiline: true, submit: 'Save Note',
+        hint: `${new Date(log.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(log.start_time)} to ${formatTime12h(log.end_time)}`
+    });
+    if (note === null) return;
 
-    const { error } = await db.from('time_logs').delete().eq('id', logId);
-    if (error) { console.error('Error deleting time log:', error); alert(error.code === 'P0001' ? error.message : "Couldn't delete it. Try again."); return; }
-
-    myTimeLogs = myTimeLogs.filter(l => l.id !== logId);
-    workspaceLogs = workspaceLogs.filter(l => l.id !== logId);
-
+    const { data, error } = await db.from('time_logs').update({ note: note.trim() || null }).eq('id', logId).select('id');
+    if (error || !data?.length) {
+        console.error('Error editing note:', error);
+        alert(error?.code === 'P0001' ? error.message : "Couldn't save the note. Try again.");
+        return;
+    }
+    log.note = note.trim() || null;
     renderTicketWorkspace();
-    if (document.getElementById('myHoursModal').style.display === 'flex') renderMyHours();
 }
 
 async function openMyHours() {
@@ -1958,7 +1965,6 @@ function renderMyHours() {
                 <td style="padding:0.4rem; border-bottom:1px solid #eee;">${label}</td>
                 <td style="padding:0.4rem; border-bottom:1px solid #eee; white-space:nowrap;">${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)}</td>
                 <td style="padding:0.4rem; border-bottom:1px solid #eee; text-align:right;">${hoursBetween(l.start_time, l.end_time).toFixed(2)}</td>
-                <td style="padding:0.4rem; border-bottom:1px solid #eee; text-align:right;"><span style="cursor:pointer; color:#dc3545;" onclick="deleteTimeLog(${l.id})" title="Delete entry">✕</span></td>
             </tr>`;
     }).join('');
 
@@ -1971,7 +1977,6 @@ function renderMyHours() {
                     <th style="padding:0.4rem;">Ticket</th>
                     <th style="padding:0.4rem;">Time</th>
                     <th style="padding:0.4rem; text-align:right;">Hours</th>
-                    <th></th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -1979,7 +1984,6 @@ function renderMyHours() {
                 <tr style="font-weight:bold; border-top:2px solid #001f3f;">
                     <td style="padding:0.4rem;" colspan="3">Total</td>
                     <td style="padding:0.4rem; text-align:right;">${total.toFixed(2)}</td>
-                    <td></td>
                 </tr>
             </tfoot>
         </table>

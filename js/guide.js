@@ -378,7 +378,7 @@ const TECH_STEPS = [
     },
     {
         title: 'Work so far',
-        text: "Every session from everyone on the ticket shows here, oldest first. You can delete only your own.",
+        text: "Every session from everyone on the ticket shows here, oldest first. You can edit the note on your own sessions.",
         setup: ensureWorkspace,
         target: () => wsCard('Work so far'),
     },
