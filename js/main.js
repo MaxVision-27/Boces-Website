@@ -71,19 +71,13 @@ async function loadTechs() {
     techs = data || [];
 }
 
-// Reattach currentTechName from the roster after a saved session
-// (sessionStorage only kept the id). If the roster no longer has that id
-// (teacher removed them), clear the stale identity.
+// Attach the signed-in student's name and look from the roster.
 function hydrateTechIdentity() {
     if (!currentTechId || !STAFF_PAGE) return; // the public page doesn't load the roster
     const tech = classRoster().find(t => t.id === currentTechId);
     if (tech) {
         currentTechName = tech.name;
         applyLook(tech.look);
-    } else {
-        currentTechId = null;
-        currentTechName = null;
-        sessionStorage.removeItem('bocesTechId');
     }
 }
 
@@ -98,74 +92,53 @@ function classRoster() {
 const activeTechs = () => techs.filter(t => !t.removed_at);
 
 // ============================================================
-// LOGIN — admin, or a tech from the AM or PM class. Each has its own
-// password; the server remembers the class with the session.
+// LOGIN — the admin with the admin password, or a student with their
+// school email and the password the admin set for them (033). The server
+// remembers which student it is, so there's no name picker.
 // ============================================================
-// Tech (Student) asks which class you're in; the picked one stays
-// highlighted, and the password must be that class's own password.
-function showLoginButtons() {
-    const tech = document.getElementById('loginRole').value === 'tech';
-    document.getElementById('loginClassPicker').style.display = tech ? '' : 'none';
-    updateLoginPasswordLabel();
-}
-
-function pickLoginClass(btn) {
-    document.querySelectorAll('.class-option').forEach(b => b.setAttribute('aria-pressed', b === btn));
-    updateLoginPasswordLabel();
-}
-
-function loginClass() {
-    return document.querySelector('.class-option[aria-pressed="true"]')?.dataset.class || null;
-}
-
-function updateLoginPasswordLabel() {
-    const tech = document.getElementById('loginRole').value === 'tech';
-    const cls = loginClass();
-    document.getElementById('loginPasswordLabel').textContent = tech && cls ? `${cls.toUpperCase()} password` : 'Password';
+function showLoginFields() {
+    const student = document.getElementById('loginRole').value === 'tech';
+    document.getElementById('loginEmailGroup').hidden = !student;
+    document.getElementById('loginForgot').hidden = !student;
 }
 
 async function login() {
-    const role = document.getElementById('loginRole').value === 'tech' ? loginClass() : 'admin';
-    if (!role) { alert('Pick your class: AM or PM.'); return; }
+    const student = document.getElementById('loginRole').value === 'tech';
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
+    if (student && !email) { alert('Enter your school email.'); return; }
+    if (!password) { alert('Enter your password.'); return; }
 
-    if (!password) {
-        alert('Please enter a password');
-        return;
-    }
-
-    const { data: token, error } = await db.rpc('staff_login', { p_role: role, p_password: password });
-
-    if (error) {
-        console.error('Login error:', error);
-        alert('Login failed. Check your internet connection and try again.');
-        return;
-    }
-    if (!token) {
-        alert('Incorrect password!');
-        return;
+    let token, techId = null, techClass = null;
+    if (student) {
+        const { data, error } = await db.rpc('student_login', { p_email: email, p_password: password });
+        if (error) { console.error('Login error:', error); alert('Login failed. Check your internet connection and try again.'); return; }
+        const row = data?.[0] || {};
+        const problems = {
+            wrong: 'Wrong email or password.',
+            not_set: "Your teacher hasn't set up your login yet. Ask them to.",
+            locked: 'Too many wrong passwords. Try again in 15 minutes, or ask your teacher to reset your password.'
+        };
+        if (row.result !== 'ok') { alert(problems[row.result] || 'Login failed. Try again.'); return; }
+        ({ token, tech_id: techId, class: techClass } = row);
+    } else {
+        const { data, error } = await db.rpc('staff_login', { p_role: 'admin', p_password: password });
+        if (error) { console.error('Login error:', error); alert('Login failed. Check your internet connection and try again.'); return; }
+        if (!data) { alert('Incorrect password!'); return; }
+        token = data;
     }
 
     staffToken = token;
-    currentRole = role === 'admin' ? 'admin' : 'tech';
-    currentSession = role === 'admin' ? null : role.toUpperCase();
+    currentRole = student ? 'tech' : 'admin';
+    currentSession = techClass;
+    currentTechId = techId;
     sessionStorage.setItem('bocesStaffToken', token);
     closeModal('loginModal');
     document.getElementById('loginPassword').value = '';
 
     // Tickets, students and hours only come back once the token is set.
     await loadData();
-
-    if (currentRole === 'tech') {
-        const savedTechId = sessionStorage.getItem('bocesTechId');
-        if (savedTechId && classRoster().find(t => t.id === parseInt(savedTechId))) {
-            selectTech(parseInt(savedTechId), false);
-        } else {
-            openTechPicker();
-        }
-    } else {
-        alert('Login successful!');
-    }
+    if (!student) alert('Login successful!');
 }
 
 async function logout() {
@@ -182,39 +155,7 @@ async function logout() {
     techs = [];
     myTimeLogs = [];
     sessionStorage.removeItem('bocesStaffToken');
-    sessionStorage.removeItem('bocesTechId');
     location.href = './';
-}
-
-// ============================================================
-// TECH IDENTITY (picker shown after "Tech" login)
-// ============================================================
-function openTechPicker() {
-    const container = document.getElementById('techPickerContainer');
-    const roster = classRoster();
-
-    if (roster.length === 0) {
-        container.innerHTML = `<p style="text-align:center;color: var(--ink-faint);">No ${currentSession || ''} students have been added yet. Ask your teacher to add you in Manage Students.</p>`;
-    } else {
-        container.innerHTML = roster.map(t => `<button type="button" class="tech-pick-btn" onclick="selectTech(${t.id})">${escapeHtml(t.name)}</button>`).join('');
-    }
-
-    openModal('techPickerModal');
-}
-
-function selectTech(techId, showAlert = true) {
-    const tech = classRoster().find(t => t.id === techId);
-    if (!tech) return;
-
-    currentTechId = tech.id;
-    currentTechName = tech.name;
-    sessionStorage.setItem('bocesTechId', tech.id);
-    applyLook(tech.look);
-
-    closeModal('techPickerModal');
-    updateRoleDisplay();
-    if (STAFF_PAGE) viewMyTickets();
-    if (showAlert) alert(`Welcome, ${tech.name}!`);
 }
 
 // ============================================================
@@ -224,6 +165,7 @@ function selectTech(techId, showAlert = true) {
 // Manage Students (Admin): every student with their workload, and a
 // page per student with their tickets and logged sessions.
 let allTimeLogs = [];
+let studentLogins = {}; // tech id → { has_password, locked } (admin only, 033)
 let openStudentId = null;
 
 async function openManageStudents(fromTab = false) {
@@ -234,6 +176,7 @@ async function openManageStudents(fromTab = false) {
         .order('start_time', { ascending: false });
     if (error) { console.error('Error loading time logs:', error); }
     allTimeLogs = data || [];
+    await loadStudentLogins();
     populateManageStudentsModal();
     openModal('manageStudentsModal');
 }
@@ -274,8 +217,10 @@ function populateManageStudentsModal() {
         <div class="folder-card" style="cursor:default;">
             <span class="folder-top"><strong>${escapeHtml(t.name)} <span class="forum-type">${t.session || 'No class'}</span></strong> <span class="folder-meta">${studentHours(t.id).toFixed(2)} hr logged</span></span>
             <span class="ws-hint" style="margin:0;">${active} active ticket${active === 1 ? '' : 's'}${waiting ? ` · <strong style="color:#6f42c1;">${waiting} waiting for your check-off</strong>` : ''}</span>
+            <span class="ws-hint" style="margin:0;">${loginStatus(t)}</span>
             <div class="ws-actions" style="margin-top:0.4rem;">
                 <button class="btn btn-outline btn-sm" onclick="showStudent(${t.id})">Open</button>
+                <button class="btn btn-outline btn-sm" onclick="setStudentLogin(${t.id})">Set login</button>
                 <button class="btn btn-outline btn-sm" onclick="renameStudent(${t.id})">Rename</button>
                 <button class="btn btn-outline btn-sm" onclick="setStudentSession(${t.id}, '${t.session === 'AM' ? 'PM' : 'AM'}')">Move to ${t.session === 'AM' ? 'PM' : 'AM'}</button>
                 <button class="btn btn-danger btn-sm" onclick="removeStudent(${t.id})">Remove</button>
@@ -336,6 +281,50 @@ async function setStudentSession(techId, session) {
     populateManageStudentsModal();
 }
 
+// Student logins (033): a school email and a password only the admin sets.
+async function loadStudentLogins() {
+    const { data, error } = await db.rpc('admin_student_logins');
+    if (error) console.error('Error loading logins:', error);
+    studentLogins = Object.fromEntries((data || []).map(l => [l.tech_id, l]));
+}
+
+function loginStatus(tech) {
+    const login = studentLogins[tech.id];
+    if (!tech.email || !login?.has_password) return '<strong style="color:var(--warn-ink);">No login yet: press Set login</strong>';
+    return `Signs in as ${escapeHtml(tech.email)}${login.locked ? ' · <strong style="color:var(--danger-ink);">Locked (too many wrong passwords): set a new password to unlock</strong>' : ''}`;
+}
+
+async function setStudentLogin(techId) {
+    const tech = techs.find(t => t.id === techId);
+    const hasPassword = studentLogins[techId]?.has_password;
+    const email = (await askText({
+        title: `Login for ${tech.name}`, label: 'School email', value: tech.email || '',
+        placeholder: 'name@nasboces.org', hint: 'Must end in @nasboces.org.', submit: 'Next'
+    }))?.trim().toLowerCase();
+    if (!email) return;
+    const password = await askText({
+        title: `Login for ${tech.name}`, label: hasPassword ? 'New password (leave blank to keep it)' : 'Password',
+        hint: 'At least 8 characters. Give it to the student; only you can change it. A new password signs them out everywhere.',
+        submit: 'Save Login'
+    });
+    if (password === null) return;
+
+    const { data: result, error } = await db.rpc('admin_set_student_login', { p_tech_id: techId, p_email: email, p_password: password });
+    const problems = {
+        not_admin: 'Only the admin can set logins.',
+        bad_email: 'The email must end in @nasboces.org.',
+        email_taken: 'Another student already uses that email.',
+        short_password: 'The password needs at least 8 characters.',
+        no_password: 'Set a password so they can sign in.'
+    };
+    if (error || result !== 'ok') { console.error('Error setting login:', error); alert(problems[result] || "Couldn't save the login. Try again."); return; }
+
+    tech.email = email;
+    await loadStudentLogins();
+    populateManageStudentsModal();
+    alert(`Saved. ${tech.name} signs in with ${email}${password ? ' and the new password' : ''}.`);
+}
+
 async function renameStudent(techId) {
     const tech = techs.find(t => t.id === techId);
     const name = (await askText({ title: 'Rename student', label: 'New name', value: tech.name }))?.trim();
@@ -389,12 +378,6 @@ async function removeStudent(techId) {
         appt.status = newStatus;
     }
 
-    if (currentTechId === techId) {
-        currentTechId = null;
-        currentTechName = null;
-        sessionStorage.removeItem('bocesTechId');
-        updateRoleDisplay();
-    }
     populateManageStudentsModal();
     populateAppointmentsModal();
 }
@@ -407,7 +390,7 @@ async function removeStudent(techId) {
 function openTechTicketModal() {
     ticketDropOffId = null;
     document.getElementById('techTicketFrom').hidden = true;
-    if (!currentTechId) { openTechPicker(); return; }
+    if (!currentTechId) { alert('Sign in with your own login to make a ticket.'); return; }
     // The customer watches this screen: nothing else open behind the form.
     document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
     const password = document.getElementById('techApptPassword');
@@ -2556,11 +2539,9 @@ function stillHere() {
     closeModal('stillThereModal');
 }
 
-// The role badge leads back to the staff tools from the public page;
-// on the staff page a tech uses it to switch students.
+// The role badge leads back to the staff tools from the public page.
 function onRoleIndicatorClick() {
     if (!STAFF_PAGE) location.href = 'staff.html';
-    else if (currentRole === 'tech') openTechPicker();
 }
 
 // ============================================================
@@ -2586,13 +2567,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { data: role } = await db.rpc('current_staff_role');
         if (role) {
             currentRole = role;
-            if (role === 'tech') currentSession = (await db.rpc('current_staff_group')).data;
-            const savedTechId = sessionStorage.getItem('bocesTechId');
-            if (savedTechId) currentTechId = parseInt(savedTechId);
+            if (role === 'tech') {
+                currentSession = (await db.rpc('current_staff_group')).data;
+                currentTechId = (await db.rpc('current_tech_id')).data;
+            }
         } else {
             staffToken = null;
             sessionStorage.removeItem('bocesStaffToken');
-            sessionStorage.removeItem('bocesTechId');
         }
     }
 
@@ -2611,5 +2592,4 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (STAFF_PAGE && !currentRole) openModal('loginModal');
     await loadData();
-    if (STAFF_PAGE && currentRole === 'tech' && !currentTechId) openTechPicker();
 });

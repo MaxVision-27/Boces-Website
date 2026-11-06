@@ -981,33 +981,6 @@ body {
     color: white;
 }
 
-/* =========================================================
-   TECH ROSTER / IDENTITY PICKER
-   ========================================================= */
-
-.tech-pick-btn {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: .7rem 1rem;
-    margin-bottom: .5rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-alt);
-    color: var(--ink);
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all .2s ease;
-}
-
-.tech-pick-btn:hover {
-    border-color: var(--cyan-500);
-    background: var(--surface);
-    box-shadow: var(--shadow-sm);
-    transform: translateX(3px);
-}
-
 .ticket-note-field {
     width: 100%;
     padding: .5rem;

@@ -2,14 +2,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=45">
+    <link rel="stylesheet" href="css/styles.css?v=46">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=52" defer></script>
+    <script src="js/main.js?v=53" defer></script>
     <script src="js/forum.js?v=4" defer></script>
-    <script src="js/guide.js?v=20" defer></script>
+    <script src="js/guide.js?v=22" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
@@ -139,23 +139,21 @@
         <h2>Staff Login</h2>
         <div class="form-group">
             <label for="loginRole">Role</label>
-            <select id="loginRole" onchange="showLoginButtons()">
+            <select id="loginRole" onchange="showLoginFields()">
+                <option value="tech">Student</option>
                 <option value="admin">Admin (Teacher)</option>
-                <option value="tech">Tech (Student)</option>
             </select>
         </div>
-        <div class="form-group" id="loginClassPicker" style="display: none;">
-            <label>Your class</label>
-            <div class="class-toggle" role="group" aria-label="Your class">
-                <button type="button" class="class-option" aria-pressed="false" data-class="am" onclick="pickLoginClass(this)">AM</button>
-                <button type="button" class="class-option" aria-pressed="false" data-class="pm" onclick="pickLoginClass(this)">PM</button>
-            </div>
+        <div class="form-group" id="loginEmailGroup">
+            <label for="loginEmail">School email</label>
+            <input type="email" id="loginEmail" placeholder="you@nasboces.org" autocomplete="username" onkeydown="if(event.key==='Enter'){login();}">
         </div>
         <div class="form-group">
-            <label for="loginPassword" id="loginPasswordLabel">Password</label>
-            <input type="password" id="loginPassword" placeholder="Enter password" onkeydown="if(event.key==='Enter'){login();}">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter'){login();}">
         </div>
         <button class="btn btn-primary" onclick="login()">Login</button>
+        <p class="ws-hint" id="loginForgot" style="margin-top: .75rem;">Forgot your password? Ask your teacher to reset it.</p>
     </div>
 </div>
 
@@ -274,17 +272,6 @@
         <h2 id="stillThereTitle">Still there?</h2>
         <p id="stillThereText" style="color: var(--ink-soft); margin-bottom: 1.25rem;">You've been away for 15 minutes. To keep your tickets safe, we'll sign you out in <strong id="stillThereCount">30</strong> seconds.</p>
         <button type="button" class="btn btn-primary" style="width: 100%;" onclick="stillHere()">I'm still here</button>
-    </div>
-</div>
-
-<!-- Tech Identity Picker (shown after Tech login) -->
-<div class="modal" id="techPickerModal" role="dialog" aria-modal="true">
-    <div class="modal-content">
-        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('techPickerModal')">×</button>
-        <h2>Who are you?</h2>
-        <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">Select your name so your tickets and repairs are tracked under you.</p>
-        <div id="techPickerContainer"></div>
-        <button class="btn btn-danger" style="width:100%; margin-top:1.5rem;" onclick="closeModal('techPickerModal'); logout();">Log Out</button>
     </div>
 </div>
 
