@@ -230,15 +230,20 @@ function populateManageStudentsModal() {
 
     container.innerHTML = `
         <div class="form-group" style="border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; margin-bottom: 1.25rem;">
-            <label for="newStudentName">Add Student</label>
-            <div style="display:flex; gap:8px;">
-                <input type="text" id="newStudentName" placeholder="Example: Alex Kim" style="flex:1;" onkeydown="if(event.key==='Enter'){addStudent();}">
-                <select id="newStudentSession" aria-label="Class" style="width:auto;">
-                    <option value="AM">AM class</option>
-                    <option value="PM">PM class</option>
-                </select>
-                <button class="btn btn-primary" onclick="addStudent()">Add</button>
+            <h3 style="margin-bottom:.5rem;">Add a student account</h3>
+            <div class="ws-fields">
+                <label>Name <input type="text" id="newStudentName" placeholder="Example: Alex K." autocomplete="off"></label>
+                <label>Class
+                    <select id="newStudentSession">
+                        <option value="PM">PM class</option>
+                        <option value="AM">AM class</option>
+                    </select>
+                </label>
+                <label>School email <input type="email" id="newStudentEmail" placeholder="name@nasboces.org" autocomplete="off"></label>
+                <label>Password <input type="text" id="newStudentPassword" placeholder="At least 8 characters" autocomplete="off" onkeydown="if(event.key==='Enter'){addStudent();}"></label>
             </div>
+            <button class="btn btn-primary" onclick="addStudent()">Create Account</button>
+            <p class="ws-hint" style="margin-top:.5rem;">Give the student their email and password. Only you can change the password later (Set login).</p>
         </div>
         ${activeTechs().length === 0 ? '<p style="text-align:center; color: var(--ink-faint);">No students yet.</p>' : `<div class="folder-list">${activeTechs().map(row).join('')}</div>`}`;
 }
@@ -339,19 +344,34 @@ async function renameStudent(techId) {
     populateManageStudentsModal();
 }
 
+// One step: the student and their login (033). The email and password are
+// checked first so a half-made account isn't left behind.
 async function addStudent() {
-    const input = document.getElementById('newStudentName');
-    const name = input.value.trim();
+    const field = id => document.getElementById(id);
+    const name = field('newStudentName').value.trim();
+    const email = field('newStudentEmail').value.trim().toLowerCase();
+    const password = field('newStudentPassword').value;
 
-    if (!name) { alert('Please enter a name'); return; }
+    if (!name) { alert('Enter the student\'s name.'); return; }
+    if (!/^[a-z0-9._%+-]+@nasboces\.org$/.test(email)) { alert('The email must end in @nasboces.org.'); return; }
+    if (techs.some(t => t.email === email)) { alert('Another student already uses that email.'); return; }
+    if (password.length < 8) { alert('The password needs at least 8 characters.'); return; }
 
-    const session = document.getElementById('newStudentSession').value;
-    const { data, error } = await db.from('techs').insert({ name, session }).select().single();
+    const { data, error } = await db.from('techs').insert({ name, session: field('newStudentSession').value }).select().single();
     if (error) { console.error('Error adding student:', error); alert('Failed to add student.'); return; }
-
     techs.push(data);
     techs.sort((a, b) => a.name.localeCompare(b.name));
-    input.value = '';
+
+    const { data: result, error: loginError } = await db.rpc('admin_set_student_login', { p_tech_id: data.id, p_email: email, p_password: password });
+    if (loginError || result !== 'ok') {
+        console.error('Error setting login:', loginError, result);
+        alert(`${name} was added, but the login didn't save. Press Set login on their card to try again.`);
+    } else {
+        data.email = email;
+        ['newStudentName', 'newStudentEmail', 'newStudentPassword'].forEach(id => field(id).value = '');
+        alert(`Account created. ${name} signs in with ${email} and the password you set.`);
+    }
+    await loadStudentLogins();
     populateManageStudentsModal();
 }
 
