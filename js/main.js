@@ -975,6 +975,22 @@ async function permanentlyDeleteAppointment(apptId) {
     populateAppointmentsModal();
 }
 
+// The admin resets the TV board's password here (034), saved the way the
+// TV's sign-in checks it. The TV is signed out and needs the new one.
+async function setTvPassword() {
+    const password = await askText({
+        title: 'TV password', label: 'New TV password',
+        hint: 'At least 8 characters. The TV signs out; sign it back in at btrepairlabs.com/tv.html with this password.',
+        submit: 'Save TV Password'
+    });
+    if (password === null) return;
+
+    const { data: result, error } = await db.rpc('admin_set_tv_password', { p_password: password });
+    const problems = { not_admin: 'Only the admin can change the TV password.', short_password: 'The TV password needs at least 8 characters.' };
+    if (error || result !== 'ok') { console.error('Error setting TV password:', error); alert(problems[result] || "Couldn't save the TV password. Try again."); return; }
+    alert('TV password saved. The TV is signed out: sign it back in with the new password.');
+}
+
 // ============================================================
 // STATS — total repairs is now just a count of completed tickets,
 // with a manual override still available for edge cases.
