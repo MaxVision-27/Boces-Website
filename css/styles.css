@@ -2503,6 +2503,20 @@ summary:focus-visible {
 }
 
 /* Tickets from a drop-off request: served and repaired first */
+.replied-badge {
+    display: inline-block;
+    padding: .1rem .5rem;
+    border-radius: var(--radius-pill);
+    background: #e0f2fe;
+    color: #075985;
+    font-size: .75rem;
+    font-weight: 700;
+}
+
+.reply-wait {
+    color: var(--warn-ink);
+}
+
 .priority-badge {
     display: inline-block;
     padding: .15rem .6rem;

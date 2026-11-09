@@ -69,10 +69,12 @@
         .tv-count { display: block; font-size: 2.6em; font-weight: 600; line-height: 1.05; }
         .tv-label { color: var(--dim); font-size: .8em; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
         .tv-card { flex: none; padding: .55em .8em; background: var(--panel); border-left: 3px solid var(--accent); border-radius: 2px; }
-        .tv-card b { display: flex; align-items: baseline; gap: .45em; font-size: 1.15em; font-weight: 600; }
+        .tv-card b { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2em .45em; font-size: 1.15em; font-weight: 600; }
         .tv-card small { display: block; margin-top: .1em; color: var(--dim); font-size: .9em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .tv-code { color: var(--gold); font-weight: 700; }
         .tv-flag { margin-left: auto; color: var(--amber); font-size: .62em; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+        .tv-flag { white-space: nowrap; }
+        .tv-reply { padding: .15em .5em; border-radius: 3px; background: #f43f5e; color: #fff; }
         .tv-empty, .tv-more { color: var(--faint); font-size: .9em; }
         .tv-waiting { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .5em; padding: 2em 16px; border-top: 1px solid var(--line); text-align: center; }
         .tv-waiting strong { font-size: 3.6em; font-weight: 300; line-height: 1.1; letter-spacing: -.01em; }
@@ -232,7 +234,8 @@ function columnCards(column, board) {
     }
     // Ready for pickup shows the ticket number from the customer's slip, not their name.
     return board.tickets.filter(t => column.statuses.includes(t.status)).map(t => card(
-        t.status === 'completed' && t.id ? `Ticket #${t.id}` : `${esc(t.name)}${t.priority ? '<span class="tv-flag">Priority</span>' : ''}`,
+        t.status === 'completed' && t.id ? `Ticket #${t.id}`
+            : `${esc(t.name)}${t.reply_needed ? '<span class="tv-flag tv-reply">Reply to teacher</span>' : t.priority ? '<span class="tv-flag">Priority</span>' : ''}`,
         [esc(t.device), t.status === 'completed' ? '' : t.techs?.length ? esc(t.techs.join(', ')) : 'Needs a tech']));
 }
 
