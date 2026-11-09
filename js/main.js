@@ -532,6 +532,9 @@ const trackStatusMeta = {
 };
 // Done = checked off. Picked up (031) comes after: the customer took it home.
 const isDone = status => status === 'completed' || status === 'picked_up';
+// After a Send Back (036): the note waits for a student's reply, then shows it.
+const needsReply = appt => !isDone(appt.status) && !!appt.review_note && !appt.review_reply;
+const techReplied = appt => !isDone(appt.status) && !!appt.review_note && !!appt.review_reply;
 
 async function trackRepair() {
     const input = document.getElementById('trackCodeInput');
@@ -911,11 +914,30 @@ async function saveTicketParts(apptId, btn) {
 // Students send a finished repair to the admin; only the admin completes
 // it (enforced in the database, 014_admin_checkoff.sql).
 async function requestCheckoff(apptId) {
-    if (!await saveTicket(apptId, { status: 'review', review_note: null }, 'Ready for Check-Off')) return;
+    // A sent-back ticket needs the students' reply first; the note and reply stay for the admin.
+    if (needsReply(appointments.find(a => a.id === apptId)) && !await replyToNote(apptId)) return;
+    if (!await saveTicket(apptId, { status: 'review' }, 'Ready for Check-Off')) return;
 
-    Object.assign(appointments.find(a => a.id === apptId), { status: 'review', review_note: null });
+    appointments.find(a => a.id === apptId).status = 'review';
     populateAppointmentsModal();
     renderTicketWorkspace();
+}
+
+// A student answers the admin's Send Back note. Returns true once saved.
+async function replyToNote(apptId) {
+    const appt = appointments.find(a => a.id === apptId);
+    const reply = (await askText({
+        title: 'Reply to the admin', label: 'What did you do about the note?', value: appt.review_reply || '',
+        hint: `The admin's note: ${appt.review_note}`, placeholder: 'Example: Replaced the display cable. The flicker is gone at every angle.',
+        multiline: true, submit: 'Send Reply'
+    }))?.trim();
+    if (!reply) return false;
+    const update = { review_reply: reply, review_replied_at: new Date().toISOString() };
+    if (!await saveTicket(apptId, update, 'your reply')) return false;
+    Object.assign(appt, update);
+    populateAppointmentsModal();
+    renderTicketWorkspace();
+    return true;
 }
 
 async function sendBack(apptId) {
@@ -925,7 +947,7 @@ async function sendBack(apptId) {
     });
     if (note === null) return;
 
-    const update = { status: 'in_progress', review_note: note.trim() || null };
+    const update = { status: 'in_progress', review_note: note.trim() || null, review_reply: null, review_replied_at: null };
     if (!await saveTicket(apptId, update, 'Send Back')) return;
 
     Object.assign(appointments.find(a => a.id === apptId), update);
@@ -934,10 +956,10 @@ async function sendBack(apptId) {
 }
 
 async function markCompleted(apptId) {
-    if (!await saveTicket(apptId, { status: 'completed', review_note: null }, 'the check-off')) return;
+    if (!await saveTicket(apptId, { status: 'completed', review_note: null, review_reply: null, review_replied_at: null }, 'the check-off')) return;
 
     const appt = appointments.find(a => a.id === apptId);
-    Object.assign(appt, { status: 'completed', review_note: null });
+    Object.assign(appt, { status: 'completed', review_note: null, review_reply: null, review_replied_at: null });
 
     await syncStats();
     populateAppointmentsModal();
@@ -1552,15 +1574,16 @@ function populateAppointmentsModal() {
         const duplicate = appt.email && counts[appt.email.toLowerCase()] > 1;
         return `
         <button type="button" class="folder-card" onclick="openTicketWorkspace(${appt.id})">
-            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}${duplicate ? ' <span class="dup-badge">duplicate</span>' : ''}</strong> <span>${priorityBadge(appt)}${statusBadge(appt.status)}</span></span>
+            <span class="folder-top"><strong>Ticket #${appt.id} · ${escapeHtml(appt.name)}${duplicate ? ' <span class="dup-badge">duplicate</span>' : ''}</strong> <span>${priorityBadge(appt)}${techReplied(appt) ? '<span class="replied-badge">Tech replied</span> ' : ''}${statusBadge(appt.status)}</span></span>
             <span class="folder-issue">${escapeHtml(appt.make_model || appt.device)}: ${escapeHtml(appt.issue)}</span>
             <span class="folder-meta">${names.length ? escapeHtml(names.join(', ')) : 'No students yet'} <strong>Open →</strong></span>
         </button>`;
     };
 
-    const groups = [['review', 'Needs your check-off'], ['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['waiting_part', 'Waiting for part'], ['completed', 'Ready for pickup'], ['picked_up', 'Picked up']];
+    // Sent back and not answered yet sits on top, out of its status group.
+    const groups = [[needsReply, 'Waiting for tech response'], ['review', 'Needs your check-off'], ['pending', 'In the Pool: needs students'], ['assigned', 'Assigned'], ['in_progress', 'In Progress'], ['waiting_part', 'Waiting for part'], ['completed', 'Ready for pickup'], ['picked_up', 'Picked up']];
     for (const [status, label] of groups) {
-        const tickets = filtered.filter(a => a.status === status);
+        const tickets = filtered.filter(a => typeof status === 'function' ? status(a) : a.status === status && !needsReply(a));
         if (tickets.length) html += `<h3 class="list-heading">${label} (${tickets.length})</h3><div class="folder-list">${tickets.map(folder).join('')}</div>`;
     }
     container.innerHTML = html;
@@ -1648,17 +1671,21 @@ function renderGreeting() {
     let status;
     if (currentRole === 'tech') {
         const open = appointments.filter(a => !isDone(a.status) && (a.assigned_tech_ids || []).includes(currentTechId));
-        const sentBack = open.filter(a => a.status === 'in_progress' && a.review_note).length;
+        const sentBack = open.filter(needsReply).length;
         const onParts = open.filter(a => a.status === 'waiting_part').length;
         status = (!open.length ? 'No open tickets right now.'
-            : `You have ${plural(open.length, 'open ticket')}.` + (sentBack ? ` ${sentBack} came back from the admin with a note.` : '')
+            : `You have ${plural(open.length, 'open ticket')}.` + (sentBack ? ` ${sentBack} came back from the admin with a note to reply to.` : '')
               + (onParts ? ` ${onParts} ${onParts === 1 ? 'is' : 'are'} waiting for a part.` : '')) + expectedNote();
     } else {
         const waiting = appointments.filter(a => a.status === 'review').length;
         const needStudents = appointments.filter(a => a.status === 'pending').length;
         const onParts = appointments.filter(a => a.status === 'waiting_part').length;
+        const noReply = appointments.filter(needsReply).length;
+        const replied = appointments.filter(techReplied).length;
         status = [
             waiting && `${plural(waiting, 'repair')} ${waiting === 1 ? 'is' : 'are'} waiting for your check-off.`,
+            noReply && `${plural(noReply, 'ticket')} ${noReply === 1 ? 'is' : 'are'} waiting for a tech's reply.`,
+            replied && `${plural(replied, 'tech reply')} came back.`,
             needStudents && `${plural(needStudents, 'new ticket')} ${needStudents === 1 ? 'needs' : 'need'} students.`,
             onParts && `${plural(onParts, 'ticket')} ${onParts === 1 ? 'is' : 'are'} waiting for ${onParts === 1 ? 'a part' : 'parts'}.`
         ].filter(Boolean).concat(expectedNote().trim() || []).join(' ') || 'Nothing is waiting for you right now.';
@@ -1721,7 +1748,11 @@ function renderTicketWorkspace() {
     const duplicate = appt.email && emailCounts()[appt.email.toLowerCase()] > 1;
 
     const complete = `<button class="btn btn-approve" onclick="markCompleted(${appt.id})">Approve &amp; Complete</button>`;
-    const sentBack = appt.review_note ? `<span style="flex-basis:100%;"><strong>↩ Sent back by the admin:</strong> ${escapeHtml(appt.review_note)}</span>` : '';
+    const sentBack = !appt.review_note ? '' : `<span style="flex-basis:100%;"><strong>↩ Sent back by the admin:</strong> ${escapeHtml(appt.review_note)}</span>`
+        + (appt.review_reply
+            ? `<span style="flex-basis:100%;"><strong>${isAdmin ? 'Reply from the students' : 'Your reply'}:</strong> ${escapeHtml(appt.review_reply)}${isAdmin ? '' : ` <button class="btn btn-outline btn-chip" onclick="replyToNote(${appt.id})">Edit</button>`}</span>`
+            : isAdmin ? '<span style="flex-basis:100%;"><strong class="reply-wait">Waiting for tech response.</strong></span>'
+            : `<span style="flex-basis:100%;"><strong class="reply-wait">Reply to the admin before you send it for check-off.</strong> <button class="btn btn-review btn-chip" onclick="replyToNote(${appt.id})">Reply</button></span>`);
     const needPart = `<button class="btn btn-warn" onclick="waitForPart(${appt.id})">Waiting for part</button>`;
     const nextStep = {
         pending: '<span>Nobody is on this ticket yet. Pick students below to get it started.</span>',
@@ -1734,7 +1765,7 @@ function renderTicketWorkspace() {
         waiting_part: `<span>Waiting for the customer's part: <strong>${escapeHtml(appt.parts_used || 'not written down')}</strong>. When they bring it in, press Part arrived and keep repairing.</span>
                    <button class="btn btn-start" onclick="startProgress(${appt.id})">▶ Part arrived, keep repairing</button>`,
         review: isAdmin
-            ? `<span>The students say this repair is done. Check the device, then approve it or send it back with what's left to do.</span>
+            ? `${sentBack}<span>The students say this repair is done. Check the device, then approve it or send it back with what's left to do.</span>
                <span class="ws-actions">${complete}<button class="btn btn-warn" onclick="sendBack(${appt.id})">↩ Send Back</button></span>`
             : '<span>Waiting for the admin to check it off. If they send it back, their note will show here.</span>',
         completed: isAdmin
