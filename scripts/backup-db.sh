@@ -21,6 +21,10 @@ trap 'rm -f "$plain"' EXIT
 docker run --rm --network host -e DB_URL postgres:17 \
     sh -c 'pg_dump "$DB_URL" --schema=public --no-owner' > "$plain"
 
+# The dump creates the public schema, but every new database already has
+# one, so a restore would stop right there. Make it create-if-missing.
+sed -i 's/^CREATE SCHEMA public;$/CREATE SCHEMA IF NOT EXISTS public;/' "$plain"
+
 for table in $expect_tables; do
     if ! grep -q "^CREATE TABLE public\.$table " "$plain" || ! grep -q "^COPY public\.$table " "$plain"; then
         echo "Backup check failed: table '$table' is missing from the dump." >&2
