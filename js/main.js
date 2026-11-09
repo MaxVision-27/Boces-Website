@@ -13,6 +13,7 @@ let realDb = null; // set when the Workflow Guide swaps db for its practice fake
 // ============================================================
 let currentRole = null;
 let totalRepairs = 0;
+let paperRepairs = null; // repairs done on paper tickets before the site (035)
 let appointments = [];
 let techs = [];
 let currentTechId = null;
@@ -54,10 +55,12 @@ async function loadDeletedAppointments() {
 }
 
 async function loadStats() {
-    const { data, error } = await db.from('stats').select('total_repairs').single();
+    const { data, error } = await db.from('stats').select('total_repairs, paper_repairs').single();
     if (error) { console.error('Error loading stats:', error); return; }
     if (data) {
         totalRepairs = data.total_repairs;
+        paperRepairs = data.paper_repairs ?? 0;
+        calculateTotalRepairs(); // staff recount from the tickets, now that the paper number is in
         const el = document.getElementById('totalRepairs');
         if (el) el.textContent = totalRepairs;
         // "0 repairs and counting" reads as a warning, so the line waits for the first one.
@@ -1023,25 +1026,29 @@ async function syncStats() {
 function calculateTotalRepairs() {
     // The public can't read tickets, so for them the count on the page
     // comes from the stats row (loadStats) rather than being recounted.
-    if (!currentRole || !STAFF_PAGE) return;
-    totalRepairs = appointments.filter(a => isDone(a.status)).length;
+    // Staff count the paper repairs plus the ones completed on the site.
+    if (!currentRole || !STAFF_PAGE || paperRepairs === null) return;
+    totalRepairs = paperRepairs + appointments.filter(a => isDone(a.status)).length;
     const el = document.getElementById('totalRepairs');
     if (el) el.textContent = totalRepairs;
 }
 
 function populateStatsModal() {
-    const calculatedTotal = appointments.filter(a => isDone(a.status)).length;
-    const input = document.getElementById('totalRepairsInput');
-    input.value = totalRepairs;
-    input.placeholder = `Auto-calculated: ${calculatedTotal}`;
+    const onSite = appointments.filter(a => isDone(a.status)).length;
+    document.getElementById('totalRepairsInput').value = paperRepairs ?? 0;
+    document.getElementById('statsOnSite').textContent = onSite;
 }
 
+// The admin sets how many repairs were done on paper; the site adds its own.
 async function updateStats() {
-    const manualTotal = parseInt(document.getElementById('totalRepairsInput').value);
-    const calculatedTotal = appointments.filter(a => isDone(a.status)).length;
-    totalRepairs = (!isNaN(manualTotal) && manualTotal !== calculatedTotal) ? manualTotal : calculatedTotal;
+    const paper = parseInt(document.getElementById('totalRepairsInput').value);
+    if (isNaN(paper) || paper < 0) { alert('Enter how many repairs were done on paper (0 or more).'); return; }
+    const total = paper + appointments.filter(a => isDone(a.status)).length;
 
-    await db.from('stats').update({ total_repairs: totalRepairs }).eq('id', 1);
+    const { error } = await db.from('stats').update({ paper_repairs: paper, total_repairs: total }).eq('id', 1);
+    if (error) { console.error('Error updating stats:', error); alert("Couldn't save. Try again."); return; }
+    paperRepairs = paper;
+    totalRepairs = total;
 
     closeModal('updateStatsModal');
     alert('Statistics updated!');
