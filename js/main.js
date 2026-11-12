@@ -1740,10 +1740,10 @@ function renderTicketWorkspace() {
     const isAdmin = currentRole === 'admin';
     const techName = id => techs.find(t => t.id === id)?.name || 'Unknown';
     const team = (appt.assigned_tech_ids || []).map(techName);
-    // The admin picks from every student, a PM tech from the PM class; both
+    // The admin picks from every student (either class), a tech from their own class; both
     // also see whoever is on it now (so they can be taken off, and saving
     // doesn't drop a removed student from a finished ticket).
-    const canPickStudents = isAdmin || currentSession === 'PM';
+    const canPickStudents = isAdmin || !!currentSession;
     const logTimes = defaultLogTimes();
     const pickable = techs.filter(t => (isAdmin ? !t.removed_at : classRoster().includes(t)) || (appt.assigned_tech_ids || []).includes(t.id));
     const duplicate = appt.email && emailCounts()[appt.email.toLowerCase()] > 1;
@@ -1816,8 +1816,8 @@ function renderTicketWorkspace() {
 
         ${canPickStudents && !isDone(appt.status) ? section('Students on this ticket', `
             <p class="ws-hint">${isAdmin
-                ? 'Tick everyone working on it. If you hand it to new students, change it here.'
-                : 'Tick the PM students working on it. Untick anyone who is done with it, even whoever started it. Their logged hours stay on the ticket.'}</p>
+                ? 'Tick everyone working on it, from either class (AM or PM). If you hand it to new students, change it here.'
+                : `Tick the ${currentSession} students working on it. Untick anyone who is done with it, even whoever started it. Their logged hours stay on the ticket.`}</p>
             <div class="ws-actions" style="margin-bottom:1rem;">
                 ${pickable.length ? pickable.map(t => `
                     <label class="pick-chip"><input type="checkbox" class="assign-tech-${appt.id}" value="${t.id}" ${(appt.assigned_tech_ids || []).includes(t.id) ? 'checked' : ''}> ${escapeHtml(t.name)}</label>`).join('')
