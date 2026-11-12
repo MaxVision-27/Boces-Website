@@ -560,7 +560,6 @@ async function submitTechTicket() {
     document.getElementById('createdTrackingCode').textContent = data.tracking_code;
     document.getElementById('printHelpDeskBtn').dataset.ticket = data.id;
     document.getElementById('printSlipBtn').dataset.ticket = data.id;
-    document.getElementById('emailCodeBtn').dataset.ticket = data.id;
     openModal('ticketCreatedModal');
 }
 
@@ -1931,8 +1930,7 @@ function renderTicketWorkspace() {
         ${section('Ticket details', `
             <dl class="ws-facts">
                 ${appt.tracking_code ? `<div><dt>Tracking code</dt><dd><strong>${appt.tracking_code}</strong>
-                    <button class="btn btn-outline btn-chip" onclick="copyText('${appt.tracking_code}', this)">Copy</button>
-                    <button class="btn btn-outline btn-chip" onclick="emailTrackingCode(${appt.id})">Email</button></dd></div>` : ''}
+                    <button class="btn btn-outline btn-chip" onclick="copyText('${appt.tracking_code}', this)">Copy</button></dd></div>` : ''}
                 <div><dt>Owner</dt><dd>${OWNER_LABELS[appt.device_owner] || 'Not recorded'}</dd></div>
                 ${appt.serial_tag ? `<div><dt>Serial tag</dt><dd>${escapeHtml(appt.serial_tag)}</dd></div>` : ''}
                 ${appt.computer_password ? `<div><dt>Computer password</dt><dd>${escapeHtml(appt.computer_password)}</dd></div>` : ''}
@@ -2273,31 +2271,6 @@ function previewInvoice(apptId) {
 // paper is how most customers will check on a repair.
 // ============================================================
 const trackLink = code => `https://btrepairlabs.com/?code=${encodeURIComponent(code)}`;
-
-// Email the tracking code from the staff member's own email app (a mailto:
-// link): no server, no key in this public repo, and it comes from a real
-// school address. The code is all it takes to see a repair, so the
-// address is confirmed first.
-async function emailTrackingCode(apptId) {
-    const appt = appointments.find(a => a.id === apptId);
-    const to = (await askText({
-        title: 'Email the tracking code', label: "Customer's email", value: appt.email || '',
-        placeholder: 'name@nasboces.org', hint: 'Check it with the customer: anyone with the code can see this repair. Your email app opens with the message ready to send.',
-        submit: 'Open Email'
-    }))?.trim();
-    if (!to) return;
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) { alert("That doesn't look like an email address."); return; }
-    const subject = `Your BarryTech repair: tracking code ${appt.tracking_code}`;
-    const body = [
-        `Hi ${appt.name},`, '',
-        `We have your ${[appt.make_model, appt.device].filter(Boolean).join(' ')} (ticket #${appt.id}).`,
-        `Your tracking code is ${appt.tracking_code}. See where your repair is any time:`,
-        trackLink(appt.tracking_code), '',
-        "Pick it up in Room C220 (center wing, next to Joe's Store) during class: 7:45-10:20 AM or 11:45 AM-2:20 PM.", '',
-        'BarryTech Repair Lab'
-    ].join('\n');
-    location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
 
 function previewCustomerSlip(apptId) {
     const appt = appointments.find(a => a.id === apptId);
