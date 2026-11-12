@@ -1,0 +1,82 @@
+# Proves scripts/backup-db.sh works end to end against a throwaway
+# Postgres 17 (no real data or secrets): the backup is encrypted, only
+# opens with the passphrase, and restores into an empty database.
+
+name: Database backup self-test
+
+on:
+  pull_request:
+    paths:
+      - scripts/backup-db.sh
+      - .github/workflows/db-backup*.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: throwaway
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DB_URL: postgresql://postgres:throwaway@localhost:5432/postgres
+      RESTORE_URL: postgresql://postgres:throwaway@localhost:5432/restore_check
+      BACKUP_PASSPHRASE: throwaway-test-passphrase
+      EXPECT_TABLES: repair_requests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Seed a throwaway ticket table
+        run: |
+          docker run --rm -i --network host -e DB_URL postgres:17 sh -c 'psql "$DB_URL" -v ON_ERROR_STOP=1' <<'SQL'
+          create table repair_requests (id int primary key, notes text);
+          insert into repair_requests values (1, 'canary-note-7731'), (2, null);
+          SQL
+
+      - name: Run the backup script
+        run: bash scripts/backup-db.sh out
+
+      - name: Backup is encrypted and only opens with the passphrase
+        run: |
+          file=$(ls out/*.sql.gpg)
+          if grep -q canary-note-7731 "$file"; then
+            echo "Ticket text is readable in the backup file - it is not encrypted"; exit 1
+          fi
+          if gpg --batch --no-symkey-cache --pinentry-mode loopback --passphrase-fd 0 \
+               --decrypt "$file" <<< "wrong-passphrase" > /dev/null 2>&1; then
+            echo "Backup opened with the wrong passphrase"; exit 1
+          fi
+          gpg --batch --no-symkey-cache --pinentry-mode loopback --passphrase-fd 0 \
+            --decrypt "$file" <<< "$BACKUP_PASSPHRASE" > restored.sql
+          grep -q canary-note-7731 restored.sql
+
+      - name: Backup restores into an empty database
+        run: |
+          docker run --rm --network host -e DB_URL postgres:17 \
+            sh -c 'psql "$DB_URL" -v ON_ERROR_STOP=1 -c "create database restore_check"'
+          docker run --rm -i --network host -e RESTORE_URL postgres:17 \
+            sh -c 'psql "$RESTORE_URL" -v ON_ERROR_STOP=1 -q' < restored.sql
+          rows=$(docker run --rm --network host -e RESTORE_URL postgres:17 \
+            sh -c 'psql "$RESTORE_URL" -At -c "select count(*) from repair_requests where notes = '"'"'canary-note-7731'"'"'"')
+          test "$rows" = 1
+
+      - name: Refuses to run without a passphrase
+        run: |
+          if BACKUP_PASSPHRASE= bash scripts/backup-db.sh out-nopass; then
+            echo "Script ran without a passphrase"; exit 1
+          fi
+          if ls out-nopass/* > /dev/null 2>&1; then
+            echo "Script wrote a file without a passphrase"; exit 1
+          fi

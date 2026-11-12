@@ -1,0 +1,48 @@
+# Nightly encrypted backup of the Supabase database (tickets, students,
+# hours, reviews, stats, plus the security policies and functions).
+# Kept as a downloadable artifact for 90 days. This repo is public, so
+# backups are only ever stored encrypted with BACKUP_PASSPHRASE.
+#
+# Before a risky database change: Actions > Database backup > Run workflow.
+#
+# Needs two repository secrets (Settings > Secrets and variables > Actions):
+#   SUPABASE_DB_URL    Supabase dashboard > Connect > "Session pooler"
+#                      connection string, with the database password filled
+#                      in. (GitHub can't reach the "Direct connection".)
+#   BACKUP_PASSPHRASE  A long passphrase. Keep a copy outside GitHub:
+#                      without it the backups can't be opened.
+#
+# To restore: download the artifact from a run, unzip it, then
+#   gpg --decrypt backup-<date>.sql.gpg > backup.sql
+#   psql "<session pooler connection string>" -f backup.sql
+# Restore into a new, empty Supabase project. Restoring over the live
+# database would clash with the tables that are already there.
+
+name: Database backup
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # daily, 3am New York time (2am in winter)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dump, check and encrypt
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: bash scripts/backup-db.sh backup-out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_number }}
+          path: backup-out/*.sql.gpg
+          retention-days: 90
+          if-no-files-found: error
