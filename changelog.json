@@ -1,6 +1,11 @@
 [
   {
     "date": "2026-11-11",
+    "title": "School or personal device",
+    "text": "New Ticket asks whose device it is. School devices (BOCES or district) don't need a computer password, so that box hides. The ticket and the Help Desk Ticket show which it is."
+  },
+  {
+    "date": "2026-11-11",
     "title": "The AM class is ready",
     "text": "AM students can now pick their classmates on a ticket, like the PM class. The teacher can put students from either class on any ticket. A student moved to the other class is signed out and signs back in."
   },

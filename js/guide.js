@@ -181,6 +181,8 @@ function fillNewTicket() {
     };
     Object.entries(example).forEach(([id, value]) => { $g(`#${id}`).value ||= value; });
     $g('#techApptDevice').value = 'Laptop';
+    $g('#techApptOwner').value ||= 'personal';
+    onDeviceOwnerChange();
 }
 
 async function showServiceLogPreview(id) {
@@ -258,7 +260,7 @@ const TECH_STEPS = [
     },
     {
         title: 'Fill in the Help Desk Ticket',
-        text: "The customer's name, a contact number, their class and room, and the computer's make, model, and serial tag (usually on a sticker underneath). Only take the password if you need it to test. It stays hidden while the customer watches. We filled in an example.",
+        text: "The customer's name, a contact number, their class and room, whose device it is (school or personal), and the computer's make, model, and serial tag (usually on a sticker underneath). Only take the password for a personal device, and only if you need it to test. It stays hidden while the customer watches. We filled in an example.",
         setup: fillNewTicket,
         target: () => $g('#techTicketModal .form-row'),
     },
