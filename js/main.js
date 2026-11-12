@@ -2702,6 +2702,7 @@ let updateDays = [];
 let updateDay = 0;
 
 function showUpdateDay(i) {
+    window.getSelection()?.removeAllRanges(); // a double click selects the arrow; clear it
     if (i < 0 || i >= updateDays.length) return;
     updateDay = i;
     const [date, entries] = updateDays[i];
