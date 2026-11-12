@@ -1,6 +1,11 @@
 [
   {
     "date": "2026-11-11",
+    "title": "Updates by day",
+    "text": "The update log shows one day at a time, starting with the newest. Use the arrows to see older days."
+  },
+  {
+    "date": "2026-11-11",
     "title": "Email the tracking code",
     "text": "After New Ticket (or under Ticket details), press Email Code. Check the customer's email with them, then your email app opens with the code and tracker link ready to send."
   },

@@ -2514,21 +2514,55 @@ summary:focus-visible {
     vertical-align: middle;
 }
 
+.update-day-nav {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1rem;
+    padding-bottom: .75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.update-day-nav span {
+    flex: 1;
+    text-align: center;
+    font-weight: 700;
+    color: var(--brand-text);
+}
+
+.update-arrow {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface-alt);
+    color: var(--ink);
+    font-size: 1.4rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.update-arrow:disabled {
+    opacity: .35;
+    cursor: default;
+}
+
 .update-log {
     list-style: none;
     display: grid;
-    gap: 1rem;
+    gap: 1.1rem;
 }
 
-.update-log time {
-    display: block;
-    color: var(--ink-faint);
-    font-size: .8rem;
+.update-log strong {
+    font-size: 1rem;
 }
 
 .update-log p {
-    margin-top: .2rem;
+    margin-top: .25rem;
     color: var(--ink-soft);
+    font-size: .9rem;
+    line-height: 1.55;
+    max-width: 60ch;
 }
 
 .teacher-badge {
