@@ -2526,6 +2526,8 @@ summary:focus-visible {
 .update-log-box .close-btn {
     align-self: flex-end;
     margin-bottom: -2.4rem; /* back on the title's line, as in other popups */
+    position: relative; /* above the title, which otherwise covers it and takes the clicks */
+    z-index: 1;
 }
 
 .update-log-box .update-log {
