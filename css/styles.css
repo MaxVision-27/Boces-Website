@@ -2514,7 +2514,33 @@ summary:focus-visible {
     vertical-align: middle;
 }
 
+/* The box keeps one height whatever the day holds, so the arrows never
+   move between clicks; the day's updates scroll inside it. */
+.update-log-box {
+    max-width: 560px;
+    height: min(640px, 85vh);
+    display: flex;
+    flex-direction: column;
+}
+
+.update-log-box .close-btn {
+    align-self: flex-end;
+    margin-bottom: -2.4rem; /* back on the title's line, as in other popups */
+}
+
+.update-log-box .update-log {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    align-content: start;
+}
+
 .update-day-nav {
+    /* Quick clicks on the arrows shouldn't select (highlight) the arrows
+       or the date, and a fast double tap shouldn't zoom on phones. */
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
     display: flex;
     align-items: center;
     gap: .75rem;
@@ -2540,6 +2566,10 @@ summary:focus-visible {
     font-size: 1.4rem;
     line-height: 1;
     cursor: pointer;
+}
+
+.update-arrow:focus:not(:focus-visible) {
+    outline: none;
 }
 
 .update-arrow:disabled {
