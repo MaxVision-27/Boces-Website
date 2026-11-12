@@ -1,6 +1,11 @@
 [
   {
     "date": "2026-11-11",
+    "title": "Teacher can fix hours",
+    "text": "Forgot to log a day, or logged the wrong time? Your teacher can add or fix the session. Those sessions show \"Edited by teacher\"."
+  },
+  {
+    "date": "2026-11-11",
     "title": "School or personal device",
     "text": "New Ticket asks whose device it is. School devices (BOCES or district) don't need a computer password, so that box hides. The ticket and the Help Desk Ticket show which it is."
   },
