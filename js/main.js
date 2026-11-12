@@ -410,6 +410,15 @@ async function removeStudent(techId) {
 // is required; the creating student is assigned automatically and can
 // pick up teammates (or be reassigned entirely) later from the pool.
 // ============================================================
+// School devices (038) sign in with district accounts: don't take that password.
+function onDeviceOwnerChange() {
+    const school = document.getElementById('techApptOwner').value === 'school';
+    document.getElementById('techApptPasswordGroup').hidden = school;
+    if (school) document.getElementById('techApptPassword').value = '';
+}
+
+const OWNER_LABELS = { school: 'School device', personal: 'Personal device' };
+
 function openTechTicketModal() {
     ticketDropOffId = null;
     document.getElementById('techTicketFrom').hidden = true;
@@ -420,6 +429,7 @@ function openTechTicketModal() {
     if (password.type !== 'password') togglePasswordShown(password.nextElementSibling);
     document.getElementById('techReceiving').textContent = currentTechName;
     document.getElementById('techTicketError').hidden = true;
+    onDeviceOwnerChange();
     const others = classRoster().filter(t => t.id !== currentTechId);
     document.getElementById('techPartnerPicker').innerHTML = others.length ? others.map(t => `
         <label style="display:inline-flex; align-items:center; gap:4px; background: var(--surface); padding:3px 8px; border-radius:10px; border:1px solid #ccc; font-size:0.85rem; font-weight:normal; cursor:pointer;">
@@ -442,7 +452,7 @@ function generateTrackingCode() {
 // (forms/help-desk-template.docx), which prints from these fields.
 const TICKET_FIELDS = {
     name: 'techApptName', contact_number: 'techApptContact', class_name: 'techApptClass', teacher_name: 'techApptTeacher', room_number: 'techApptRoom',
-    device: 'techApptDevice', make_model: 'techApptModel', serial_tag: 'techApptSerial',
+    device: 'techApptDevice', device_owner: 'techApptOwner', make_model: 'techApptModel', serial_tag: 'techApptSerial',
     computer_password: 'techApptPassword', issue: 'techApptIssue', email: 'techApptEmail'
 };
 
@@ -451,7 +461,7 @@ async function submitTechTicket() {
         .map(([col, id]) => [col, document.getElementById(id).value.trim()]));
     ticket.email = ticket.email.toLowerCase();
 
-    const missing = [['name', 'the customer name'], ['contact_number', 'a contact number'], ['make_model', 'the computer make/model'], ['issue', 'the problem description']]
+    const missing = [['name', 'the customer name'], ['contact_number', 'a contact number'], ['device_owner', 'whose device it is'], ['make_model', 'the computer make/model'], ['issue', 'the problem description']]
         .filter(([col]) => !ticket[col]).map(([, label]) => label);
     const errorBox = document.getElementById('techTicketError');
     errorBox.hidden = !missing.length;
@@ -492,6 +502,7 @@ async function submitTechTicket() {
     closeModal('techTicketModal');
 
     Object.values(TICKET_FIELDS).forEach(id => { if (id !== 'techApptDevice') document.getElementById(id).value = ''; });
+    onDeviceOwnerChange();
 
     document.getElementById('createdTrackingCode').textContent = data.tracking_code;
     document.getElementById('printHelpDeskBtn').dataset.ticket = data.id;
@@ -1802,7 +1813,7 @@ function renderTicketWorkspace() {
         <button class="ws-back" onclick="leaveWorkspace()">← ${workspaceFrom.label}</button>
         <div class="ws-header">
             <div>
-                <p class="ws-eyebrow">Ticket #${appt.id} · ${escapeHtml([appt.make_model, appt.device].filter(Boolean).join(' · '))}</p>
+                <p class="ws-eyebrow">Ticket #${appt.id} · ${escapeHtml([appt.make_model, appt.device, OWNER_LABELS[appt.device_owner]].filter(Boolean).join(' · '))}</p>
                 <h2>${escapeHtml(appt.name)}</h2>
             </div>
             <span>${priorityBadge(appt)}${statusBadge(appt.status)}</span>
@@ -1867,6 +1878,7 @@ function renderTicketWorkspace() {
             <dl class="ws-facts">
                 ${appt.tracking_code ? `<div><dt>Tracking code</dt><dd><strong>${appt.tracking_code}</strong>
                     <button class="btn btn-outline btn-chip" onclick="copyText('${appt.tracking_code}', this)">Copy</button></dd></div>` : ''}
+                <div><dt>Owner</dt><dd>${OWNER_LABELS[appt.device_owner] || 'Not recorded'}</dd></div>
                 ${appt.serial_tag ? `<div><dt>Serial tag</dt><dd>${escapeHtml(appt.serial_tag)}</dd></div>` : ''}
                 ${appt.computer_password ? `<div><dt>Computer password</dt><dd>${escapeHtml(appt.computer_password)}</dd></div>` : ''}
                 ${appt.class_name || appt.room_number ? `<div><dt>Class and room</dt><dd>${escapeHtml([appt.class_name, appt.room_number && `Room ${appt.room_number}`].filter(Boolean).join(' · '))}</dd></div>` : ''}
@@ -2382,7 +2394,7 @@ async function previewHelpDesk(apptId) {
         CONTACT: appt.contact_number,
         CLASS: appt.class_name,
         ROOM: appt.room_number,
-        MODEL: [appt.make_model, appt.device && `(${appt.device})`].filter(Boolean).join(' '),
+        MODEL: [appt.make_model, appt.device && `(${[appt.device, OWNER_LABELS[appt.device_owner]].filter(Boolean).join(' · ')})`].filter(Boolean).join(' '),
         SERIAL: appt.serial_tag,
         PASSWORD: appt.computer_password,
         PROBLEM: (appt.issue || '').replace(/\s+/g, ' '),
