@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=63" defer></script>
+    <script src="js/main.js?v=64" defer></script>
     <script src="js/forum.js?v=4" defer></script>
     <script src="js/guide.js?v=23" defer></script>
 
@@ -330,7 +330,6 @@
         <div class="ws-actions" style="justify-content: center;">
             <button class="btn btn-outline" onclick="copyText(document.getElementById('createdTrackingCode').textContent, this)">Copy Code</button>
             <button class="btn btn-outline" id="printSlipBtn" onclick="closeModal('ticketCreatedModal'); previewCustomerSlip(Number(this.dataset.ticket))">Print Customer Slip</button>
-            <button class="btn btn-outline" id="emailCodeBtn" onclick="emailTrackingCode(Number(this.dataset.ticket))">Email Code</button>
             <button class="btn btn-primary" id="printHelpDeskBtn" onclick="closeModal('ticketCreatedModal'); previewHelpDesk(Number(this.dataset.ticket))">Print Help Desk Ticket</button>
         </div>
         <p style="font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.75rem;">Have the customer sign the Help Desk Ticket before they leave the device, and give them the Customer Slip to keep.</p>

@@ -1,6 +1,11 @@
 [
   {
     "date": "2026-11-11",
+    "title": "Email Code is gone for now",
+    "text": "The Email Code button is off while we set up emails that send straight from the site. Give the customer their Customer Slip, or copy the code for them."
+  },
+  {
+    "date": "2026-11-11",
     "title": "Updates by day",
     "text": "The update log shows one day at a time, starting with the newest. Use the arrows to see older days."
   },
