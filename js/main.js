@@ -1481,6 +1481,7 @@ function updateRoleDisplay() {
     document.querySelectorAll('[data-signed-out]').forEach(el => el.hidden = !!currentRole);
     document.querySelectorAll('[data-signed-in]').forEach(el => el.hidden = !currentRole);
     if (STAFF_PAGE) renderDropOffs();
+    if (STAFF_PAGE && currentRole) markNewUpdates();
     if (STAFF_PAGE && currentRole && !document.querySelector('.staff-view[style*="flex"]')) showHomeView();
 
     calculateTotalRepairs();
@@ -2574,6 +2575,44 @@ async function onLookChange() {
     tech.look = look;
     const { error } = await db.from('techs').update({ look }).eq('id', tech.id);
     if (error) console.error('Error saving appearance:', error);
+}
+
+// ============================================================
+// UPDATE LOG — changelog.json in the repo, one plain-English line per
+// change (no security details: the file is public). Entries marked
+// "admin" only show to the admin. A dot on Updates means something new
+// since this browser last opened it.
+// ============================================================
+const UPDATES_SEEN_KEY = 'btUpdatesSeen';
+let updateLog = null;
+
+async function loadUpdateLog() {
+    if (updateLog) return updateLog;
+    try {
+        const res = await fetch('changelog.json', { cache: 'no-cache' });
+        updateLog = res.ok ? await res.json() : [];
+    } catch { updateLog = []; }
+    return updateLog;
+}
+
+const visibleUpdates = log => log.filter(u => !u.admin || currentRole === 'admin');
+
+async function markNewUpdates() {
+    const newest = visibleUpdates(await loadUpdateLog())[0]?.date || '';
+    let seen = '';
+    try { seen = localStorage.getItem(UPDATES_SEEN_KEY) || ''; } catch { /* private mode */ }
+    document.querySelectorAll('.update-dot').forEach(dot => dot.hidden = !newest || newest <= seen);
+}
+
+async function openUpdateLog() {
+    const log = visibleUpdates(await loadUpdateLog());
+    document.getElementById('updateLogList').innerHTML = log.length ? log.map(u => `
+        <li><time>${new Date(u.date + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</time>
+            <strong>${escapeHtml(u.title)}</strong><p>${escapeHtml(u.text)}</p></li>`).join('')
+        : '<li>No updates yet.</li>';
+    openModal('updateLogModal');
+    try { if (log[0]) localStorage.setItem(UPDATES_SEEN_KEY, log[0].date); } catch { /* not kept */ }
+    markNewUpdates();
 }
 
 // ============================================================

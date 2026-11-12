@@ -2503,6 +2503,34 @@ summary:focus-visible {
 }
 
 /* Tickets from a drop-off request: served and repaired first */
+/* Update log (Updates button on the staff page) */
+.update-dot {
+    display: inline-block;
+    width: .5rem;
+    height: .5rem;
+    margin-left: .4rem;
+    border-radius: 50%;
+    background: var(--danger-ink);
+    vertical-align: middle;
+}
+
+.update-log {
+    list-style: none;
+    display: grid;
+    gap: 1rem;
+}
+
+.update-log time {
+    display: block;
+    color: var(--ink-faint);
+    font-size: .8rem;
+}
+
+.update-log p {
+    margin-top: .2rem;
+    color: var(--ink-soft);
+}
+
 .replied-badge {
     display: inline-block;
     padding: .1rem .5rem;

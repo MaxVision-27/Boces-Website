@@ -1,0 +1,14 @@
+[
+  { "date": "2026-11-11", "title": "Update log", "text": "This list. Every change to the site gets a line here, newest first. A dot on the Updates button means there's something you haven't seen." },
+  { "date": "2026-11-11", "title": "Nightly backups", "text": "The site's data is copied every night, so nothing is lost if something goes wrong.", "admin": true },
+  { "date": "2026-11-09", "title": "Reply to the teacher", "text": "When the teacher sends a ticket back with a note, write a reply before you send it for check-off. The TV shows a red \"Reply to teacher\" tag on that ticket until someone replies." },
+  { "date": "2026-11-09", "title": "Ticket numbers start at #38", "text": "The 37 repairs done on paper count toward Devices repaired, and new tickets continue the numbering at #38." },
+  { "date": "2026-11-06", "title": "Your own login", "text": "Sign in with your school email and the password your teacher gave you. Forgot it? Ask your teacher to reset it." },
+  { "date": "2026-11-06", "title": "Edit your notes", "text": "Work sessions can't be deleted any more. Press Edit note on your own session to fix what you wrote. Sessions can overlap, and none can go past 2:15 PM." },
+  { "date": "2026-11-06", "title": "TV password from the site", "text": "Admin Panel → TV Password changes the classroom TV's password. The TV then needs to be signed in again.", "admin": true },
+  { "date": "2026-11-04", "title": "Picked Up and shelf spots", "text": "Finished repairs show as Ready for Pickup until the teacher marks them Picked Up. Write where a device is kept (shelf or bin) on its ticket." },
+  { "date": "2026-11-04", "title": "Customer Slip", "text": "Print a Customer Slip after New Ticket. Its QR code opens the customer's repair tracker." },
+  { "date": "2026-11-04", "title": "Logging time", "text": "Log today's work during class. Start and end times fill in for you." },
+  { "date": "2026-10-28", "title": "Teacher on tickets", "text": "New Ticket has a box for the customer's teacher. It shows on the ticket and the invoice." },
+  { "date": "2026-10-26", "title": "Invoice", "text": "Each ticket has an Invoice section: add the tasks and parts, then print it under Paperwork. It replaced the Hours sheets." }
+]
