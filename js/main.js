@@ -2696,14 +2696,35 @@ async function markNewUpdates() {
     document.querySelectorAll('.update-dot').forEach(dot => dot.hidden = !newest || newest <= seen);
 }
 
+// One day at a time, newest first: it opens on the latest day that had
+// updates (days with none are skipped), and the arrows step through.
+let updateDays = [];
+let updateDay = 0;
+
+function showUpdateDay(i) {
+    if (i < 0 || i >= updateDays.length) return;
+    updateDay = i;
+    const [date, entries] = updateDays[i];
+    document.getElementById('updateDayLabel').textContent =
+        new Date(date + 'T00:00:00').toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    document.getElementById('updateOlder').disabled = i === updateDays.length - 1;
+    document.getElementById('updateNewer').disabled = i === 0;
+    document.getElementById('updateLogList').innerHTML = entries.map(u =>
+        `<li><strong>${escapeHtml(u.title)}</strong><p>${escapeHtml(u.text)}</p></li>`).join('');
+}
+
 async function openUpdateLog() {
     const log = visibleUpdates(await loadUpdateLog());
-    document.getElementById('updateLogList').innerHTML = log.length ? log.map(u => `
-        <li><time>${new Date(u.date + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</time>
-            <strong>${escapeHtml(u.title)}</strong><p>${escapeHtml(u.text)}</p></li>`).join('')
-        : '<li>No updates yet.</li>';
+    const byDay = new Map();
+    log.forEach(u => byDay.set(u.date, [...(byDay.get(u.date) || []), u]));
+    updateDays = [...byDay].sort(([a], [b]) => b.localeCompare(a));
+    if (updateDays.length) showUpdateDay(0);
+    else {
+        document.getElementById('updateDayLabel').textContent = '';
+        document.getElementById('updateLogList').innerHTML = '<li>No updates yet.</li>';
+    }
     openModal('updateLogModal');
-    try { if (log[0]) localStorage.setItem(UPDATES_SEEN_KEY, log[0].date); } catch { /* not kept */ }
+    try { if (log[0]) localStorage.setItem(UPDATES_SEEN_KEY, updateDays[0][0]); } catch { /* not kept */ }
     markNewUpdates();
 }
 

@@ -2,12 +2,12 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=49">
+    <link rel="stylesheet" href="css/styles.css?v=50">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=61" defer></script>
+    <script src="js/main.js?v=62" defer></script>
     <script src="js/forum.js?v=4" defer></script>
     <script src="js/guide.js?v=23" defer></script>
 
@@ -288,6 +288,11 @@
     <div class="modal-content" style="max-width: 560px;">
         <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('updateLogModal')">×</button>
         <h2 id="updateLogTitle">What's new</h2>
+        <div class="update-day-nav">
+            <button type="button" class="update-arrow" id="updateOlder" aria-label="Older updates" onclick="showUpdateDay(updateDay + 1)">‹</button>
+            <span id="updateDayLabel" aria-live="polite"></span>
+            <button type="button" class="update-arrow" id="updateNewer" aria-label="Newer updates" onclick="showUpdateDay(updateDay - 1)">›</button>
+        </div>
         <ol class="update-log" id="updateLogList"></ol>
     </div>
 </div>
