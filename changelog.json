@@ -1,6 +1,11 @@
 [
   {
     "date": "2026-11-11",
+    "title": "Email the tracking code",
+    "text": "After New Ticket (or under Ticket details), press Email Code. Check the customer's email with them, then your email app opens with the code and tracker link ready to send."
+  },
+  {
+    "date": "2026-11-11",
     "title": "Teacher can fix hours",
     "text": "Forgot to log a day, or logged the wrong time? Your teacher can add or fix the session. Those sessions show \"Edited by teacher\"."
   },
