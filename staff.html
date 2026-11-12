@@ -2,12 +2,12 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=48">
+    <link rel="stylesheet" href="css/styles.css?v=49">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=59" defer></script>
+    <script src="js/main.js?v=60" defer></script>
     <script src="js/forum.js?v=4" defer></script>
     <script src="js/guide.js?v=23" defer></script>
 
@@ -256,6 +256,33 @@
 </div>
 
 <!-- Appearance: light/dark, color theme and background (js/main.js) -->
+<!-- Admin: add or fix a student's hours (openHoursForm in main.js, 039) -->
+<div class="modal" id="hoursModal" role="dialog" aria-modal="true" aria-labelledby="hoursTitle">
+    <div class="modal-content" style="max-width: 520px;">
+        <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('hoursModal')">×</button>
+        <h2 id="hoursTitle">Add hours</h2>
+        <p class="ws-hint" id="hoursFor"></p>
+        <div class="form-group">
+            <label for="hoursTicket">Ticket</label>
+            <select id="hoursTicket"></select>
+        </div>
+        <div class="ws-fields">
+            <label>Date <input type="date" id="hoursDate"></label>
+            <label>Start time <select id="hoursStart"></select></label>
+            <label>End time <select id="hoursEnd"></select></label>
+        </div>
+        <div class="form-group">
+            <label for="hoursNote">What they did</label>
+            <textarea id="hoursNote" rows="3" placeholder="Example: Missed logging on 11/5: replaced the screen."></textarea>
+        </div>
+        <p class="ws-hint">The student sees "Edited by teacher" on this session.</p>
+        <div class="ws-actions">
+            <button class="btn btn-primary" onclick="saveHoursForm()">Save Hours</button>
+            <button class="btn btn-danger" id="hoursDelete" onclick="deleteHours()">Delete Session</button>
+        </div>
+    </div>
+</div>
+
 <!-- Update log: changelog.json, newest first (openUpdateLog in main.js) -->
 <div class="modal" id="updateLogModal" role="dialog" aria-modal="true" aria-labelledby="updateLogTitle">
     <div class="modal-content" style="max-width: 560px;">

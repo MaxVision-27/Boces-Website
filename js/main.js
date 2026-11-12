@@ -272,11 +272,12 @@ function studentPageHtml(student) {
         ${tickets.length ? `<div class="folder-list">${tickets.map(ticketFolder).join('')}</div>` : '<p class="ws-hint">No tickets yet.</p>'}
 
         <h3 class="list-heading">Work sessions (${sessions.length})</h3>
+        <button class="btn btn-outline" style="margin-bottom:.75rem;" onclick="openHoursForm(${student.id})">+ Add hours</button>
         ${sessions.length ? sessions.map(l => `
             <div class="session">
                 <div class="session-top">
-                    <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</strong>
-                    <span class="folder-meta">Ticket #${l.ticket_id}</span>
+                    <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)${l.edited_by_teacher_at ? ' <span class="teacher-badge">Edited by teacher</span>' : ''}</strong>
+                    <span class="folder-meta">Ticket #${l.ticket_id} <button class="btn btn-outline btn-chip" onclick="openHoursForm(${student.id}, ${l.id})">Edit</button></span>
                 </div>
                 <p>${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
             </div>`).join('') : '<p class="ws-hint">No sessions logged yet.</p>'}`;
@@ -331,6 +332,58 @@ async function setStudentLogin(techId) {
     await loadStudentLogins();
     populateManageStudentsModal();
     alert(`Saved. ${tech.name} signs in with ${email}${password ? ' and the new password' : ''}.`);
+}
+
+// Admin: add a missed session or fix one (039 marks it "Edited by
+// teacher"). The admin skips the students' hours rules, so any date and
+// time works; the times are still quarter hours (017).
+let hoursForm = null; // { techId, logId }
+
+function openHoursForm(techId, logId = null) {
+    const student = techs.find(t => t.id === techId);
+    const log = logId ? allTimeLogs.find(l => l.id === logId) : null;
+    hoursForm = { techId, logId };
+    const tickets = [...studentTickets(techId), ...appointments].filter((a, i, all) => all.indexOf(a) === i);
+    if (log && !tickets.some(a => a.id === log.ticket_id)) tickets.unshift({ id: log.ticket_id, name: '(deleted ticket)' });
+    document.getElementById('hoursTitle').textContent = log ? 'Edit hours' : 'Add hours';
+    document.getElementById('hoursFor').textContent = `For ${student.name}.`;
+    document.getElementById('hoursTicket').innerHTML = tickets.map(a =>
+        `<option value="${a.id}"${a.id === log?.ticket_id ? ' selected' : ''}>Ticket #${a.id} · ${escapeHtml(a.name)}${a.device ? ` · ${escapeHtml(a.device)}` : ''}</option>`).join('');
+    const date = document.getElementById('hoursDate');
+    date.max = todayDateStr();
+    date.value = log?.work_date || todayDateStr();
+    document.getElementById('hoursStart').innerHTML = quarterHourOptions(log?.start_time.slice(0, 5));
+    document.getElementById('hoursEnd').innerHTML = quarterHourOptions(log?.end_time.slice(0, 5));
+    document.getElementById('hoursNote').value = log?.note || '';
+    document.getElementById('hoursDelete').hidden = !log;
+    openModal('hoursModal');
+}
+
+async function saveHoursForm() {
+    const field = id => document.getElementById(id).value;
+    const row = {
+        ticket_id: parseInt(field('hoursTicket')), tech_id: hoursForm.techId, work_date: field('hoursDate'),
+        start_time: field('hoursStart'), end_time: field('hoursEnd'), note: field('hoursNote').trim() || null
+    };
+    if (!row.ticket_id) { alert('Pick the ticket they worked on.'); return; }
+    if (!row.work_date || row.work_date > todayDateStr()) { alert('Pick a date up to today.'); return; }
+    if (!row.start_time || !row.end_time || hoursBetween(row.start_time, row.end_time) <= 0) { alert('Pick a start time and a later end time.'); return; }
+
+    const query = hoursForm.logId
+        ? db.from('time_logs').update(row).eq('id', hoursForm.logId).select('id')
+        : db.from('time_logs').insert(row).select('id');
+    const { data, error } = await query;
+    if (error || !data?.length) { console.error('Error saving hours:', error); alert("Couldn't save the hours. Try again."); return; }
+    closeModal('hoursModal');
+    await openManageStudents();
+}
+
+async function deleteHours() {
+    if (!confirm('Delete this work session? Its hours come off the student\'s total.')) return;
+    const { data, error } = await db.from('time_logs').delete().eq('id', hoursForm.logId).select('id');
+    if (error || !data?.length) { console.error('Error deleting hours:', error); alert("Couldn't delete it. Try again."); return; }
+    closeModal('hoursModal');
+    await openManageStudents();
 }
 
 async function renameStudent(techId) {
@@ -1790,7 +1843,7 @@ function renderTicketWorkspace() {
     const sessions = workspaceLogs.length ? workspaceLogs.map(l => `
         <div class="session">
             <div class="session-top">
-                <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)</strong>
+                <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)${l.edited_by_teacher_at ? ' <span class="teacher-badge">Edited by teacher</span>' : ''}</strong>
                 ${!isAdmin && l.tech_id === currentTechId ? `<button class="btn btn-outline btn-chip" onclick="editTimeLogNote(${l.id})">Edit note</button>` : ''}
             </div>
             <p><strong>${escapeHtml(techName(l.tech_id))}:</strong> ${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
@@ -2033,7 +2086,7 @@ function renderMyHours() {
             <tr>
                 <td style="padding:0.4rem; border-bottom:1px solid #eee;">${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}</td>
                 <td style="padding:0.4rem; border-bottom:1px solid #eee;">${label}</td>
-                <td style="padding:0.4rem; border-bottom:1px solid #eee; white-space:nowrap;">${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)}</td>
+                <td style="padding:0.4rem; border-bottom:1px solid #eee; white-space:nowrap;">${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)}${l.edited_by_teacher_at ? ' <span class="teacher-badge">Edited by teacher</span>' : ''}</td>
                 <td style="padding:0.4rem; border-bottom:1px solid #eee; text-align:right;">${hoursBetween(l.start_time, l.end_time).toFixed(2)}</td>
             </tr>`;
     }).join('');
