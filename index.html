@@ -2,14 +2,14 @@
 <html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
     <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co; connect-src 'self' https://cdn.jsdelivr.net https://qfvzgmkfkxvvcmixcmzy.supabase.co https://qfvzgmkfkxvvcmixcmzy.functions.supabase.co;">
-    <link rel="stylesheet" href="css/styles.css?v=54">
+    <link rel="stylesheet" href="css/styles.css?v=55">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module">
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
         window.THREE = THREE;
     </script>
     <script src="js/effects.js?v=11" defer></script>
-    <script src="js/main.js?v=64" defer></script>
+    <script src="js/main.js?v=65" defer></script>
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BOCES Barry Tech - Computer Technology Device Repair</title>
@@ -81,7 +81,7 @@
             <button type="button" class="step-action" onclick="openModal('timingSheet')">How long it takes</button>
         </li>
     </ol>
-    <p class="save-spot">Coming in today? <button type="button" class="link-button" onclick="openDropOff()">Join the line from your phone</button> and skip the wait.</p>
+    <p class="save-spot">Coming in? <button type="button" class="link-button" onclick="openDropOff()">Join the line from your phone</button> and skip the wait.</p>
 </section>
 
 <section class="app-section" id="track" aria-labelledby="trackTitle">
@@ -164,11 +164,11 @@
         <ul class="sheet-list">
             <li>We're in the <strong>center wing</strong>, next to <strong>Joe's Store</strong>.</li>
             <li>Come during class: <strong>7:45–10:20 AM</strong> or <strong>11:45 AM–2:20 PM</strong>, school days.</li>
-            <li>Joined today's line? <strong>You go first.</strong></li>
+            <li>Joined the line? <strong>You go first.</strong></li>
             <li>Bring your device and charger. We'll fill out a ticket with you.</li>
         </ul>
         <div class="sheet-actions">
-            <button type="button" class="btn-solid" onclick="closeModal('directionsSheet'); openDropOff();">Coming today? Join the line</button>
+            <button type="button" class="btn-solid" onclick="closeModal('directionsSheet'); openDropOff();">Join the line</button>
             <button type="button" class="btn-quiet" onclick="closeModal('directionsSheet')">Got it</button>
         </div>
     </div>
@@ -193,19 +193,14 @@
     </div>
 </div>
 
-<!-- Join today's line: a same-day spot, not a ticket (019_join_todays_line.sql) -->
+<!-- Join the line: a spot that waits until it's checked in, not a ticket (041_line_stays.sql) -->
 <div class="modal" id="dropOffModal" role="dialog" aria-modal="true" aria-labelledby="dropOffTitle">
     <div class="modal-content">
         <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('dropOffModal')">×</button>
-        <h2 id="dropOffTitle">Join today's line</h2>
+        <h2 id="dropOffTitle">Join the line</h2>
         <div id="dropOffForm">
-            <p class="line-intro">Coming in today? Join now and you go first in Room C220. We'll still fill out a ticket with you there.</p>
+            <p class="line-intro">Join now and you go first when you come to Room C220. We'll still fill out a ticket with you there.</p>
             <p class="phone-tip"><strong>Do this on the bus or before school.</strong> Phones go away once the school day starts (New York's bell-to-bell phone ban).</p>
-            <fieldset class="class-pick">
-                <legend>Which class are you coming during?</legend>
-                <label class="class-card"><input type="radio" name="dropOffSession" value="AM"> <span><strong>Morning class</strong> <small>7:45–10:20 AM</small></span></label>
-                <label class="class-card"><input type="radio" name="dropOffSession" value="PM"> <span><strong>Afternoon class</strong> <small>11:45 AM–2:20 PM</small></span></label>
-            </fieldset>
             <div class="form-row">
                 <div class="form-group">
                     <label for="dropOffName">Your name</label>
@@ -237,7 +232,7 @@
             <p class="drop-off-done" id="dropOffDoneTitle"></p>
             <p class="line-number-label">Your line number</p>
             <div class="tracking-code-big" id="dropOffCode"></div>
-            <p class="line-intro">Show this number to the tech in Room C220. You go first. Take a screenshot so you don't lose it. Can't make it? Your spot clears after today.</p>
+            <p class="line-intro">Show this number to the tech in Room C220. You go first. Take a screenshot so you don't lose it. Your spot waits until you come in, during class on a school day.</p>
             <button class="btn-solid" onclick="closeModal('dropOffModal')">Done</button>
         </div>
     </div>

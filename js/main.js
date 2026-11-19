@@ -21,7 +21,7 @@ let currentTechName = null;
 let currentSession = null; // 'AM' or 'PM' for a tech login (016_am_pm_and_help_desk.sql)
 let myTimeLogs = [];
 let deletedAppointments = [];
-let dropOffs = []; // today's line (018_drop_off_requests.sql, 019_join_todays_line.sql)
+let dropOffs = []; // the line (018_drop_off_requests.sql, 041_line_stays.sql)
 let ticketDropOffId = null; // set while New Ticket is filled in from a request
 // Session token from staff_login(). Sent as x-staff-token on every
 // request so the database's row-level security can tell staff apart
@@ -737,30 +737,19 @@ function trackSaved(code) {
 // The date, the number, one spot per name and every other rule live in
 // request_drop_off(); there is no limit on the line.
 // ============================================================
-const SESSION_NAMES = { AM: 'morning class', PM: 'afternoon class' };
-
 async function openDropOff() {
     document.getElementById('dropOffForm').hidden = false;
     document.getElementById('dropOffDone').hidden = true;
     document.getElementById('dropOffError').hidden = true;
     openModal('dropOffModal');
-    // Hide a class nobody is in yet (031), so nobody walks into an empty room.
-    const { data: open } = await db.rpc('open_classes');
-    if (!open) return;
-    document.querySelectorAll('input[name="dropOffSession"]').forEach(radio => {
-        radio.closest('.class-card').hidden = !open.includes(radio.value);
-        if (!open.includes(radio.value)) radio.checked = false;
-    });
-    if (open.length === 1) document.querySelector(`input[name="dropOffSession"][value="${open[0]}"]`).checked = true;
 }
 
 async function submitDropOff(btn) {
     const value = id => document.getElementById(id).value.trim();
-    const session = document.querySelector('input[name="dropOffSession"]:checked')?.value;
     const errorBox = document.getElementById('dropOffError');
     const showError = text => { errorBox.textContent = text; errorBox.hidden = false; errorBox.scrollIntoView({ block: 'center' }); };
 
-    const missing = [[session, 'which class'], [value('dropOffName'), 'your name'], [value('dropOffClass'), 'your class'], [value('dropOffRoom'), 'your room number']]
+    const missing = [[value('dropOffName'), 'your name'], [value('dropOffClass'), 'your class'], [value('dropOffRoom'), 'your room number']]
         .filter(([v]) => !v).map(([, label]) => label);
     if (missing.length) {
         showError(`Please add ${missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing.at(-1)}` : missing[0]}.`);
@@ -769,7 +758,7 @@ async function submitDropOff(btn) {
 
     btn.disabled = true;
     const { data, error } = await db.rpc('request_drop_off', {
-        p_session: session, p_name: value('dropOffName'), p_class: value('dropOffClass'),
+        p_session: null, p_name: value('dropOffName'), p_class: value('dropOffClass'),
         p_room: value('dropOffRoom'), p_device: value('dropOffDevice')
     });
     btn.disabled = false;
@@ -777,9 +766,7 @@ async function submitDropOff(btn) {
     const { result, code } = data?.[0] || {};
 
     const problems = {
-        closed: "We're closed on weekends. Come back on a school day.",
-        too_late: 'The line for that class is closed right now. It opens at 6:00 AM on school days and closes when the class ends (morning class 10:20 AM, afternoon class 2:20 PM).',
-        no_class: "Nobody is in that class yet. Pick the other class.",
+        full: "The line is full right now. Come to Room C220 during class, and we'll fill out a ticket with you there.",
         invalid: 'Please fill in every box (keep each one short).'
     };
     // Joining again with the same name gives back the same number.
@@ -789,7 +776,7 @@ async function submitDropOff(btn) {
     }
 
     document.getElementById('dropOffDoneTitle').innerHTML = result === 'ok'
-        ? `You're in line for today's <strong>${SESSION_NAMES[session]}</strong>.` : "You're already in today's line.";
+        ? "You're in line." : "You're already in line.";
     document.getElementById('dropOffCode').textContent = `#${code}`;
     ['dropOffName', 'dropOffClass', 'dropOffRoom'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('dropOffForm').hidden = true;
@@ -797,15 +784,16 @@ async function submitDropOff(btn) {
 }
 
 // ============================================================
-// DROP-OFF REQUESTS — customers join today's line on the public page
-// (request_drop_off). Staff see them under Drop-offs; a tech checks one
+// DROP-OFF REQUESTS — customers join the line on the public page
+// (request_drop_off), any time; a spot waits until it's checked in.
+// Staff see them under Drop-offs; a tech checks one
 // in by starting its ticket, which gets priority. Only the admin can
 // remove one.
 // ============================================================
 async function loadDropOffs() {
     const { data, error } = await db.from('drop_off_requests').select('*').order('visit_date').order('created_at');
     if (error) { console.error('Error loading drop-off requests:', error); return; }
-    dropOffs = (data || []).filter(r => r.visit_date >= todayDateStr());
+    dropOffs = data || [];
 }
 
 async function openDropOffs() {
@@ -814,24 +802,22 @@ async function openDropOffs() {
     showView('dropOffsView');
 }
 
-// Techs see their own class; the admin sees both.
-const visibleDropOffs = () => dropOffs.filter(r => currentRole === 'admin' || !currentSession || r.session === currentSession);
+// Both classes see every waiting spot, plus the ones checked in today.
 const dropOffTicket = r => appointments.find(a => a.drop_off_id === r.id);
-const expectedToday = () => visibleDropOffs().filter(r => r.visit_date === todayDateStr() && !dropOffTicket(r)).length;
+const visibleDropOffs = () => dropOffs.filter(r => {
+    const ticket = dropOffTicket(r);
+    return !ticket || todayDateStr(new Date(ticket.created_at)) === todayDateStr();
+});
+const waitingInLine = () => dropOffs.filter(r => !dropOffTicket(r)).length;
 
-function dayLabel(isoDate) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    if (isoDate === todayDateStr()) return 'Today';
-    if (isoDate === todayDateStr(tomorrow)) return 'Tomorrow';
-    return new Date(isoDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
-}
+const joinedLabel = isoDate => isoDate === todayDateStr() ? 'Joined today'
+    : `Joined ${new Date(isoDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}`;
 
 function renderDropOffs() {
     const container = document.getElementById('dropOffsContainer');
     if (!container) return;
-    const waiting = expectedToday();
-    document.querySelectorAll('.drop-off-count').forEach(el => el.textContent = waiting ? ` (${waiting} today)` : '');
+    const waiting = waitingInLine();
+    document.querySelectorAll('.drop-off-count').forEach(el => el.textContent = waiting ? ` (${waiting} waiting)` : '');
 
     // Search by the customer's line number, or by their exact full name
     // (ignoring capitals and extra spaces) if they lost the number, so
@@ -843,7 +829,7 @@ function renderDropOffs() {
     const list = visibleDropOffs().filter(r => !search || matches(r));
     if (!list.length) {
         container.innerHTML = search
-            ? '<p style="text-align:center; color: var(--ink-faint); padding:2rem;">Nobody in today\'s line has that number or exact name. Check it, or ask for their full name.</p>'
+            ? '<p style="text-align:center; color: var(--ink-faint); padding:2rem;">Nobody in the line has that number or exact name. Check it, or ask for their full name.</p>'
             : '<p style="text-align:center; color: var(--ink-faint); padding:2rem;">Nobody has joined the line yet.</p>';
         return;
     }
@@ -854,8 +840,7 @@ function renderDropOffs() {
         return `
         <div class="folder-card drop-off-card">
             <span class="folder-top"><strong>${r.line_code ? `<span class="line-code">#${r.line_code}</span> ` : ''}${escapeHtml(r.name)}</strong>
-                ${ticket ? `<span class="status-badge" style="background:#1e7e34; color:white;">Checked in: Ticket #${ticket.id}</span>`
-                    : isAdmin ? `<span class="status-badge" style="background:var(--navy-900); color:white;">${r.session}</span>` : ''}</span>
+                ${ticket ? `<span class="status-badge" style="background:#1e7e34; color:white;">Checked in: Ticket #${ticket.id}</span>` : ''}</span>
             <span class="folder-issue">${escapeHtml([r.make_model || r.device, r.issue].filter(Boolean).join(': '))}</span>
             ${details ? `<span class="folder-meta">${escapeHtml(details)}</span>` : ''}
             ${!ticket && !isAdmin ? `<span class="ws-actions"><button class="btn btn-start btn-sm" onclick="checkInDropOff(${r.id})">Customer is here</button></span>` : ''}
@@ -863,7 +848,7 @@ function renderDropOffs() {
         </div>`;
     };
     container.innerHTML = [...new Set(list.map(r => r.visit_date))].map(day => `
-        <h3 class="list-heading">${dayLabel(day)}</h3>
+        <h3 class="list-heading">${joinedLabel(day)}</h3>
         <div class="folder-list">${list.filter(r => r.visit_date === day).map(card).join('')}</div>`).join('');
 }
 
@@ -1717,10 +1702,10 @@ const GREETING_LINES = {
 };
 const greetingPick = Math.random();
 
-// " 2 customers joined today's line." (or nothing)
+// " 2 customers are waiting in line." (or nothing)
 function expectedNote() {
-    const n = expectedToday();
-    return n ? ` ${n} customer${n === 1 ? '' : 's'} joined today's line.` : '';
+    const n = waitingInLine();
+    return n ? ` ${n} customer${n === 1 ? ' is' : 's are'} waiting in line.` : '';
 }
 
 function renderGreeting() {
