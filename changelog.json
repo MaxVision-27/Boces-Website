@@ -1,6 +1,11 @@
 [
   {
-    "date": "2026-11-17",
+    "date": "2026-11-19",
+    "title": "Fix a ticket's details",
+    "text": "Made a ticket and got something wrong? Open it, go to Ticket details and press Edit Details. Anyone who was on the New Ticket can change it until the repair is completed. Your teacher can change any ticket."
+  },
+  {
+    "date": "2026-11-19",
     "title": "The line waits for you",
     "text": "Customers can join the line any day, at any hour, and their spot stays until a tech checks them in. Both classes see every spot under Drop-offs, and line numbers keep counting up."
   },

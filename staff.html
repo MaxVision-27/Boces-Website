@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" integrity="sha384-+mbV2IY1Zk/X1p/nWllGySJSUN8uMs+gUAN10Or95UBH0fpj6GfKgPmgC5EXieXG" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.4.1/dist/docx-preview.min.js" integrity="sha384-DifWB1GSGsQgwTegPEbGdEMnGZpmfhUsx9A3WuHv+rfQVCFXMhawW/v4AZcP1FzL" crossorigin="anonymous" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous" defer></script>
-    <script src="js/main.js?v=65" defer></script>
+    <script src="js/main.js?v=66" defer></script>
     <script src="js/forum.js?v=4" defer></script>
     <script src="js/guide.js?v=24" defer></script>
 
@@ -340,8 +340,8 @@
 <div class="modal" id="techTicketModal" role="dialog" aria-modal="true">
     <div class="modal-content wide">
         <button type="button" class="close-btn" aria-label="Close" onclick="closeModal('techTicketModal')">×</button>
-        <h2>New Ticket</h2>
-        <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">Everything the Help Desk Ticket needs. After you create it, print the Help Desk Ticket for the customer to sign.</p>
+        <h2 id="techTicketTitle">New Ticket</h2>
+        <p id="techTicketIntro" style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">Everything the Help Desk Ticket needs. After you create it, print the Help Desk Ticket for the customer to sign.</p>
         <p class="from-request" id="techTicketFrom" hidden></p>
         <div class="form-row">
             <div class="form-group">
@@ -407,14 +407,14 @@
             <label for="techApptEmail">Customer Email (optional, not on the paper form)</label>
             <input type="email" id="techApptEmail" placeholder="Example: jrivera@school.edu" autocomplete="off">
         </div>
-        <div class="form-group">
+        <div class="form-group" id="techTicketCrew">
             <label>Receiving Tech</label>
             <p id="techReceiving" style="font-weight:600; margin-bottom:0.5rem;"></p>
             <label>Working with (optional)</label>
             <div id="techPartnerPicker" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
         </div>
         <p class="forum-error" id="techTicketError" hidden></p>
-        <button class="btn btn-primary" onclick="submitTechTicket()">Create Ticket</button>
+        <button class="btn btn-primary" id="techTicketSubmit" onclick="submitTechTicket()">Create Ticket</button>
     </div>
 </div>
 
