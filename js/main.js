@@ -277,7 +277,7 @@ function studentPageHtml(student) {
         ${sessions.length ? sessions.map(l => `
             <div class="session">
                 <div class="session-top">
-                    <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)${l.edited_by_teacher_at ? ' <span class="teacher-badge">Edited by teacher</span>' : ''}</strong>
+                    <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)${sessionBadge(l)}</strong>
                     <span class="folder-meta">Ticket #${l.ticket_id} <button class="btn btn-outline btn-chip" onclick="openHoursForm(${student.id}, ${l.id})">Edit</button></span>
                 </div>
                 <p>${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
@@ -1878,7 +1878,7 @@ function renderTicketWorkspace() {
     const sessions = workspaceLogs.length ? workspaceLogs.map(l => `
         <div class="session">
             <div class="session-top">
-                <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)${l.edited_by_teacher_at ? ' <span class="teacher-badge">Edited by teacher</span>' : ''}</strong>
+                <strong>${new Date(l.work_date + 'T00:00:00').toLocaleDateString()} · ${formatTime12h(l.start_time)} to ${formatTime12h(l.end_time)} (${hoursBetween(l.start_time, l.end_time).toFixed(2)} hr)${sessionBadge(l)}</strong>
                 ${!isAdmin && l.tech_id === currentTechId ? `<button class="btn btn-outline btn-chip" onclick="editTimeLogNote(${l.id})">Edit note</button>` : ''}
             </div>
             <p><strong>${escapeHtml(techName(l.tech_id))}:</strong> ${l.note ? escapeHtml(l.note) : '<em>No note</em>'}</p>
@@ -1930,10 +1930,11 @@ function renderTicketWorkspace() {
             <h3>Log a work session</h3>
             <p class="ws-hint">Fill this in every time you work on the device. It goes on the Service Log.</p>
             <div class="ws-fields">
+                <label>Date <input type="date" id="logDate-${appt.id}" max="${todayDateStr()}" required></label>
                 <label>Start time <select id="logStart-${appt.id}">${quarterHourOptions(logTimes[0])}</select></label>
                 <label>End time <select id="logEnd-${appt.id}">${quarterHourOptions(logTimes[1])}</select></label>
             </div>
-            <p class="ws-hint">Log today's work during class. Example: you worked from ${currentSession === 'AM' ? '8:15 to 9:00, so pick 8:15 AM and 9:00 AM' : '1:15 to 2:00, so pick 1:15 PM and 2:00 PM'}. Forgot to log a day? Tell your teacher.</p>
+            <p class="ws-hint">Pick the day you did the work, then the times during your class. Example: you worked from ${currentSession === 'AM' ? '8:15 to 9:00, so pick 8:15 AM and 9:00 AM' : '1:15 to 2:00, so pick 1:15 PM and 2:00 PM'}. Forgot to log a day? Pick that date. It shows "Logged later" for your teacher.</p>
             <label>What did you do?
                 <textarea id="logNote-${appt.id}" rows="3" placeholder="Example: Took off the back panel and tested the battery. It only holds 40% charge. Next: the customer orders a new battery."></textarea>
             </label>
@@ -2046,6 +2047,11 @@ function defaultLogTimes() {
     return [start, toMinutes(end) > toMinutes(start) && toMinutes(end) <= toMinutes(CLASS_HOURS[currentSession][1]) ? end : ''];
 }
 
+// "Edited by teacher", or "Logged later" when a student saved it on a
+// later day than the work (043 lets them pick a past date).
+const sessionBadge = l => l.edited_by_teacher_at ? ' <span class="teacher-badge">Edited by teacher</span>'
+    : l.created_at && todayDateStr(new Date(l.created_at)) > l.work_date ? ' <span class="late-badge">Logged later</span>' : '';
+
 function formatTime12h(timeStr) {
     const [h, m] = timeStr.split(':').map(Number);
     const period = h >= 12 ? 'PM' : 'AM';
@@ -2056,10 +2062,12 @@ function formatTime12h(timeStr) {
 async function logTime(ticketId) {
     const startField = document.getElementById(`logStart-${ticketId}`);
     const endField = document.getElementById(`logEnd-${ticketId}`);
-    const workDate = todayDateStr();
+    const workDate = document.getElementById(`logDate-${ticketId}`).value;
     const startTime = startField.value;
     const endTime = endField.value;
 
+    if (!workDate) { alert('Pick the date you did the work.'); return; }
+    if (workDate > todayDateStr()) { alert('Pick a date up to today.'); return; }
     if (!startTime || !endTime) { alert('Please enter the time you started and finished.'); return; }
     if (hoursBetween(startTime, endTime) <= 0) { alert('End time must be after start time.'); return; }
 
@@ -2072,7 +2080,7 @@ async function logTime(ticketId) {
         note: document.getElementById(`logNote-${ticketId}`).value.trim() || null
     });
 
-    // 030's checks (today only, during class, not overlapping) explain themselves.
+    // The database's checks (043: up to today, during class) explain themselves.
     if (error) { console.error('Error logging time:', error); alert(error.code === 'P0001' ? error.message : 'Failed to log time.'); return; }
 
     await openTicketWorkspace(ticketId);
@@ -2122,7 +2130,7 @@ function renderMyHours() {
             <tr>
                 <td style="padding:0.4rem; border-bottom:1px solid #eee;">${new Date(l.work_date + 'T00:00:00').toLocaleDateString()}</td>
                 <td style="padding:0.4rem; border-bottom:1px solid #eee;">${label}</td>
-                <td style="padding:0.4rem; border-bottom:1px solid #eee; white-space:nowrap;">${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)}${l.edited_by_teacher_at ? ' <span class="teacher-badge">Edited by teacher</span>' : ''}</td>
+                <td style="padding:0.4rem; border-bottom:1px solid #eee; white-space:nowrap;">${formatTime12h(l.start_time)} – ${formatTime12h(l.end_time)}${sessionBadge(l)}</td>
                 <td style="padding:0.4rem; border-bottom:1px solid #eee; text-align:right;">${hoursBetween(l.start_time, l.end_time).toFixed(2)}</td>
             </tr>`;
     }).join('');

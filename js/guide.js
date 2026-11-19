@@ -366,6 +366,7 @@ const TECH_STEPS = [
             await ensureWorkspace();
             const id = guideTicketId();
             const am = currentSession === 'AM'; // inside the class's own time choices
+            $g(`#logDate-${id}`).value ||= todayDateStr();
             $g(`#logStart-${id}`).value ||= am ? '08:15' : '13:15';
             $g(`#logEnd-${id}`).value ||= am ? '09:00' : '14:00';
             $g(`#logNote-${id}`).value ||= 'Took off the bezel. The LCD panel is cracked. Next: the customer orders a replacement panel.';
