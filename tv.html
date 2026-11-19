@@ -112,7 +112,7 @@
 
 <form class="tv-login" id="tvLogin" hidden onsubmit="event.preventDefault(); signIn();">
     <h2>TV board</h2>
-    <p>Shows the tickets and today's line, switching between AM and PM on its own. It can't change anything.</p>
+    <p>Shows the tickets and the line, switching between AM and PM on its own. It can't change anything.</p>
     <label for="tvPassword">TV password</label>
     <input type="password" id="tvPassword" autocomplete="current-password">
     <p class="tv-error" id="tvError" role="alert"></p>
@@ -148,7 +148,7 @@ const TOKEN_KEY = 'btTvToken';
 
 // Columns left to right, with the ticket statuses each one holds.
 const COLUMNS = [
-    { title: "Today's line", accent: '#f5c542' },
+    { title: 'In line', accent: '#f5c542' },
     { title: 'Not started', statuses: ['pending', 'assigned'], accent: '#94a3b8' },
     { title: 'Repairing', statuses: ['in_progress'], accent: '#3b82f6' },
     { title: 'Waiting for part', statuses: ['waiting_part'], accent: '#f59e0b' },

@@ -69,7 +69,7 @@ function enterSandbox(role) {
         make_model, serial_tag: `SN${id}X7`, contact_number: '(516) 555-0100', class_name: 'Culinary Arts', teacher_name: 'Ms. Lopez', room_number: 'B112', computer_password: null,
         priority: false, drop_off_id: null
     });
-    // A customer who joined today's line, in the class being shown.
+    // A customer waiting in the line.
     const dropOff = session => ({
         id: 7, created_at: daysAgo(0), visit_date: todayDateStr(), session, name: 'Taylor Brooks (sample)', contact_number: null,
         class_name: 'Cosmetology', room_number: 'A104', device: 'Laptop', make_model: null, issue: null, line_code: 101
@@ -323,9 +323,9 @@ const TECH_STEPS = [
         section: true,
     },
     {
-        chapter: "Check in today's line",
-        title: "Today's line",
-        text: "Customers can join today's line from their phone before school. They only give their name, class, room and device type, and get a line number, like a fast food order. Type the number they show you into the Drop-offs search (or their full name if they lost it). Check them in before walk-ins: Customer is here starts New Ticket with that filled in, you ask for the rest, and the ticket gets a Priority badge.",
+        chapter: "Check in the line",
+        title: "The line",
+        text: "Customers can join the line from their phone, any time. Their spot waits until someone checks them in. They only give their name, class, room and device type, and get a line number, like a fast food order. Type the number they show you into the Drop-offs search (or their full name if they lost it). Check them in before walk-ins: Customer is here starts New Ticket with that filled in, you ask for the rest, and the ticket gets a Priority badge.",
         setup: () => { closeAllModals(); showView('dropOffsView'); },
         target: () => $g('#dropOffsView'),
         section: true,
@@ -650,9 +650,9 @@ const ADMIN_STEPS = [
         section: true,
     },
     {
-        chapter: "Today's line",
-        title: "Today's line",
-        text: "Customers can join today's line from their phone. It's same-day only, so nobody books days ahead and forgets. Each customer gets a line number; techs find them by that number, or by full name if it's lost. Techs check them in first, and those tickets get a Priority badge. Take someone out if the lab is closed.",
+        chapter: "The line",
+        title: "The line",
+        text: "Customers can join the line from their phone, any day. A spot waits until a tech checks them in, and both classes see it. Each customer gets a line number; techs find them by that number, or by full name if it's lost. Techs check them in first, and those tickets get a Priority badge. Take someone out if they never come.",
         setup: () => { closeAllModals(); showView('dropOffsView'); },
         target: () => $g('#dropOffsView'),
         section: true,
@@ -763,7 +763,7 @@ async function startGuide(startAt = 0) {
     const role = currentRole === 'admin' ? 'admin' : 'tech';
     closeModal('guideChooserModal');
     // Wait for the first tab to show the practice tickets, or it can switch
-    // back over a step that starts on another tab (like today's line).
+    // back over a step that starts on another tab (like the line).
     await enterSandbox(role);
     guide = { i: startAt, steps: roleSteps() };
     document.getElementById('guideLayer').hidden = false;
