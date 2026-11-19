@@ -23,6 +23,7 @@ let myTimeLogs = [];
 let deletedAppointments = [];
 let dropOffs = []; // the line (018_drop_off_requests.sql, 041_line_stays.sql)
 let ticketDropOffId = null; // set while New Ticket is filled in from a request
+let editingTicketId = null; // set while the form is Edit Details for a ticket
 // Session token from staff_login(). Sent as x-staff-token on every
 // request so the database's row-level security can tell staff apart
 // from the public — tickets, students and hours are staff-only.
@@ -472,7 +473,48 @@ function onDeviceOwnerChange() {
 
 const OWNER_LABELS = { school: 'School device', personal: 'Personal device' };
 
+function clearTicketForm() {
+    Object.values(TICKET_FIELDS).forEach(id => { if (id !== 'techApptDevice') document.getElementById(id).value = ''; });
+    onDeviceOwnerChange();
+}
+
+// The New Ticket form doubles as Edit Details (apptId set).
+function setTicketFormMode(apptId) {
+    editingTicketId = apptId;
+    document.getElementById('techTicketTitle').textContent = apptId ? `Edit Ticket #${apptId}` : 'New Ticket';
+    document.getElementById('techTicketIntro').hidden = !!apptId;
+    document.getElementById('techTicketCrew').hidden = !!apptId;
+    document.getElementById('techTicketSubmit').textContent = apptId ? 'Save Changes' : 'Create Ticket';
+    document.getElementById('techTicketFrom').hidden = true;
+    document.getElementById('techTicketError').hidden = true;
+    const password = document.getElementById('techApptPassword');
+    if (password.type !== 'password') togglePasswordShown(password.nextElementSibling);
+}
+
+// The students on the New Ticket can fix its details until it's completed;
+// the admin always can. The database checks the same (042).
+const canEditDetails = appt => currentRole === 'admin'
+    || (!isDone(appt.status) && (appt.creation_tech_ids || []).includes(currentTechId));
+
+function openEditTicket(apptId) {
+    const appt = appointments.find(a => a.id === apptId);
+    setTicketFormMode(apptId);
+    Object.entries(TICKET_FIELDS).forEach(([col, id]) => document.getElementById(id).value = appt[col] ?? '');
+    onDeviceOwnerChange();
+    openModal('techTicketModal');
+}
+
+async function saveTicketEdits(changes) {
+    const apptId = editingTicketId;
+    if (!await saveTicket(apptId, changes, 'the changes')) return;
+    Object.assign(appointments.find(a => a.id === apptId), changes);
+    closeModal('techTicketModal');
+    populateAppointmentsModal();
+    renderTicketWorkspace();
+}
+
 function openTechTicketModal() {
+    if (editingTicketId) { setTicketFormMode(null); clearTicketForm(); }
     ticketDropOffId = null;
     document.getElementById('techTicketFrom').hidden = true;
     if (!currentTechId) { alert('Sign in with your own login to make a ticket.'); return; }
@@ -509,10 +551,13 @@ const TICKET_FIELDS = {
     computer_password: 'techApptPassword', issue: 'techApptIssue', email: 'techApptEmail'
 };
 
-async function submitTechTicket() {
+// Reads the form. If something required is missing it says what and
+// returns null.
+function readTicketForm() {
     const ticket = Object.fromEntries(Object.entries(TICKET_FIELDS)
         .map(([col, id]) => [col, document.getElementById(id).value.trim()]));
     ticket.email = ticket.email.toLowerCase();
+    ticket.computer_password ||= null;
 
     const missing = [['name', 'the customer name'], ['contact_number', 'a contact number'], ['device_owner', 'whose device it is'], ['make_model', 'the computer make/model'], ['issue', 'the problem description']]
         .filter(([col]) => !ticket[col]).map(([, label]) => label);
@@ -520,14 +565,20 @@ async function submitTechTicket() {
     errorBox.hidden = !missing.length;
     const list = missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing.at(-1)}` : missing[0];
     errorBox.textContent = missing.length ? `Please add ${list}.` : '';
-    if (missing.length) { errorBox.scrollIntoView({ block: 'center' }); return; }
+    if (missing.length) { errorBox.scrollIntoView({ block: 'center' }); return null; }
+    return ticket;
+}
+
+async function submitTechTicket() {
+    const ticket = readTicketForm();
+    if (!ticket) return;
+    if (editingTicketId) return saveTicketEdits(ticket);
 
     let data, error;
     for (let attempt = 0; attempt < 5; attempt++) {
         const trackingCode = generateTrackingCode();
         ({ data, error } = await db.from('repair_requests').insert({
             ...ticket,
-            computer_password: ticket.computer_password || null,
             status: 'assigned',
             flagged: false,
             flag_reason: null,
@@ -554,8 +605,7 @@ async function submitTechTicket() {
     if (currentRole === 'tech') viewMyTickets();
     closeModal('techTicketModal');
 
-    Object.values(TICKET_FIELDS).forEach(id => { if (id !== 'techApptDevice') document.getElementById(id).value = ''; });
-    onDeviceOwnerChange();
+    clearTicketForm();
 
     document.getElementById('createdTrackingCode').textContent = data.tracking_code;
     document.getElementById('printHelpDeskBtn').dataset.ticket = data.id;
@@ -884,7 +934,7 @@ async function saveTicket(apptId, changes, what) {
     const { data, error } = await db.from('repair_requests').update(changes).eq('id', apptId).select('id');
     if (error || !data?.length) {
         console.error(`Error saving ${what}:`, error);
-        alert(`Couldn't save ${what}. ${error?.message?.startsWith('Only an admin') ? error.message : 'Check the internet connection and try again. If it keeps happening, log out and back in.'}`);
+        alert(`Couldn't save ${what}. ${error?.code === 'P0001' ? error.message : 'Check the internet connection and try again. If it keeps happening, log out and back in.'}`);
         return false;
     }
     return true;
@@ -1925,7 +1975,8 @@ function renderTicketWorkspace() {
                 <div><dt>Contact number</dt><dd>${escapeHtml(appt.contact_number || 'None given')}</dd></div>
                 <div><dt>Customer email</dt><dd>${escapeHtml(appt.email || 'None given')}${duplicate ? ' <span class="dup-badge">has other tickets</span>' : ''}</dd></div>
                 <div><dt>Created</dt><dd>${new Date(appt.created_at).toLocaleDateString()}${appt.created_by ? ` by ${escapeHtml(appt.created_by)}` : ''}</dd></div>` : ''}
-            </dl>`, { count: appt.tracking_code || '' })}
+            </dl>
+            ${canEditDetails(appt) ? `<button class="btn btn-outline" onclick="openEditTicket(${appt.id})">Edit Details</button>` : ''}`, { count: appt.tracking_code || '' })}
 
         ${isAdmin ? section('Delete ticket', `
             <p class="ws-hint">Takes it out of the pool. You can bring it back from the Deleted filter.</p>
