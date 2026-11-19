@@ -2548,7 +2548,7 @@ summary:focus-visible {
     max-width: 60ch;
 }
 
-.teacher-badge {
+.teacher-badge, .late-badge {
     display: inline-block;
     padding: .05rem .45rem;
     border-radius: var(--radius-pill);
@@ -2557,6 +2557,11 @@ summary:focus-visible {
     font-size: .72rem;
     font-weight: 700;
     vertical-align: middle;
+}
+
+.late-badge {
+    background: #fef3c7;
+    color: #92400e;
 }
 
 .replied-badge {
