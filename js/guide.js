@@ -596,7 +596,7 @@ const ADMIN_STEPS = [
     },
     {
         title: 'Paperwork',
-        text: 'Open the Help Desk Ticket, Service Log, and Invoice from here. Each one shows a preview of the real form before you print it.',
+        text: 'Open the Help Desk Ticket, Service Log, Invoice, and Hours sheets from here. Each one shows a preview of the real form before you print it.',
         setup: async () => { await ensureWorkspace(CHECK_ID); await sandboxStatus('completed', CHECK_ID, { review_note: null }); },
         target: () => wsCard('Paperwork'),
     },
