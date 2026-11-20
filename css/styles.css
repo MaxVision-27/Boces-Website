@@ -2573,6 +2573,30 @@ summary:focus-visible {
     cursor: not-allowed;
 }
 
+/* Help Desk Ticket: each page fits one sheet. Nothing is removed and no
+   text changes size: the lines lose the form's 10 pt gap after each
+   paragraph (the blank lines stay), and the footer's small print gets line
+   spacing for its own size (the browser spaced it like 12 pt text). */
+section.docx.help-desk article p {
+    margin-bottom: 0 !important;
+}
+
+section.docx.help-desk footer p {
+    font-size: 8px !important; /* only the line height; each run keeps its own size */
+    line-height: 1.15 !important;
+}
+
+#createdDoneBtn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
+}
+
+.created-print-note {
+    font-size: .85rem;
+    color: var(--ink-soft);
+    margin: .75rem 0 .5rem;
+}
+
 .teacher-badge, .late-badge {
     display: inline-block;
     padding: .05rem .45rem;

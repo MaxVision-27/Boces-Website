@@ -1,6 +1,11 @@
 [
   {
     "date": "2026-11-20",
+    "title": "Print the Help Desk Ticket first",
+    "text": "After New Ticket, the Ticket Created box stays until you print the Help Desk Ticket for the customer to sign. The Help Desk Ticket now prints on two pages."
+  },
+  {
+    "date": "2026-11-20",
     "title": "Hours sheets are back",
     "text": "Under Paperwork, Hours: Ticket Creation and Hours: Repair Work fill in the school's WBL Hours sheet from your work sessions again. The Invoice now says that a task's book hours set its price, and your real time comes from your work sessions."
   },

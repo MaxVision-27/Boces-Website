@@ -23,6 +23,9 @@ let myTimeLogs = [];
 let deletedAppointments = [];
 let dropOffs = []; // the line (018_drop_off_requests.sql, 041_line_stays.sql)
 let ticketDropOffId = null; // set while New Ticket is filled in from a request
+let createdShowing = null; // the new ticket whose Ticket Created box is open (until Done)
+let helpDeskDue = null; // a new ticket whose Help Desk Ticket hasn't printed yet
+let paperShowing = null; // which form the preview shows, e.g. 'helpdesk-41'
 let editingTicketId = null; // set while the form is Edit Details for a ticket
 // Session token from staff_login(). Sent as x-staff-token on every
 // request so the database's row-level security can tell staff apart
@@ -610,7 +613,28 @@ async function submitTechTicket() {
     document.getElementById('createdTrackingCode').textContent = data.tracking_code;
     document.getElementById('printHelpDeskBtn').dataset.ticket = data.id;
     document.getElementById('printSlipBtn').dataset.ticket = data.id;
+    // The customer signs the Help Desk Ticket, so the popup stays until
+    // it has printed (not in the Workflow Guide's practice).
+    createdShowing = helpDeskDue = realDb ? null : data.id;
+    showCreatedPrintState();
     openModal('ticketCreatedModal');
+}
+
+// Ticket Created: Done (and ×, Escape, a click outside) only after the
+// Help Desk Ticket's Print button was pressed.
+function showCreatedPrintState() {
+    const due = !!helpDeskDue;
+    document.getElementById('createdDoneBtn').disabled = due;
+    document.getElementById('createdCloseBtn').hidden = due;
+    document.getElementById('createdPrintNote').textContent = due
+        ? 'Print the Help Desk Ticket before you finish.' : 'Help Desk Ticket printed.';
+}
+
+// A form opened from Ticket Created shows on its own, and the popup comes
+// back when the form closes, until Done.
+function previewFromCreated(preview) {
+    document.getElementById('ticketCreatedModal').style.display = 'none';
+    preview();
 }
 
 function togglePasswordShown(btn) {
@@ -2421,6 +2445,7 @@ function paperworkButtons(apptId) {
 }
 
 function openPaperPreview(title, note, actionsHtml) {
+    paperShowing = null;
     document.getElementById('paperPreviewTitle').textContent = title;
     document.getElementById('paperPreviewNote').textContent = note;
     document.getElementById('paperPreviewActions').innerHTML = actionsHtml;
@@ -2571,6 +2596,7 @@ async function buildHoursSheets(apptId, kind) {
 }
 
 function printPaperPreview() {
+    if (paperShowing === `helpdesk-${helpDeskDue}`) helpDeskDue = null;
     const area = document.getElementById('printArea');
     area.innerHTML = document.getElementById('paperPreviewSheets').innerHTML;
     area.querySelectorAll('.print-sheet, section.docx').forEach(page => page.style.zoom = '');
@@ -2606,7 +2632,11 @@ async function previewHelpDesk(apptId) {
 
     const sheets = openPaperPreview(`Help Desk Ticket · Ticket #${appt.id}`,
         'Print this when the device comes in and have the customer sign both pages.', PRINT_BUTTON);
+    paperShowing = `helpdesk-${appt.id}`;
     await renderDocxPages([await zip.generateAsync({ type: 'blob' })], sheets);
+    // Tighter spacing so each page fits one sheet (styles.css, .help-desk).
+    sheets.querySelectorAll('section.docx').forEach(page => page.classList.add('help-desk'));
+    fitPaperPreview();
 }
 
 function serviceLogHtml(appt, logs, studentNames, techName) {
@@ -2667,10 +2697,13 @@ function openModal(id) {
 function closeModal(id) {
     if (id === 'askModal' && askResolve) return answerAsk(false); // closed without saving
     if (id === 'noticeModal' && noticeAnswer) return noticeAnswer(null); // Escape or a click outside
+    if (id === 'ticketCreatedModal' && helpDeskDue) return; // print the Help Desk Ticket first
+    if (id === 'ticketCreatedModal') createdShowing = null;
     const modal = document.getElementById(id);
     const hadFocus = modal.contains(document.activeElement);
     modal.style.display = 'none';
     if (hadFocus) modalOpener?.focus?.({ preventScroll: true });
+    if (id === 'paperPreviewModal' && createdShowing) { showCreatedPrintState(); openModal('ticketCreatedModal'); }
 }
 
 document.addEventListener('keydown', e => {
