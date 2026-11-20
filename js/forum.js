@@ -258,7 +258,7 @@ async function saveForumPost(editId) {
 }
 
 async function deleteForumPost(id) {
-    if (!confirm('Delete this post? This cannot be undone.')) return;
+    if (!await confirmAction('Delete this post? This cannot be undone.', 'Delete Post')) return;
     const { error } = await db.from('forum_posts').delete().eq('id', id);
     if (error) { console.error('Error deleting post:', error); alert('Could not delete the post.'); return; }
     forumPosts = forumPosts.filter(p => p.id !== id);

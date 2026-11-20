@@ -1,6 +1,11 @@
 [
   {
     "date": "2026-11-19",
+    "title": "New message boxes",
+    "text": "Messages like \"Login failed\" and questions like \"Delete this ticket?\" now show in the site's own box instead of the browser's. The button unlocks after 2 seconds so you have time to read it."
+  },
+  {
+    "date": "2026-11-19",
     "title": "Pick the date for your hours",
     "text": "When you log a work session, pick the day you did the work first. Forgot to log a day? Pick that date. Sessions saved on a later day show \"Logged later\" for your teacher."
   },

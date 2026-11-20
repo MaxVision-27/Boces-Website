@@ -380,7 +380,7 @@ async function saveHoursForm() {
 }
 
 async function deleteHours() {
-    if (!confirm('Delete this work session? Its hours come off the student\'s total.')) return;
+    if (!await confirmAction('Delete this work session? Its hours come off the student\'s total.', 'Delete Session')) return;
     const { data, error } = await db.from('time_logs').delete().eq('id', hoursForm.logId).select('id');
     if (error || !data?.length) { console.error('Error deleting hours:', error); alert("Couldn't delete it. Try again."); return; }
     closeModal('hoursModal');
@@ -435,7 +435,7 @@ async function addStudent() {
 // Removing hides the student (027) rather than deleting them, so their
 // logged hours and their name on paperwork stay.
 async function removeStudent(techId) {
-    if (!confirm('Remove this student? They come off their open tickets. Their logged hours and finished tickets stay.')) return;
+    if (!await confirmAction('Remove this student? They come off their open tickets. Their logged hours and finished tickets stay.', 'Remove Student')) return;
 
     const removed_at = new Date().toISOString();
     const { error } = await db.from('techs').update({ removed_at }).eq('id', techId);
@@ -915,7 +915,7 @@ function checkInDropOff(id) {
 }
 
 async function removeDropOff(id) {
-    if (!confirm('Take them out of the line? The customer is not told.')) return;
+    if (!await confirmAction('Take them out of the line? The customer is not told.', 'Take Out')) return;
     const { error } = await db.from('drop_off_requests').delete().eq('id', id);
     if (error) { console.error('Error removing drop-off request:', error); alert('Could not remove it.'); return; }
     dropOffs = dropOffs.filter(r => r.id !== id);
@@ -1088,7 +1088,7 @@ async function saveShelf(apptId, btn) {
 // click can be undone from the "Deleted" filter instead of losing the
 // ticket for good.
 async function deleteAppointment(apptId) {
-    if (!confirm('Delete this ticket? It leaves the pool but can be restored from the "Deleted" filter.')) return;
+    if (!await confirmAction('Delete this ticket? It leaves the pool but can be restored from the "Deleted" filter.', 'Delete Ticket')) return;
 
     if (!await saveTicket(apptId, { deleted_at: new Date().toISOString() }, 'the delete')) return;
 
@@ -1109,7 +1109,7 @@ async function restoreAppointment(apptId) {
 }
 
 async function permanentlyDeleteAppointment(apptId) {
-    if (!confirm('Permanently delete this ticket? This cannot be undone.')) return;
+    if (!await confirmAction('Permanently delete this ticket? This cannot be undone.', 'Delete Forever')) return;
 
     const { data, error } = await db.from('repair_requests').delete().eq('id', apptId).select('id');
     if (error?.code === '23503') { alert('Students logged work on this ticket, so it stays in Deleted to keep their hours.'); return; }
@@ -1326,7 +1326,7 @@ async function renderReviews() {
 }
 
 async function deleteReview(reviewId) {
-    if (!confirm('Delete this review?')) return;
+    if (!await confirmAction('Delete this review?', 'Delete Review')) return;
     const { error } = await db.from('reviews').delete().eq('id', reviewId);
     if (error) { console.error('Error deleting review:', error); return; }
     renderReviews();
@@ -2564,6 +2564,7 @@ function openModal(id) {
 
 function closeModal(id) {
     if (id === 'askModal' && askResolve) return answerAsk(false); // closed without saving
+    if (id === 'noticeModal' && noticeAnswer) return noticeAnswer(null); // Escape or a click outside
     const modal = document.getElementById(id);
     const hadFocus = modal.contains(document.activeElement);
     modal.style.display = 'none';
@@ -2576,6 +2577,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !document.getElementById('guideLayer')?.offsetParent) closeModal(top.id);
     if (e.key === 'Tab') {
         const fields = [...top.querySelectorAll(FOCUSABLE)].filter(el => !el.disabled && el.offsetParent);
+        if (!fields.length) { e.preventDefault(); return; } // e.g. a message whose OK is still locked
         const [first, last] = [fields[0], fields.at(-1)];
         if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
@@ -2598,6 +2600,84 @@ function showHomeView() {
 
 window.onclick = function(event) {
     if (event.target.classList.contains('modal')) closeModal(event.target.id);
+}
+
+// NOTICES: the site's own stand-ins for alert() and confirm(), in the
+// site's look, on both pages. OK (or the action button) unlocks after
+// 2 seconds so people read the message first; Cancel works right away.
+// Messages wait their turn. The box is built the first time it's needed.
+let noticeAnswer = null;
+let noticeQueue = Promise.resolve();
+
+function noticeBox() {
+    let modal = document.getElementById('noticeModal');
+    if (modal) return modal;
+    modal = Object.assign(document.createElement('div'), { className: 'modal', id: 'noticeModal' });
+    modal.setAttribute('role', 'alertdialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-describedby', 'noticeText');
+    modal.innerHTML = `
+        <div class="modal-content notice-box" tabindex="-1">
+            <p id="noticeText"></p>
+            <div class="ws-actions">
+                <button type="button" class="btn btn-primary" id="noticeOk"></button>
+                <button type="button" class="btn btn-outline" id="noticeCancel">Cancel</button>
+            </div>
+        </div>`;
+    document.body.append(modal);
+    return modal;
+}
+
+// Resolves true (OK or the action) or false (Cancel).
+function showNotice(message, { ok = 'OK', cancel = false } = {}) {
+    return noticeQueue = noticeQueue.then(() => new Promise(resolve => {
+        noticeBox();
+        const okBtn = document.getElementById('noticeOk');
+        document.getElementById('noticeText').textContent = String(message);
+        document.getElementById('noticeCancel').hidden = !cancel;
+        let left = 2;
+        okBtn.disabled = true;
+        okBtn.textContent = `${ok} (${left})`;
+        const tick = setInterval(() => {
+            if (--left > 0) { okBtn.textContent = `${ok} (${left})`; return; }
+            clearInterval(tick);
+            okBtn.disabled = false;
+            okBtn.textContent = ok;
+            okBtn.focus({ preventScroll: true });
+        }, 1000);
+        // answer null = Escape or a click outside: Cancel if there is one,
+        // otherwise OK once it has unlocked.
+        noticeAnswer = answer => {
+            if (answer === null) {
+                if (cancel) answer = false;
+                else if (okBtn.disabled) return;
+                else answer = true;
+            }
+            clearInterval(tick);
+            noticeAnswer = null;
+            closeModal('noticeModal');
+            resolve(answer);
+        };
+        okBtn.onclick = () => noticeAnswer(true);
+        document.getElementById('noticeCancel').onclick = () => noticeAnswer(false);
+        openModal('noticeModal');
+        // Keys go to the box, not the page behind it: Enter in a field
+        // behind would run its action again (Login) and stack more messages.
+        document.querySelector('#noticeModal .notice-box').focus({ preventScroll: true });
+    }));
+}
+
+// The same message waiting or showing isn't added again.
+const noticePending = new Set();
+window.alert = message => {
+    message = String(message);
+    if (noticePending.has(message)) return;
+    noticePending.add(message);
+    showNotice(message).then(() => noticePending.delete(message));
+};
+// A function (not const) so the Workflow Guide can answer it itself.
+function confirmAction(message, ok = 'OK') {
+    return showNotice(message, { ok, cancel: true });
 }
 
 // An in-page stand-in for prompt(). Some browsers block the built-in
