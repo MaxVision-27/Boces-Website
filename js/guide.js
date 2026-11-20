@@ -136,6 +136,7 @@ function enterSandbox(role) {
     // Native dialogs would stall the tour; the page reload on exit brings them back.
     window.alert = () => {};
     window.confirm = () => true;
+    confirmAction = async () => true;
     askText = async ({ title, value }) => ({ 'Waiting for part': SAMPLE_PART, 'Send it back': SAMPLE_SEND_BACK_NOTE })[title] ?? value;
     populateAppointmentsModal();
     renderDropOffs();
