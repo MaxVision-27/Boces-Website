@@ -1923,12 +1923,12 @@ function renderTicketWorkspace() {
                     : '<span class="ws-hint">No students added yet. Add them under Manage Students.</span>'}
             </div>
             <button class="btn btn-primary" id="saveStudents-${appt.id}" onclick="updateTicketAssignment(${appt.id})">Save Students</button>`,
-            { count: team.length ? `${team.length} on it` : 'Nobody yet', open: appt.status === 'pending' }) : ''}
+            { count: team.length ? `${team.length} on it` : 'Nobody yet', open: isAdmin && appt.status === 'pending' }) : ''}
 
         ${!isAdmin && !isDone(appt.status) ? `
         <section class="ws-card">
             <h3>Log a work session</h3>
-            <p class="ws-hint">Fill this in every time you work on the device. It goes on the Service Log.</p>
+            <p class="ws-hint">Fill this in every time you work on the device. It goes on the Service Log and the Hours sheet.</p>
             <div class="ws-fields">
                 <label>Date <input type="date" id="logDate-${appt.id}" max="${todayDateStr()}" required></label>
                 <label>Start time <select id="logStart-${appt.id}">${quarterHourOptions(logTimes[0])}</select></label>
@@ -1955,7 +1955,7 @@ function renderTicketWorkspace() {
             <p class="ws-hint">Write the shelf or bin the device is on, so anyone can find it, even when you're not here.</p>
             <label>Shelf or bin <input type="text" id="shelf-${appt.id}" maxlength="40" value="${escapeHtml(appt.shelf || '')}" placeholder="Example: Shelf B, bin 3"></label>
             <button class="btn btn-outline" onclick="saveShelf(${appt.id}, this)">Save</button>`,
-            { count: appt.shelf ? escapeHtml(appt.shelf) : 'Not set', open: appt.status === 'completed' && !appt.shelf }) : ''}
+            { count: appt.shelf ? escapeHtml(appt.shelf) : 'Not set', open: isAdmin && appt.status === 'completed' && !appt.shelf }) : ''}
 
         ${section('Invoice', invoiceEditorHtml(appt), { count: invoiceOf(appt).tasks.length + invoiceOf(appt).parts.length ? `$${money(invoiceTotals(invoiceLines(appt)).total)}` : 'Nothing yet' })}
 
@@ -2273,7 +2273,7 @@ function invoiceEditorHtml(appt) {
     // Tasks come first in invoiceLines, then parts, so line i maps back to its list.
     const remove = i => i < invoice.tasks.length ? `'tasks', ${i}` : `'parts', ${i - invoice.tasks.length}`;
     return `
-        <p class="ws-hint">Add each task you did. Every task has set hours (how long the job takes) and a price. Add any part the customer bought, then print the Invoice under Paperwork.</p>
+        <p class="ws-hint">Add each task you did. <strong>A task's book hours set its price; your real time comes from your work sessions.</strong> Add any part the customer bought, then print the Invoice under Paperwork.</p>
         <label>Customer
             <select onchange="saveInvoice(${appt.id}, { customer: this.value })">
                 <option value="student" ${invoice.customer !== 'school' ? 'selected' : ''}>Student or staff: counts as work-based learning hours</option>
@@ -2415,6 +2415,8 @@ function paperworkButtons(apptId) {
             <button class="btn btn-outline btn-sm" onclick="previewHelpDesk(${apptId})">Help Desk Ticket</button>
             <button class="btn btn-outline btn-sm" onclick="previewServiceLog(${apptId})">Service Log</button>
             <button class="btn btn-outline btn-sm" onclick="previewInvoice(${apptId})">Invoice</button>
+            <button class="btn btn-outline btn-sm" onclick="previewHoursSheets(${apptId}, 'creation')">Hours: Ticket Creation</button>
+            <button class="btn btn-outline btn-sm" onclick="previewHoursSheets(${apptId}, 'repair')">Hours: Repair Work</button>
         </div>`;
 }
 
@@ -2467,6 +2469,106 @@ async function renderDocxPages(blobs, container) {
 }
 
 const PRINT_BUTTON = '<button class="btn btn-primary" onclick="printPaperPreview()">Print</button>';
+
+// The WBL Hours sheets (the school's .docx, filled in the browser), back
+// alongside the Invoice. Brought back from before PR #46.
+async function previewHoursSheets(apptId, kind) {
+    const blobs = await buildHoursSheets(apptId, kind);
+    if (!blobs) return;
+
+    const label = kind === 'creation' ? 'Ticket Creation' : 'Repair Work';
+    const note = kind === 'creation'
+        ? 'Credits 30 minutes to the students on the ticket when it was created.'
+        : 'Each logged session fills a date line. A new team or a sixth session starts another sheet.';
+    const sheets = openPaperPreview(`Hours: ${label} · Ticket #${apptId}`, note, PRINT_BUTTON);
+    await renderDocxPages(blobs, sheets);
+}
+
+// The school's own WBL Hours .docx with each blank's underscores swapped
+// for {{KEY.i:n}} (see scripts/make-hours-template.py). Filling puts the
+// value where the underscores were and pads with non-breaking spaces so the
+// rest of the line stays put; an unfilled blank gets its underscores back.
+const HOURS_TEMPLATE = 'forms/wbl-hours-template.docx';
+
+function fillHoursTemplate(xml, values) {
+    const used = {};
+    return xml.replace(/\{\{(\w+)\.(\d+):(\d+)\}\}/g, (_, key, i, n) => {
+        const value = values[key];
+        if (!value) return '_'.repeat(n);
+        const room = Math.min(n, Math.max(0, value.length - (used[key] || 0)));
+        used[key] = (used[key] || 0) + room;
+        return (i === '0' ? escapeHtml(value) : '') + ' '.repeat((n - room) * 2);
+    });
+}
+
+// 'creation': one 30-minute session starting when the ticket was created,
+// credited to everyone on the ticket at creation. 'repair': every logged
+// session, grouped by who was on the ticket when it was logged, so a
+// handoff to other students starts new sheets (see 013_hours_teams.sql).
+async function buildHoursSheets(apptId, kind) {
+    const appt = appointments.find(a => a.id === apptId);
+    const teamNames = ids => (ids || []).map(id => techs.find(t => t.id === id)?.name).filter(Boolean);
+    const teamSessions = ids => new Set((ids || []).map(id => techs.find(t => t.id === id)?.session || 'PM'));
+    let teams;
+
+    if (kind === 'creation') {
+        const start = new Date(appt.created_at);
+        start.setMinutes(start.getMinutes() - start.getMinutes() % 15, 0, 0); // 1:19 counts as 1:15
+        const end = new Date(start.getTime() + 30 * 60 * 1000);
+        const hhmm = d => `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+        teams = [{
+            names: teamNames(appt.creation_tech_ids),
+            classes: teamSessions(appt.creation_tech_ids),
+            sessions: [{ date: start.toLocaleDateString(), start: formatTime12h(hhmm(start)), end: formatTime12h(hhmm(end)) }]
+        }];
+    } else {
+        const { data: logs, error } = await db.from('time_logs')
+            .select('work_date, start_time, end_time, team_tech_ids')
+            .eq('ticket_id', apptId)
+            .order('work_date')
+            .order('start_time');
+        if (error) { console.error('Error loading time logs:', error); alert('Could not load the time logged on this ticket.'); return; }
+        if (!logs.length) { alert('No time has been logged on this ticket yet.'); return; }
+
+        const byTeam = new Map();
+        for (const l of logs) {
+            const key = [...(l.team_tech_ids || [])].sort((a, b) => a - b).join(',');
+            if (!byTeam.has(key)) byTeam.set(key, { names: teamNames(l.team_tech_ids), classes: teamSessions(l.team_tech_ids), sessions: new Map() });
+            // Students who worked a session together each log it; list it once.
+            byTeam.get(key).sessions.set(`${l.work_date} ${l.start_time} ${l.end_time}`, {
+                date: new Date(l.work_date + 'T00:00:00').toLocaleDateString(),
+                start: formatTime12h(l.start_time),
+                end: formatTime12h(l.end_time)
+            });
+        }
+        teams = [...byTeam.values()].map(t => ({ ...t, sessions: [...t.sessions.values()] }));
+    }
+
+    // The form has five date lines, so more sessions go on another sheet.
+    const sheets = teams.flatMap(t => Array.from({ length: Math.ceil(t.sessions.length / 5) },
+        (_, i) => ({ ...t, sessions: t.sessions.slice(i * 5, i * 5 + 5) })));
+
+    const response = await fetch(HOURS_TEMPLATE);
+    if (!response.ok) { alert('Could not load the Hours sheet template.'); return; }
+    const zip = await JSZip.loadAsync(await response.arrayBuffer());
+    const xml = await zip.file('word/document.xml').async('string');
+    const blobs = [];
+
+    for (const sheet of sheets) {
+        const values = { DEVICE: `Ticket #${appt.id}`, AM: sheet.classes.has('AM') ? '✔' : '', PM: sheet.classes.has('PM') ? '✔' : '' };
+        // ponytail: the form has 6 name lines; a 7th student on one team is left off
+        sheet.names.slice(0, 6).forEach((name, j) => { values[`NAME${j + 1}`] = name; });
+        sheet.sessions.forEach((s, j) => {
+            values[`DATE${j + 1}`] = s.date;
+            values[`START${j + 1}`] = s.start;
+            values[`END${j + 1}`] = s.end;
+        });
+
+        zip.file('word/document.xml', fillHoursTemplate(xml, values));
+        blobs.push(await zip.generateAsync({ type: 'blob' }));
+    }
+    return blobs;
+}
 
 function printPaperPreview() {
     const area = document.getElementById('printArea');

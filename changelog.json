@@ -1,5 +1,10 @@
 [
   {
+    "date": "2026-11-20",
+    "title": "Hours sheets are back",
+    "text": "Under Paperwork, Hours: Ticket Creation and Hours: Repair Work fill in the school's WBL Hours sheet from your work sessions again. The Invoice now says that a task's book hours set its price, and your real time comes from your work sessions."
+  },
+  {
     "date": "2026-11-19",
     "title": "New message boxes",
     "text": "Messages like \"Login failed\" and questions like \"Delete this ticket?\" now show in the site's own box instead of the browser's. The button unlocks after 2 seconds so you have time to read it."
